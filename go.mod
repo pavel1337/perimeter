@@ -6,6 +6,7 @@ require (
 	entgo.io/ent v0.14.5
 	github.com/gofiber/fiber/v2 v2.52.10
 	github.com/gofiber/template/html/v2 v2.1.3
+	github.com/mattn/go-sqlite3 v1.14.17
 )
 
 require (

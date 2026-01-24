@@ -1,13 +1,47 @@
 {{template "views/partials/header" .}}
 
-<h1>{{.Title}}</h1>
+<h1>Target Status</h1>
 
-<ul>
-  {{range .Ports}}
-  <li>{{.}}</li>
-  {{end}}
-</ul>
+<table border="1" cellpadding="10" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Target Input</th>
+      <th>Last Scanned</th>
+      <th>Open Ports</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .Targets}}
+    <tr>
+      <td><strong>{{.Input}}</strong></td>
 
+      {{if .Edges.Scans}}
+      {{$latest := index .Edges.Scans 0}}
 
+      <td>{{$latest.ScannedAt.Format "Jan 02, 15:04:05"}}</td>
+
+      <td>
+        {{if $latest.Edges.Ports}}
+        <span style="color:red">
+          {{range $latest.Edges.Ports}}
+          [{{.Number}}]
+          {{end}}
+        </span>
+        {{else}}
+        <span style="color:green">No open ports</span>
+        {{end}}
+      </td>
+
+      {{else}}
+      <td colspan="2"><em>Pending scan...</em></td>
+      {{end}}
+    </tr>
+    {{else}}
+    <tr>
+      <td colspan="3">No targets loaded. Run with -targets=file.txt</td>
+    </tr>
+    {{end}}
+  </tbody>
+</table>
 
 {{template "views/partials/footer" .}}
