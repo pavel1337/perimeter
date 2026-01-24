@@ -1,0 +1,13 @@
+{{template "views/partials/header" .}}
+
+<h1>{{.Title}}</h1>
+
+<ul>
+  {{range .Ports}}
+  <li>{{.}}</li>
+  {{end}}
+</ul>
+
+
+
+{{template "views/partials/footer" .}}
