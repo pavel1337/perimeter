@@ -14,7 +14,7 @@
   <tbody>
     {{range .Targets}}
     <tr>
-      <td><strong>{{.Input}}</strong></td>
+      <td><strong><a href="/targets/{{.ID}}">{{.Input}}</a></strong></td>
 
       {{if .Edges.Scans}}
       {{$latest := index .Edges.Scans 0}}

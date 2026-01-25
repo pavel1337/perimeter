@@ -273,6 +273,9 @@ func Register(firstName, lastName, email, organization string) error {
 			// Construct a readable error message
 			var msgs []string
 			for _, e := range errorResponse.Errors {
+				if strings.Contains(e.Message, "already registered") {
+					return nil // User is already registered, treat as success
+				}
 				msgs = append(msgs, fmt.Sprintf("%s: %s", e.Field, e.Message))
 			}
 			return fmt.Errorf("registration failed: %s", strings.Join(msgs, ", "))

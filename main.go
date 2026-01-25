@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -84,6 +85,7 @@ func main() {
 		targets, err := client.Target.Query().
 			WithScans(func(q *ent.PortScanQuery) {
 				q.WithPorts()
+				// Ideally we order by desc time and limit 1, but we do this in view for simplicity or slice Logic
 			}).
 			WithSslScans().
 			All(c.Context())
@@ -101,6 +103,31 @@ func main() {
 		return c.Render("views/index", fiber.Map{
 			"Title":   "Perimeter Dashboard",
 			"Targets": targets,
+		}, "views/layouts/main")
+	})
+
+	app.Get("/targets/:id", func(c *fiber.Ctx) error {
+		idStr := c.Params("id")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			return c.Status(400).SendString("Invalid ID")
+		}
+
+		target, err := client.Target.Query().
+			Where(target.ID(id)).
+			WithScans(func(q *ent.PortScanQuery) {
+				q.WithPorts()
+			}).
+			WithSslScans().
+			Only(c.Context())
+
+		if err != nil {
+			return c.Status(404).SendString("Target not found")
+		}
+
+		return c.Render("views/target", fiber.Map{
+			"Title":  "Target Details",
+			"Target": target,
 		}, "views/layouts/main")
 	})
 
