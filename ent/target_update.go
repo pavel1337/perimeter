@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"perimeter/ent/portscan"
 	"perimeter/ent/predicate"
+	"perimeter/ent/sslscan"
 	"perimeter/ent/target"
 	"time"
 
@@ -64,6 +65,21 @@ func (_u *TargetUpdate) AddScans(v ...*PortScan) *TargetUpdate {
 	return _u.AddScanIDs(ids...)
 }
 
+// AddSslScanIDs adds the "ssl_scans" edge to the SSLScan entity by IDs.
+func (_u *TargetUpdate) AddSslScanIDs(ids ...int) *TargetUpdate {
+	_u.mutation.AddSslScanIDs(ids...)
+	return _u
+}
+
+// AddSslScans adds the "ssl_scans" edges to the SSLScan entity.
+func (_u *TargetUpdate) AddSslScans(v ...*SSLScan) *TargetUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddSslScanIDs(ids...)
+}
+
 // Mutation returns the TargetMutation object of the builder.
 func (_u *TargetUpdate) Mutation() *TargetMutation {
 	return _u.mutation
@@ -88,6 +104,27 @@ func (_u *TargetUpdate) RemoveScans(v ...*PortScan) *TargetUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveScanIDs(ids...)
+}
+
+// ClearSslScans clears all "ssl_scans" edges to the SSLScan entity.
+func (_u *TargetUpdate) ClearSslScans() *TargetUpdate {
+	_u.mutation.ClearSslScans()
+	return _u
+}
+
+// RemoveSslScanIDs removes the "ssl_scans" edge to SSLScan entities by IDs.
+func (_u *TargetUpdate) RemoveSslScanIDs(ids ...int) *TargetUpdate {
+	_u.mutation.RemoveSslScanIDs(ids...)
+	return _u
+}
+
+// RemoveSslScans removes "ssl_scans" edges to SSLScan entities.
+func (_u *TargetUpdate) RemoveSslScans(v ...*SSLScan) *TargetUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveSslScanIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -199,6 +236,51 @@ func (_u *TargetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.SslScansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.SslScansTable,
+			Columns: []string{target.SslScansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sslscan.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedSslScansIDs(); len(nodes) > 0 && !_u.mutation.SslScansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.SslScansTable,
+			Columns: []string{target.SslScansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sslscan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SslScansIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.SslScansTable,
+			Columns: []string{target.SslScansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sslscan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{target.Label}
@@ -254,6 +336,21 @@ func (_u *TargetUpdateOne) AddScans(v ...*PortScan) *TargetUpdateOne {
 	return _u.AddScanIDs(ids...)
 }
 
+// AddSslScanIDs adds the "ssl_scans" edge to the SSLScan entity by IDs.
+func (_u *TargetUpdateOne) AddSslScanIDs(ids ...int) *TargetUpdateOne {
+	_u.mutation.AddSslScanIDs(ids...)
+	return _u
+}
+
+// AddSslScans adds the "ssl_scans" edges to the SSLScan entity.
+func (_u *TargetUpdateOne) AddSslScans(v ...*SSLScan) *TargetUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddSslScanIDs(ids...)
+}
+
 // Mutation returns the TargetMutation object of the builder.
 func (_u *TargetUpdateOne) Mutation() *TargetMutation {
 	return _u.mutation
@@ -278,6 +375,27 @@ func (_u *TargetUpdateOne) RemoveScans(v ...*PortScan) *TargetUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveScanIDs(ids...)
+}
+
+// ClearSslScans clears all "ssl_scans" edges to the SSLScan entity.
+func (_u *TargetUpdateOne) ClearSslScans() *TargetUpdateOne {
+	_u.mutation.ClearSslScans()
+	return _u
+}
+
+// RemoveSslScanIDs removes the "ssl_scans" edge to SSLScan entities by IDs.
+func (_u *TargetUpdateOne) RemoveSslScanIDs(ids ...int) *TargetUpdateOne {
+	_u.mutation.RemoveSslScanIDs(ids...)
+	return _u
+}
+
+// RemoveSslScans removes "ssl_scans" edges to SSLScan entities.
+func (_u *TargetUpdateOne) RemoveSslScans(v ...*SSLScan) *TargetUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveSslScanIDs(ids...)
 }
 
 // Where appends a list predicates to the TargetUpdate builder.
@@ -412,6 +530,51 @@ func (_u *TargetUpdateOne) sqlSave(ctx context.Context) (_node *Target, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(portscan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.SslScansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.SslScansTable,
+			Columns: []string{target.SslScansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sslscan.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedSslScansIDs(); len(nodes) > 0 && !_u.mutation.SslScansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.SslScansTable,
+			Columns: []string{target.SslScansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sslscan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SslScansIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.SslScansTable,
+			Columns: []string{target.SslScansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(sslscan.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

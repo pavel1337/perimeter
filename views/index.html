@@ -8,6 +8,7 @@
       <th>Target Input</th>
       <th>Last Scanned</th>
       <th>Open Ports</th>
+      <th>SSL Grade</th>
     </tr>
   </thead>
   <tbody>
@@ -33,12 +34,23 @@
       </td>
 
       {{else}}
-      <td colspan="2"><em>Pending scan...</em></td>
+      <td colspan="2"><em>Pending Port Scan...</em></td>
       {{end}}
+
+      <td>
+        {{if .Edges.SslScans}}
+        {{$latestSSL := index .Edges.SslScans 0}}
+        <strong>{{$latestSSL.Grade}}</strong>
+        <br>
+        <small>{{$latestSSL.Status}}</small>
+        {{else}}
+        <small>N/A</small>
+        {{end}}
+      </td>
     </tr>
     {{else}}
     <tr>
-      <td colspan="3">No targets loaded. Run with -targets=file.txt</td>
+      <td colspan="4">No targets loaded. Run with -targets=file.txt</td>
     </tr>
     {{end}}
   </tbody>

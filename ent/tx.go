@@ -16,6 +16,8 @@ type Tx struct {
 	Port *PortClient
 	// PortScan is the client for interacting with the PortScan builders.
 	PortScan *PortScanClient
+	// SSLScan is the client for interacting with the SSLScan builders.
+	SSLScan *SSLScanClient
 	// Target is the client for interacting with the Target builders.
 	Target *TargetClient
 
@@ -151,6 +153,7 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.Port = NewPortClient(tx.config)
 	tx.PortScan = NewPortScanClient(tx.config)
+	tx.SSLScan = NewSSLScanClient(tx.config)
 	tx.Target = NewTargetClient(tx.config)
 }
 

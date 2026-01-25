@@ -48,6 +48,33 @@ var (
 			},
 		},
 	}
+	// SslScansColumns holds the columns for the "ssl_scans" table.
+	SslScansColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "scanned_at", Type: field.TypeTime},
+		{Name: "grade", Type: field.TypeString},
+		{Name: "status", Type: field.TypeString},
+		{Name: "cert_issuer", Type: field.TypeString, Nullable: true},
+		{Name: "cert_subject", Type: field.TypeString, Nullable: true},
+		{Name: "cert_expiry", Type: field.TypeTime, Nullable: true},
+		{Name: "protocols", Type: field.TypeJSON, Nullable: true},
+		{Name: "vulnerabilities", Type: field.TypeJSON, Nullable: true},
+		{Name: "target_ssl_scans", Type: field.TypeInt},
+	}
+	// SslScansTable holds the schema information for the "ssl_scans" table.
+	SslScansTable = &schema.Table{
+		Name:       "ssl_scans",
+		Columns:    SslScansColumns,
+		PrimaryKey: []*schema.Column{SslScansColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "ssl_scans_targets_ssl_scans",
+				Columns:    []*schema.Column{SslScansColumns[9]},
+				RefColumns: []*schema.Column{TargetsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
 	// TargetsColumns holds the columns for the "targets" table.
 	TargetsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -65,6 +92,7 @@ var (
 	Tables = []*schema.Table{
 		PortsTable,
 		PortScansTable,
+		SslScansTable,
 		TargetsTable,
 	}
 )
@@ -72,4 +100,5 @@ var (
 func init() {
 	PortsTable.ForeignKeys[0].RefTable = PortScansTable
 	PortScansTable.ForeignKeys[0].RefTable = TargetsTable
+	SslScansTable.ForeignKeys[0].RefTable = TargetsTable
 }

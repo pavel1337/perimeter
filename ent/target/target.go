@@ -22,6 +22,8 @@ const (
 	FieldInput = "input"
 	// EdgeScans holds the string denoting the scans edge name in mutations.
 	EdgeScans = "scans"
+	// EdgeSslScans holds the string denoting the ssl_scans edge name in mutations.
+	EdgeSslScans = "ssl_scans"
 	// Table holds the table name of the target in the database.
 	Table = "targets"
 	// ScansTable is the table that holds the scans relation/edge.
@@ -31,6 +33,13 @@ const (
 	ScansInverseTable = "port_scans"
 	// ScansColumn is the table column denoting the scans relation/edge.
 	ScansColumn = "target_scans"
+	// SslScansTable is the table that holds the ssl_scans relation/edge.
+	SslScansTable = "ssl_scans"
+	// SslScansInverseTable is the table name for the SSLScan entity.
+	// It exists in this package in order to avoid circular dependency with the "sslscan" package.
+	SslScansInverseTable = "ssl_scans"
+	// SslScansColumn is the table column denoting the ssl_scans relation/edge.
+	SslScansColumn = "target_ssl_scans"
 )
 
 // Columns holds all SQL columns for target fields.
@@ -98,10 +107,31 @@ func ByScans(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newScansStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// BySslScansCount orders the results by ssl_scans count.
+func BySslScansCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newSslScansStep(), opts...)
+	}
+}
+
+// BySslScans orders the results by ssl_scans terms.
+func BySslScans(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSslScansStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newScansStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ScansInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ScansTable, ScansColumn),
+	)
+}
+func newSslScansStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SslScansInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, SslScansTable, SslScansColumn),
 	)
 }

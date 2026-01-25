@@ -4,10 +4,8 @@ package ent
 
 import (
 	"context"
-	"database/sql/driver"
 	"fmt"
 	"math"
-	"perimeter/ent/portscan"
 	"perimeter/ent/predicate"
 	"perimeter/ent/sslscan"
 	"perimeter/ent/target"
@@ -18,54 +16,54 @@ import (
 	"entgo.io/ent/schema/field"
 )
 
-// TargetQuery is the builder for querying Target entities.
-type TargetQuery struct {
+// SSLScanQuery is the builder for querying SSLScan entities.
+type SSLScanQuery struct {
 	config
-	ctx          *QueryContext
-	order        []target.OrderOption
-	inters       []Interceptor
-	predicates   []predicate.Target
-	withScans    *PortScanQuery
-	withSslScans *SSLScanQuery
+	ctx        *QueryContext
+	order      []sslscan.OrderOption
+	inters     []Interceptor
+	predicates []predicate.SSLScan
+	withTarget *TargetQuery
+	withFKs    bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the TargetQuery builder.
-func (_q *TargetQuery) Where(ps ...predicate.Target) *TargetQuery {
+// Where adds a new predicate for the SSLScanQuery builder.
+func (_q *SSLScanQuery) Where(ps ...predicate.SSLScan) *SSLScanQuery {
 	_q.predicates = append(_q.predicates, ps...)
 	return _q
 }
 
 // Limit the number of records to be returned by this query.
-func (_q *TargetQuery) Limit(limit int) *TargetQuery {
+func (_q *SSLScanQuery) Limit(limit int) *SSLScanQuery {
 	_q.ctx.Limit = &limit
 	return _q
 }
 
 // Offset to start from.
-func (_q *TargetQuery) Offset(offset int) *TargetQuery {
+func (_q *SSLScanQuery) Offset(offset int) *SSLScanQuery {
 	_q.ctx.Offset = &offset
 	return _q
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (_q *TargetQuery) Unique(unique bool) *TargetQuery {
+func (_q *SSLScanQuery) Unique(unique bool) *SSLScanQuery {
 	_q.ctx.Unique = &unique
 	return _q
 }
 
 // Order specifies how the records should be ordered.
-func (_q *TargetQuery) Order(o ...target.OrderOption) *TargetQuery {
+func (_q *SSLScanQuery) Order(o ...sslscan.OrderOption) *SSLScanQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
 
-// QueryScans chains the current query on the "scans" edge.
-func (_q *TargetQuery) QueryScans() *PortScanQuery {
-	query := (&PortScanClient{config: _q.config}).Query()
+// QueryTarget chains the current query on the "target" edge.
+func (_q *SSLScanQuery) QueryTarget() *TargetQuery {
+	query := (&TargetClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -75,9 +73,9 @@ func (_q *TargetQuery) QueryScans() *PortScanQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(target.Table, target.FieldID, selector),
-			sqlgraph.To(portscan.Table, portscan.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, target.ScansTable, target.ScansColumn),
+			sqlgraph.From(sslscan.Table, sslscan.FieldID, selector),
+			sqlgraph.To(target.Table, target.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, sslscan.TargetTable, sslscan.TargetColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -85,43 +83,21 @@ func (_q *TargetQuery) QueryScans() *PortScanQuery {
 	return query
 }
 
-// QuerySslScans chains the current query on the "ssl_scans" edge.
-func (_q *TargetQuery) QuerySslScans() *SSLScanQuery {
-	query := (&SSLScanClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(target.Table, target.FieldID, selector),
-			sqlgraph.To(sslscan.Table, sslscan.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, target.SslScansTable, target.SslScansColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// First returns the first Target entity from the query.
-// Returns a *NotFoundError when no Target was found.
-func (_q *TargetQuery) First(ctx context.Context) (*Target, error) {
+// First returns the first SSLScan entity from the query.
+// Returns a *NotFoundError when no SSLScan was found.
+func (_q *SSLScanQuery) First(ctx context.Context) (*SSLScan, error) {
 	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{target.Label}
+		return nil, &NotFoundError{sslscan.Label}
 	}
 	return nodes[0], nil
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (_q *TargetQuery) FirstX(ctx context.Context) *Target {
+func (_q *SSLScanQuery) FirstX(ctx context.Context) *SSLScan {
 	node, err := _q.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -129,22 +105,22 @@ func (_q *TargetQuery) FirstX(ctx context.Context) *Target {
 	return node
 }
 
-// FirstID returns the first Target ID from the query.
-// Returns a *NotFoundError when no Target ID was found.
-func (_q *TargetQuery) FirstID(ctx context.Context) (id int, err error) {
+// FirstID returns the first SSLScan ID from the query.
+// Returns a *NotFoundError when no SSLScan ID was found.
+func (_q *SSLScanQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{target.Label}
+		err = &NotFoundError{sslscan.Label}
 		return
 	}
 	return ids[0], nil
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *TargetQuery) FirstIDX(ctx context.Context) int {
+func (_q *SSLScanQuery) FirstIDX(ctx context.Context) int {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -152,10 +128,10 @@ func (_q *TargetQuery) FirstIDX(ctx context.Context) int {
 	return id
 }
 
-// Only returns a single Target entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one Target entity is found.
-// Returns a *NotFoundError when no Target entities are found.
-func (_q *TargetQuery) Only(ctx context.Context) (*Target, error) {
+// Only returns a single SSLScan entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when more than one SSLScan entity is found.
+// Returns a *NotFoundError when no SSLScan entities are found.
+func (_q *SSLScanQuery) Only(ctx context.Context) (*SSLScan, error) {
 	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
@@ -164,14 +140,14 @@ func (_q *TargetQuery) Only(ctx context.Context) (*Target, error) {
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{target.Label}
+		return nil, &NotFoundError{sslscan.Label}
 	default:
-		return nil, &NotSingularError{target.Label}
+		return nil, &NotSingularError{sslscan.Label}
 	}
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (_q *TargetQuery) OnlyX(ctx context.Context) *Target {
+func (_q *SSLScanQuery) OnlyX(ctx context.Context) *SSLScan {
 	node, err := _q.Only(ctx)
 	if err != nil {
 		panic(err)
@@ -179,10 +155,10 @@ func (_q *TargetQuery) OnlyX(ctx context.Context) *Target {
 	return node
 }
 
-// OnlyID is like Only, but returns the only Target ID in the query.
-// Returns a *NotSingularError when more than one Target ID is found.
+// OnlyID is like Only, but returns the only SSLScan ID in the query.
+// Returns a *NotSingularError when more than one SSLScan ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *TargetQuery) OnlyID(ctx context.Context) (id int, err error) {
+func (_q *SSLScanQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
@@ -191,15 +167,15 @@ func (_q *TargetQuery) OnlyID(ctx context.Context) (id int, err error) {
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{target.Label}
+		err = &NotFoundError{sslscan.Label}
 	default:
-		err = &NotSingularError{target.Label}
+		err = &NotSingularError{sslscan.Label}
 	}
 	return
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *TargetQuery) OnlyIDX(ctx context.Context) int {
+func (_q *SSLScanQuery) OnlyIDX(ctx context.Context) int {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -207,18 +183,18 @@ func (_q *TargetQuery) OnlyIDX(ctx context.Context) int {
 	return id
 }
 
-// All executes the query and returns a list of Targets.
-func (_q *TargetQuery) All(ctx context.Context) ([]*Target, error) {
+// All executes the query and returns a list of SSLScans.
+func (_q *SSLScanQuery) All(ctx context.Context) ([]*SSLScan, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*Target, *TargetQuery]()
-	return withInterceptors[[]*Target](ctx, _q, qr, _q.inters)
+	qr := querierAll[[]*SSLScan, *SSLScanQuery]()
+	return withInterceptors[[]*SSLScan](ctx, _q, qr, _q.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
-func (_q *TargetQuery) AllX(ctx context.Context) []*Target {
+func (_q *SSLScanQuery) AllX(ctx context.Context) []*SSLScan {
 	nodes, err := _q.All(ctx)
 	if err != nil {
 		panic(err)
@@ -226,20 +202,20 @@ func (_q *TargetQuery) AllX(ctx context.Context) []*Target {
 	return nodes
 }
 
-// IDs executes the query and returns a list of Target IDs.
-func (_q *TargetQuery) IDs(ctx context.Context) (ids []int, err error) {
+// IDs executes the query and returns a list of SSLScan IDs.
+func (_q *SSLScanQuery) IDs(ctx context.Context) (ids []int, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(target.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(sslscan.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *TargetQuery) IDsX(ctx context.Context) []int {
+func (_q *SSLScanQuery) IDsX(ctx context.Context) []int {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -248,16 +224,16 @@ func (_q *TargetQuery) IDsX(ctx context.Context) []int {
 }
 
 // Count returns the count of the given query.
-func (_q *TargetQuery) Count(ctx context.Context) (int, error) {
+func (_q *SSLScanQuery) Count(ctx context.Context) (int, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*TargetQuery](), _q.inters)
+	return withInterceptors[int](ctx, _q, querierCount[*SSLScanQuery](), _q.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (_q *TargetQuery) CountX(ctx context.Context) int {
+func (_q *SSLScanQuery) CountX(ctx context.Context) int {
 	count, err := _q.Count(ctx)
 	if err != nil {
 		panic(err)
@@ -266,7 +242,7 @@ func (_q *TargetQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (_q *TargetQuery) Exist(ctx context.Context) (bool, error) {
+func (_q *SSLScanQuery) Exist(ctx context.Context) (bool, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
@@ -279,7 +255,7 @@ func (_q *TargetQuery) Exist(ctx context.Context) (bool, error) {
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (_q *TargetQuery) ExistX(ctx context.Context) bool {
+func (_q *SSLScanQuery) ExistX(ctx context.Context) bool {
 	exist, err := _q.Exist(ctx)
 	if err != nil {
 		panic(err)
@@ -287,45 +263,33 @@ func (_q *TargetQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the TargetQuery builder, including all associated steps. It can be
+// Clone returns a duplicate of the SSLScanQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (_q *TargetQuery) Clone() *TargetQuery {
+func (_q *SSLScanQuery) Clone() *SSLScanQuery {
 	if _q == nil {
 		return nil
 	}
-	return &TargetQuery{
-		config:       _q.config,
-		ctx:          _q.ctx.Clone(),
-		order:        append([]target.OrderOption{}, _q.order...),
-		inters:       append([]Interceptor{}, _q.inters...),
-		predicates:   append([]predicate.Target{}, _q.predicates...),
-		withScans:    _q.withScans.Clone(),
-		withSslScans: _q.withSslScans.Clone(),
+	return &SSLScanQuery{
+		config:     _q.config,
+		ctx:        _q.ctx.Clone(),
+		order:      append([]sslscan.OrderOption{}, _q.order...),
+		inters:     append([]Interceptor{}, _q.inters...),
+		predicates: append([]predicate.SSLScan{}, _q.predicates...),
+		withTarget: _q.withTarget.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
 }
 
-// WithScans tells the query-builder to eager-load the nodes that are connected to
-// the "scans" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *TargetQuery) WithScans(opts ...func(*PortScanQuery)) *TargetQuery {
-	query := (&PortScanClient{config: _q.config}).Query()
+// WithTarget tells the query-builder to eager-load the nodes that are connected to
+// the "target" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *SSLScanQuery) WithTarget(opts ...func(*TargetQuery)) *SSLScanQuery {
+	query := (&TargetClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withScans = query
-	return _q
-}
-
-// WithSslScans tells the query-builder to eager-load the nodes that are connected to
-// the "ssl_scans" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *TargetQuery) WithSslScans(opts ...func(*SSLScanQuery)) *TargetQuery {
-	query := (&SSLScanClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withSslScans = query
+	_q.withTarget = query
 	return _q
 }
 
@@ -335,19 +299,19 @@ func (_q *TargetQuery) WithSslScans(opts ...func(*SSLScanQuery)) *TargetQuery {
 // Example:
 //
 //	var v []struct {
-//		CreateTime time.Time `json:"create_time,omitempty"`
+//		ScannedAt time.Time `json:"scanned_at,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
-//	client.Target.Query().
-//		GroupBy(target.FieldCreateTime).
+//	client.SSLScan.Query().
+//		GroupBy(sslscan.FieldScannedAt).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *TargetQuery) GroupBy(field string, fields ...string) *TargetGroupBy {
+func (_q *SSLScanQuery) GroupBy(field string, fields ...string) *SSLScanGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &TargetGroupBy{build: _q}
+	grbuild := &SSLScanGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = target.Label
+	grbuild.label = sslscan.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -358,26 +322,26 @@ func (_q *TargetQuery) GroupBy(field string, fields ...string) *TargetGroupBy {
 // Example:
 //
 //	var v []struct {
-//		CreateTime time.Time `json:"create_time,omitempty"`
+//		ScannedAt time.Time `json:"scanned_at,omitempty"`
 //	}
 //
-//	client.Target.Query().
-//		Select(target.FieldCreateTime).
+//	client.SSLScan.Query().
+//		Select(sslscan.FieldScannedAt).
 //		Scan(ctx, &v)
-func (_q *TargetQuery) Select(fields ...string) *TargetSelect {
+func (_q *SSLScanQuery) Select(fields ...string) *SSLScanSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &TargetSelect{TargetQuery: _q}
-	sbuild.label = target.Label
+	sbuild := &SSLScanSelect{SSLScanQuery: _q}
+	sbuild.label = sslscan.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
-// Aggregate returns a TargetSelect configured with the given aggregations.
-func (_q *TargetQuery) Aggregate(fns ...AggregateFunc) *TargetSelect {
+// Aggregate returns a SSLScanSelect configured with the given aggregations.
+func (_q *SSLScanQuery) Aggregate(fns ...AggregateFunc) *SSLScanSelect {
 	return _q.Select().Aggregate(fns...)
 }
 
-func (_q *TargetQuery) prepareQuery(ctx context.Context) error {
+func (_q *SSLScanQuery) prepareQuery(ctx context.Context) error {
 	for _, inter := range _q.inters {
 		if inter == nil {
 			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
@@ -389,7 +353,7 @@ func (_q *TargetQuery) prepareQuery(ctx context.Context) error {
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !target.ValidColumn(f) {
+		if !sslscan.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -403,20 +367,26 @@ func (_q *TargetQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (_q *TargetQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Target, error) {
+func (_q *SSLScanQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*SSLScan, error) {
 	var (
-		nodes       = []*Target{}
+		nodes       = []*SSLScan{}
+		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
-			_q.withScans != nil,
-			_q.withSslScans != nil,
+		loadedTypes = [1]bool{
+			_q.withTarget != nil,
 		}
 	)
+	if _q.withTarget != nil {
+		withFKs = true
+	}
+	if withFKs {
+		_spec.Node.Columns = append(_spec.Node.Columns, sslscan.ForeignKeys...)
+	}
 	_spec.ScanValues = func(columns []string) ([]any, error) {
-		return (*Target).scanValues(nil, columns)
+		return (*SSLScan).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &Target{config: _q.config}
+		node := &SSLScan{config: _q.config}
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
@@ -430,87 +400,49 @@ func (_q *TargetQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Targe
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := _q.withScans; query != nil {
-		if err := _q.loadScans(ctx, query, nodes,
-			func(n *Target) { n.Edges.Scans = []*PortScan{} },
-			func(n *Target, e *PortScan) { n.Edges.Scans = append(n.Edges.Scans, e) }); err != nil {
-			return nil, err
-		}
-	}
-	if query := _q.withSslScans; query != nil {
-		if err := _q.loadSslScans(ctx, query, nodes,
-			func(n *Target) { n.Edges.SslScans = []*SSLScan{} },
-			func(n *Target, e *SSLScan) { n.Edges.SslScans = append(n.Edges.SslScans, e) }); err != nil {
+	if query := _q.withTarget; query != nil {
+		if err := _q.loadTarget(ctx, query, nodes, nil,
+			func(n *SSLScan, e *Target) { n.Edges.Target = e }); err != nil {
 			return nil, err
 		}
 	}
 	return nodes, nil
 }
 
-func (_q *TargetQuery) loadScans(ctx context.Context, query *PortScanQuery, nodes []*Target, init func(*Target), assign func(*Target, *PortScan)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[int]*Target)
+func (_q *SSLScanQuery) loadTarget(ctx context.Context, query *TargetQuery, nodes []*SSLScan, init func(*SSLScan), assign func(*SSLScan, *Target)) error {
+	ids := make([]int, 0, len(nodes))
+	nodeids := make(map[int][]*SSLScan)
 	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
+		if nodes[i].target_ssl_scans == nil {
+			continue
 		}
+		fk := *nodes[i].target_ssl_scans
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
 	}
-	query.withFKs = true
-	query.Where(predicate.PortScan(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(target.ScansColumn), fks...))
-	}))
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(target.IDIn(ids...))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.target_scans
-		if fk == nil {
-			return fmt.Errorf(`foreign-key "target_scans" is nil for node %v`, n.ID)
-		}
-		node, ok := nodeids[*fk]
+		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "target_scans" returned %v for node %v`, *fk, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "target_ssl_scans" returned %v`, n.ID)
 		}
-		assign(node, n)
-	}
-	return nil
-}
-func (_q *TargetQuery) loadSslScans(ctx context.Context, query *SSLScanQuery, nodes []*Target, init func(*Target), assign func(*Target, *SSLScan)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[int]*Target)
-	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
+		for i := range nodes {
+			assign(nodes[i], n)
 		}
-	}
-	query.withFKs = true
-	query.Where(predicate.SSLScan(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(target.SslScansColumn), fks...))
-	}))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		fk := n.target_ssl_scans
-		if fk == nil {
-			return fmt.Errorf(`foreign-key "target_ssl_scans" is nil for node %v`, n.ID)
-		}
-		node, ok := nodeids[*fk]
-		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "target_ssl_scans" returned %v for node %v`, *fk, n.ID)
-		}
-		assign(node, n)
 	}
 	return nil
 }
 
-func (_q *TargetQuery) sqlCount(ctx context.Context) (int, error) {
+func (_q *SSLScanQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
@@ -519,8 +451,8 @@ func (_q *TargetQuery) sqlCount(ctx context.Context) (int, error) {
 	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
 }
 
-func (_q *TargetQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(target.Table, target.Columns, sqlgraph.NewFieldSpec(target.FieldID, field.TypeInt))
+func (_q *SSLScanQuery) querySpec() *sqlgraph.QuerySpec {
+	_spec := sqlgraph.NewQuerySpec(sslscan.Table, sslscan.Columns, sqlgraph.NewFieldSpec(sslscan.FieldID, field.TypeInt))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -529,9 +461,9 @@ func (_q *TargetQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, target.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, sslscan.FieldID)
 		for i := range fields {
-			if fields[i] != target.FieldID {
+			if fields[i] != sslscan.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
@@ -559,12 +491,12 @@ func (_q *TargetQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (_q *TargetQuery) sqlQuery(ctx context.Context) *sql.Selector {
+func (_q *SSLScanQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(target.Table)
+	t1 := builder.Table(sslscan.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = target.Columns
+		columns = sslscan.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {
@@ -591,28 +523,28 @@ func (_q *TargetQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	return selector
 }
 
-// TargetGroupBy is the group-by builder for Target entities.
-type TargetGroupBy struct {
+// SSLScanGroupBy is the group-by builder for SSLScan entities.
+type SSLScanGroupBy struct {
 	selector
-	build *TargetQuery
+	build *SSLScanQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (_g *TargetGroupBy) Aggregate(fns ...AggregateFunc) *TargetGroupBy {
+func (_g *SSLScanGroupBy) Aggregate(fns ...AggregateFunc) *SSLScanGroupBy {
 	_g.fns = append(_g.fns, fns...)
 	return _g
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_g *TargetGroupBy) Scan(ctx context.Context, v any) error {
+func (_g *SSLScanGroupBy) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
 	if err := _g.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*TargetQuery, *TargetGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return scanWithInterceptors[*SSLScanQuery, *SSLScanGroupBy](ctx, _g.build, _g, _g.build.inters, v)
 }
 
-func (_g *TargetGroupBy) sqlScan(ctx context.Context, root *TargetQuery, v any) error {
+func (_g *SSLScanGroupBy) sqlScan(ctx context.Context, root *SSLScanQuery, v any) error {
 	selector := root.sqlQuery(ctx).Select()
 	aggregation := make([]string, 0, len(_g.fns))
 	for _, fn := range _g.fns {
@@ -639,28 +571,28 @@ func (_g *TargetGroupBy) sqlScan(ctx context.Context, root *TargetQuery, v any) 
 	return sql.ScanSlice(rows, v)
 }
 
-// TargetSelect is the builder for selecting fields of Target entities.
-type TargetSelect struct {
-	*TargetQuery
+// SSLScanSelect is the builder for selecting fields of SSLScan entities.
+type SSLScanSelect struct {
+	*SSLScanQuery
 	selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (_s *TargetSelect) Aggregate(fns ...AggregateFunc) *TargetSelect {
+func (_s *SSLScanSelect) Aggregate(fns ...AggregateFunc) *SSLScanSelect {
 	_s.fns = append(_s.fns, fns...)
 	return _s
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_s *TargetSelect) Scan(ctx context.Context, v any) error {
+func (_s *SSLScanSelect) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
 	if err := _s.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*TargetQuery, *TargetSelect](ctx, _s.TargetQuery, _s, _s.inters, v)
+	return scanWithInterceptors[*SSLScanQuery, *SSLScanSelect](ctx, _s.SSLScanQuery, _s, _s.inters, v)
 }
 
-func (_s *TargetSelect) sqlScan(ctx context.Context, root *TargetQuery, v any) error {
+func (_s *SSLScanSelect) sqlScan(ctx context.Context, root *SSLScanQuery, v any) error {
 	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(_s.fns))
 	for _, fn := range _s.fns {

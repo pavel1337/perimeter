@@ -9,6 +9,7 @@ import (
 	"perimeter/ent/port"
 	"perimeter/ent/portscan"
 	"perimeter/ent/predicate"
+	"perimeter/ent/sslscan"
 	"perimeter/ent/target"
 	"sync"
 	"time"
@@ -28,6 +29,7 @@ const (
 	// Node types.
 	TypePort     = "Port"
 	TypePortScan = "PortScan"
+	TypeSSLScan  = "SSLScan"
 	TypeTarget   = "Target"
 )
 
@@ -938,22 +940,928 @@ func (m *PortScanMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown PortScan edge %s", name)
 }
 
+// SSLScanMutation represents an operation that mutates the SSLScan nodes in the graph.
+type SSLScanMutation struct {
+	config
+	op                    Op
+	typ                   string
+	id                    *int
+	scanned_at            *time.Time
+	grade                 *string
+	status                *string
+	cert_issuer           *string
+	cert_subject          *string
+	cert_expiry           *time.Time
+	protocols             *[]string
+	appendprotocols       []string
+	vulnerabilities       *[]string
+	appendvulnerabilities []string
+	clearedFields         map[string]struct{}
+	target                *int
+	clearedtarget         bool
+	done                  bool
+	oldValue              func(context.Context) (*SSLScan, error)
+	predicates            []predicate.SSLScan
+}
+
+var _ ent.Mutation = (*SSLScanMutation)(nil)
+
+// sslscanOption allows management of the mutation configuration using functional options.
+type sslscanOption func(*SSLScanMutation)
+
+// newSSLScanMutation creates new mutation for the SSLScan entity.
+func newSSLScanMutation(c config, op Op, opts ...sslscanOption) *SSLScanMutation {
+	m := &SSLScanMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSSLScan,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSSLScanID sets the ID field of the mutation.
+func withSSLScanID(id int) sslscanOption {
+	return func(m *SSLScanMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SSLScan
+		)
+		m.oldValue = func(ctx context.Context) (*SSLScan, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SSLScan.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSSLScan sets the old SSLScan of the mutation.
+func withSSLScan(node *SSLScan) sslscanOption {
+	return func(m *SSLScanMutation) {
+		m.oldValue = func(context.Context) (*SSLScan, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SSLScanMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SSLScanMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SSLScanMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SSLScanMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SSLScan.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetScannedAt sets the "scanned_at" field.
+func (m *SSLScanMutation) SetScannedAt(t time.Time) {
+	m.scanned_at = &t
+}
+
+// ScannedAt returns the value of the "scanned_at" field in the mutation.
+func (m *SSLScanMutation) ScannedAt() (r time.Time, exists bool) {
+	v := m.scanned_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScannedAt returns the old "scanned_at" field's value of the SSLScan entity.
+// If the SSLScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SSLScanMutation) OldScannedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScannedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScannedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScannedAt: %w", err)
+	}
+	return oldValue.ScannedAt, nil
+}
+
+// ResetScannedAt resets all changes to the "scanned_at" field.
+func (m *SSLScanMutation) ResetScannedAt() {
+	m.scanned_at = nil
+}
+
+// SetGrade sets the "grade" field.
+func (m *SSLScanMutation) SetGrade(s string) {
+	m.grade = &s
+}
+
+// Grade returns the value of the "grade" field in the mutation.
+func (m *SSLScanMutation) Grade() (r string, exists bool) {
+	v := m.grade
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGrade returns the old "grade" field's value of the SSLScan entity.
+// If the SSLScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SSLScanMutation) OldGrade(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGrade is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGrade requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGrade: %w", err)
+	}
+	return oldValue.Grade, nil
+}
+
+// ResetGrade resets all changes to the "grade" field.
+func (m *SSLScanMutation) ResetGrade() {
+	m.grade = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *SSLScanMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *SSLScanMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the SSLScan entity.
+// If the SSLScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SSLScanMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *SSLScanMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetCertIssuer sets the "cert_issuer" field.
+func (m *SSLScanMutation) SetCertIssuer(s string) {
+	m.cert_issuer = &s
+}
+
+// CertIssuer returns the value of the "cert_issuer" field in the mutation.
+func (m *SSLScanMutation) CertIssuer() (r string, exists bool) {
+	v := m.cert_issuer
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCertIssuer returns the old "cert_issuer" field's value of the SSLScan entity.
+// If the SSLScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SSLScanMutation) OldCertIssuer(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCertIssuer is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCertIssuer requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCertIssuer: %w", err)
+	}
+	return oldValue.CertIssuer, nil
+}
+
+// ClearCertIssuer clears the value of the "cert_issuer" field.
+func (m *SSLScanMutation) ClearCertIssuer() {
+	m.cert_issuer = nil
+	m.clearedFields[sslscan.FieldCertIssuer] = struct{}{}
+}
+
+// CertIssuerCleared returns if the "cert_issuer" field was cleared in this mutation.
+func (m *SSLScanMutation) CertIssuerCleared() bool {
+	_, ok := m.clearedFields[sslscan.FieldCertIssuer]
+	return ok
+}
+
+// ResetCertIssuer resets all changes to the "cert_issuer" field.
+func (m *SSLScanMutation) ResetCertIssuer() {
+	m.cert_issuer = nil
+	delete(m.clearedFields, sslscan.FieldCertIssuer)
+}
+
+// SetCertSubject sets the "cert_subject" field.
+func (m *SSLScanMutation) SetCertSubject(s string) {
+	m.cert_subject = &s
+}
+
+// CertSubject returns the value of the "cert_subject" field in the mutation.
+func (m *SSLScanMutation) CertSubject() (r string, exists bool) {
+	v := m.cert_subject
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCertSubject returns the old "cert_subject" field's value of the SSLScan entity.
+// If the SSLScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SSLScanMutation) OldCertSubject(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCertSubject is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCertSubject requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCertSubject: %w", err)
+	}
+	return oldValue.CertSubject, nil
+}
+
+// ClearCertSubject clears the value of the "cert_subject" field.
+func (m *SSLScanMutation) ClearCertSubject() {
+	m.cert_subject = nil
+	m.clearedFields[sslscan.FieldCertSubject] = struct{}{}
+}
+
+// CertSubjectCleared returns if the "cert_subject" field was cleared in this mutation.
+func (m *SSLScanMutation) CertSubjectCleared() bool {
+	_, ok := m.clearedFields[sslscan.FieldCertSubject]
+	return ok
+}
+
+// ResetCertSubject resets all changes to the "cert_subject" field.
+func (m *SSLScanMutation) ResetCertSubject() {
+	m.cert_subject = nil
+	delete(m.clearedFields, sslscan.FieldCertSubject)
+}
+
+// SetCertExpiry sets the "cert_expiry" field.
+func (m *SSLScanMutation) SetCertExpiry(t time.Time) {
+	m.cert_expiry = &t
+}
+
+// CertExpiry returns the value of the "cert_expiry" field in the mutation.
+func (m *SSLScanMutation) CertExpiry() (r time.Time, exists bool) {
+	v := m.cert_expiry
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCertExpiry returns the old "cert_expiry" field's value of the SSLScan entity.
+// If the SSLScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SSLScanMutation) OldCertExpiry(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCertExpiry is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCertExpiry requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCertExpiry: %w", err)
+	}
+	return oldValue.CertExpiry, nil
+}
+
+// ClearCertExpiry clears the value of the "cert_expiry" field.
+func (m *SSLScanMutation) ClearCertExpiry() {
+	m.cert_expiry = nil
+	m.clearedFields[sslscan.FieldCertExpiry] = struct{}{}
+}
+
+// CertExpiryCleared returns if the "cert_expiry" field was cleared in this mutation.
+func (m *SSLScanMutation) CertExpiryCleared() bool {
+	_, ok := m.clearedFields[sslscan.FieldCertExpiry]
+	return ok
+}
+
+// ResetCertExpiry resets all changes to the "cert_expiry" field.
+func (m *SSLScanMutation) ResetCertExpiry() {
+	m.cert_expiry = nil
+	delete(m.clearedFields, sslscan.FieldCertExpiry)
+}
+
+// SetProtocols sets the "protocols" field.
+func (m *SSLScanMutation) SetProtocols(s []string) {
+	m.protocols = &s
+	m.appendprotocols = nil
+}
+
+// Protocols returns the value of the "protocols" field in the mutation.
+func (m *SSLScanMutation) Protocols() (r []string, exists bool) {
+	v := m.protocols
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProtocols returns the old "protocols" field's value of the SSLScan entity.
+// If the SSLScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SSLScanMutation) OldProtocols(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProtocols is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProtocols requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProtocols: %w", err)
+	}
+	return oldValue.Protocols, nil
+}
+
+// AppendProtocols adds s to the "protocols" field.
+func (m *SSLScanMutation) AppendProtocols(s []string) {
+	m.appendprotocols = append(m.appendprotocols, s...)
+}
+
+// AppendedProtocols returns the list of values that were appended to the "protocols" field in this mutation.
+func (m *SSLScanMutation) AppendedProtocols() ([]string, bool) {
+	if len(m.appendprotocols) == 0 {
+		return nil, false
+	}
+	return m.appendprotocols, true
+}
+
+// ClearProtocols clears the value of the "protocols" field.
+func (m *SSLScanMutation) ClearProtocols() {
+	m.protocols = nil
+	m.appendprotocols = nil
+	m.clearedFields[sslscan.FieldProtocols] = struct{}{}
+}
+
+// ProtocolsCleared returns if the "protocols" field was cleared in this mutation.
+func (m *SSLScanMutation) ProtocolsCleared() bool {
+	_, ok := m.clearedFields[sslscan.FieldProtocols]
+	return ok
+}
+
+// ResetProtocols resets all changes to the "protocols" field.
+func (m *SSLScanMutation) ResetProtocols() {
+	m.protocols = nil
+	m.appendprotocols = nil
+	delete(m.clearedFields, sslscan.FieldProtocols)
+}
+
+// SetVulnerabilities sets the "vulnerabilities" field.
+func (m *SSLScanMutation) SetVulnerabilities(s []string) {
+	m.vulnerabilities = &s
+	m.appendvulnerabilities = nil
+}
+
+// Vulnerabilities returns the value of the "vulnerabilities" field in the mutation.
+func (m *SSLScanMutation) Vulnerabilities() (r []string, exists bool) {
+	v := m.vulnerabilities
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVulnerabilities returns the old "vulnerabilities" field's value of the SSLScan entity.
+// If the SSLScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SSLScanMutation) OldVulnerabilities(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVulnerabilities is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVulnerabilities requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVulnerabilities: %w", err)
+	}
+	return oldValue.Vulnerabilities, nil
+}
+
+// AppendVulnerabilities adds s to the "vulnerabilities" field.
+func (m *SSLScanMutation) AppendVulnerabilities(s []string) {
+	m.appendvulnerabilities = append(m.appendvulnerabilities, s...)
+}
+
+// AppendedVulnerabilities returns the list of values that were appended to the "vulnerabilities" field in this mutation.
+func (m *SSLScanMutation) AppendedVulnerabilities() ([]string, bool) {
+	if len(m.appendvulnerabilities) == 0 {
+		return nil, false
+	}
+	return m.appendvulnerabilities, true
+}
+
+// ClearVulnerabilities clears the value of the "vulnerabilities" field.
+func (m *SSLScanMutation) ClearVulnerabilities() {
+	m.vulnerabilities = nil
+	m.appendvulnerabilities = nil
+	m.clearedFields[sslscan.FieldVulnerabilities] = struct{}{}
+}
+
+// VulnerabilitiesCleared returns if the "vulnerabilities" field was cleared in this mutation.
+func (m *SSLScanMutation) VulnerabilitiesCleared() bool {
+	_, ok := m.clearedFields[sslscan.FieldVulnerabilities]
+	return ok
+}
+
+// ResetVulnerabilities resets all changes to the "vulnerabilities" field.
+func (m *SSLScanMutation) ResetVulnerabilities() {
+	m.vulnerabilities = nil
+	m.appendvulnerabilities = nil
+	delete(m.clearedFields, sslscan.FieldVulnerabilities)
+}
+
+// SetTargetID sets the "target" edge to the Target entity by id.
+func (m *SSLScanMutation) SetTargetID(id int) {
+	m.target = &id
+}
+
+// ClearTarget clears the "target" edge to the Target entity.
+func (m *SSLScanMutation) ClearTarget() {
+	m.clearedtarget = true
+}
+
+// TargetCleared reports if the "target" edge to the Target entity was cleared.
+func (m *SSLScanMutation) TargetCleared() bool {
+	return m.clearedtarget
+}
+
+// TargetID returns the "target" edge ID in the mutation.
+func (m *SSLScanMutation) TargetID() (id int, exists bool) {
+	if m.target != nil {
+		return *m.target, true
+	}
+	return
+}
+
+// TargetIDs returns the "target" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TargetID instead. It exists only for internal usage by the builders.
+func (m *SSLScanMutation) TargetIDs() (ids []int) {
+	if id := m.target; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTarget resets all changes to the "target" edge.
+func (m *SSLScanMutation) ResetTarget() {
+	m.target = nil
+	m.clearedtarget = false
+}
+
+// Where appends a list predicates to the SSLScanMutation builder.
+func (m *SSLScanMutation) Where(ps ...predicate.SSLScan) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SSLScanMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SSLScanMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SSLScan, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SSLScanMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SSLScanMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SSLScan).
+func (m *SSLScanMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SSLScanMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.scanned_at != nil {
+		fields = append(fields, sslscan.FieldScannedAt)
+	}
+	if m.grade != nil {
+		fields = append(fields, sslscan.FieldGrade)
+	}
+	if m.status != nil {
+		fields = append(fields, sslscan.FieldStatus)
+	}
+	if m.cert_issuer != nil {
+		fields = append(fields, sslscan.FieldCertIssuer)
+	}
+	if m.cert_subject != nil {
+		fields = append(fields, sslscan.FieldCertSubject)
+	}
+	if m.cert_expiry != nil {
+		fields = append(fields, sslscan.FieldCertExpiry)
+	}
+	if m.protocols != nil {
+		fields = append(fields, sslscan.FieldProtocols)
+	}
+	if m.vulnerabilities != nil {
+		fields = append(fields, sslscan.FieldVulnerabilities)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SSLScanMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case sslscan.FieldScannedAt:
+		return m.ScannedAt()
+	case sslscan.FieldGrade:
+		return m.Grade()
+	case sslscan.FieldStatus:
+		return m.Status()
+	case sslscan.FieldCertIssuer:
+		return m.CertIssuer()
+	case sslscan.FieldCertSubject:
+		return m.CertSubject()
+	case sslscan.FieldCertExpiry:
+		return m.CertExpiry()
+	case sslscan.FieldProtocols:
+		return m.Protocols()
+	case sslscan.FieldVulnerabilities:
+		return m.Vulnerabilities()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SSLScanMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case sslscan.FieldScannedAt:
+		return m.OldScannedAt(ctx)
+	case sslscan.FieldGrade:
+		return m.OldGrade(ctx)
+	case sslscan.FieldStatus:
+		return m.OldStatus(ctx)
+	case sslscan.FieldCertIssuer:
+		return m.OldCertIssuer(ctx)
+	case sslscan.FieldCertSubject:
+		return m.OldCertSubject(ctx)
+	case sslscan.FieldCertExpiry:
+		return m.OldCertExpiry(ctx)
+	case sslscan.FieldProtocols:
+		return m.OldProtocols(ctx)
+	case sslscan.FieldVulnerabilities:
+		return m.OldVulnerabilities(ctx)
+	}
+	return nil, fmt.Errorf("unknown SSLScan field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SSLScanMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case sslscan.FieldScannedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScannedAt(v)
+		return nil
+	case sslscan.FieldGrade:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGrade(v)
+		return nil
+	case sslscan.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case sslscan.FieldCertIssuer:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCertIssuer(v)
+		return nil
+	case sslscan.FieldCertSubject:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCertSubject(v)
+		return nil
+	case sslscan.FieldCertExpiry:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCertExpiry(v)
+		return nil
+	case sslscan.FieldProtocols:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProtocols(v)
+		return nil
+	case sslscan.FieldVulnerabilities:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVulnerabilities(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SSLScan field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SSLScanMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SSLScanMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SSLScanMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown SSLScan numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SSLScanMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(sslscan.FieldCertIssuer) {
+		fields = append(fields, sslscan.FieldCertIssuer)
+	}
+	if m.FieldCleared(sslscan.FieldCertSubject) {
+		fields = append(fields, sslscan.FieldCertSubject)
+	}
+	if m.FieldCleared(sslscan.FieldCertExpiry) {
+		fields = append(fields, sslscan.FieldCertExpiry)
+	}
+	if m.FieldCleared(sslscan.FieldProtocols) {
+		fields = append(fields, sslscan.FieldProtocols)
+	}
+	if m.FieldCleared(sslscan.FieldVulnerabilities) {
+		fields = append(fields, sslscan.FieldVulnerabilities)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SSLScanMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SSLScanMutation) ClearField(name string) error {
+	switch name {
+	case sslscan.FieldCertIssuer:
+		m.ClearCertIssuer()
+		return nil
+	case sslscan.FieldCertSubject:
+		m.ClearCertSubject()
+		return nil
+	case sslscan.FieldCertExpiry:
+		m.ClearCertExpiry()
+		return nil
+	case sslscan.FieldProtocols:
+		m.ClearProtocols()
+		return nil
+	case sslscan.FieldVulnerabilities:
+		m.ClearVulnerabilities()
+		return nil
+	}
+	return fmt.Errorf("unknown SSLScan nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SSLScanMutation) ResetField(name string) error {
+	switch name {
+	case sslscan.FieldScannedAt:
+		m.ResetScannedAt()
+		return nil
+	case sslscan.FieldGrade:
+		m.ResetGrade()
+		return nil
+	case sslscan.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case sslscan.FieldCertIssuer:
+		m.ResetCertIssuer()
+		return nil
+	case sslscan.FieldCertSubject:
+		m.ResetCertSubject()
+		return nil
+	case sslscan.FieldCertExpiry:
+		m.ResetCertExpiry()
+		return nil
+	case sslscan.FieldProtocols:
+		m.ResetProtocols()
+		return nil
+	case sslscan.FieldVulnerabilities:
+		m.ResetVulnerabilities()
+		return nil
+	}
+	return fmt.Errorf("unknown SSLScan field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SSLScanMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.target != nil {
+		edges = append(edges, sslscan.EdgeTarget)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SSLScanMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case sslscan.EdgeTarget:
+		if id := m.target; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SSLScanMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SSLScanMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SSLScanMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedtarget {
+		edges = append(edges, sslscan.EdgeTarget)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SSLScanMutation) EdgeCleared(name string) bool {
+	switch name {
+	case sslscan.EdgeTarget:
+		return m.clearedtarget
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SSLScanMutation) ClearEdge(name string) error {
+	switch name {
+	case sslscan.EdgeTarget:
+		m.ClearTarget()
+		return nil
+	}
+	return fmt.Errorf("unknown SSLScan unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SSLScanMutation) ResetEdge(name string) error {
+	switch name {
+	case sslscan.EdgeTarget:
+		m.ResetTarget()
+		return nil
+	}
+	return fmt.Errorf("unknown SSLScan edge %s", name)
+}
+
 // TargetMutation represents an operation that mutates the Target nodes in the graph.
 type TargetMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	create_time   *time.Time
-	update_time   *time.Time
-	input         *string
-	clearedFields map[string]struct{}
-	scans         map[int]struct{}
-	removedscans  map[int]struct{}
-	clearedscans  bool
-	done          bool
-	oldValue      func(context.Context) (*Target, error)
-	predicates    []predicate.Target
+	op               Op
+	typ              string
+	id               *int
+	create_time      *time.Time
+	update_time      *time.Time
+	input            *string
+	clearedFields    map[string]struct{}
+	scans            map[int]struct{}
+	removedscans     map[int]struct{}
+	clearedscans     bool
+	ssl_scans        map[int]struct{}
+	removedssl_scans map[int]struct{}
+	clearedssl_scans bool
+	done             bool
+	oldValue         func(context.Context) (*Target, error)
+	predicates       []predicate.Target
 }
 
 var _ ent.Mutation = (*TargetMutation)(nil)
@@ -1216,6 +2124,60 @@ func (m *TargetMutation) ResetScans() {
 	m.removedscans = nil
 }
 
+// AddSslScanIDs adds the "ssl_scans" edge to the SSLScan entity by ids.
+func (m *TargetMutation) AddSslScanIDs(ids ...int) {
+	if m.ssl_scans == nil {
+		m.ssl_scans = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.ssl_scans[ids[i]] = struct{}{}
+	}
+}
+
+// ClearSslScans clears the "ssl_scans" edge to the SSLScan entity.
+func (m *TargetMutation) ClearSslScans() {
+	m.clearedssl_scans = true
+}
+
+// SslScansCleared reports if the "ssl_scans" edge to the SSLScan entity was cleared.
+func (m *TargetMutation) SslScansCleared() bool {
+	return m.clearedssl_scans
+}
+
+// RemoveSslScanIDs removes the "ssl_scans" edge to the SSLScan entity by IDs.
+func (m *TargetMutation) RemoveSslScanIDs(ids ...int) {
+	if m.removedssl_scans == nil {
+		m.removedssl_scans = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.ssl_scans, ids[i])
+		m.removedssl_scans[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedSslScans returns the removed IDs of the "ssl_scans" edge to the SSLScan entity.
+func (m *TargetMutation) RemovedSslScansIDs() (ids []int) {
+	for id := range m.removedssl_scans {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// SslScansIDs returns the "ssl_scans" edge IDs in the mutation.
+func (m *TargetMutation) SslScansIDs() (ids []int) {
+	for id := range m.ssl_scans {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetSslScans resets all changes to the "ssl_scans" edge.
+func (m *TargetMutation) ResetSslScans() {
+	m.ssl_scans = nil
+	m.clearedssl_scans = false
+	m.removedssl_scans = nil
+}
+
 // Where appends a list predicates to the TargetMutation builder.
 func (m *TargetMutation) Where(ps ...predicate.Target) {
 	m.predicates = append(m.predicates, ps...)
@@ -1383,9 +2345,12 @@ func (m *TargetMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TargetMutation) AddedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.scans != nil {
 		edges = append(edges, target.EdgeScans)
+	}
+	if m.ssl_scans != nil {
+		edges = append(edges, target.EdgeSslScans)
 	}
 	return edges
 }
@@ -1400,15 +2365,24 @@ func (m *TargetMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case target.EdgeSslScans:
+		ids := make([]ent.Value, 0, len(m.ssl_scans))
+		for id := range m.ssl_scans {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TargetMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.removedscans != nil {
 		edges = append(edges, target.EdgeScans)
+	}
+	if m.removedssl_scans != nil {
+		edges = append(edges, target.EdgeSslScans)
 	}
 	return edges
 }
@@ -1423,15 +2397,24 @@ func (m *TargetMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case target.EdgeSslScans:
+		ids := make([]ent.Value, 0, len(m.removedssl_scans))
+		for id := range m.removedssl_scans {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TargetMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.clearedscans {
 		edges = append(edges, target.EdgeScans)
+	}
+	if m.clearedssl_scans {
+		edges = append(edges, target.EdgeSslScans)
 	}
 	return edges
 }
@@ -1442,6 +2425,8 @@ func (m *TargetMutation) EdgeCleared(name string) bool {
 	switch name {
 	case target.EdgeScans:
 		return m.clearedscans
+	case target.EdgeSslScans:
+		return m.clearedssl_scans
 	}
 	return false
 }
@@ -1460,6 +2445,9 @@ func (m *TargetMutation) ResetEdge(name string) error {
 	switch name {
 	case target.EdgeScans:
 		m.ResetScans()
+		return nil
+	case target.EdgeSslScans:
+		m.ResetSslScans()
 		return nil
 	}
 	return fmt.Errorf("unknown Target edge %s", name)

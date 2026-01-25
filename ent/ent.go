@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"perimeter/ent/port"
 	"perimeter/ent/portscan"
+	"perimeter/ent/sslscan"
 	"perimeter/ent/target"
 	"reflect"
 	"sync"
@@ -77,6 +78,7 @@ func checkColumn(t, c string) error {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			port.Table:     port.ValidColumn,
 			portscan.Table: portscan.ValidColumn,
+			sslscan.Table:  sslscan.ValidColumn,
 			target.Table:   target.ValidColumn,
 		})
 	})

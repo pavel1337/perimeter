@@ -12,5 +12,8 @@ type Port func(*sql.Selector)
 // PortScan is the predicate function for portscan builders.
 type PortScan func(*sql.Selector)
 
+// SSLScan is the predicate function for sslscan builders.
+type SSLScan func(*sql.Selector)
+
 // Target is the predicate function for target builders.
 type Target func(*sql.Selector)

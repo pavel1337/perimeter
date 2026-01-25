@@ -22,6 +22,7 @@ func (Target) Edges() []ent.Edge {
 	return []ent.Edge{
 		// A target has a history of many scans
 		edge.To("scans", PortScan.Type),
+		edge.To("ssl_scans", SSLScan.Type),
 	}
 }
 

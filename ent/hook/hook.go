@@ -32,6 +32,18 @@ func (f PortScanFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PortScanMutation", m)
 }
 
+// The SSLScanFunc type is an adapter to allow the use of ordinary
+// function as SSLScan mutator.
+type SSLScanFunc func(context.Context, *ent.SSLScanMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SSLScanFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SSLScanMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SSLScanMutation", m)
+}
+
 // The TargetFunc type is an adapter to allow the use of ordinary
 // function as Target mutator.
 type TargetFunc func(context.Context, *ent.TargetMutation) (ent.Value, error)

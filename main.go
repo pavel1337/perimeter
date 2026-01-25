@@ -5,7 +5,9 @@ import (
 	"context"
 	"embed"
 	"flag"
+	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -17,6 +19,7 @@ import (
 	"perimeter/ent"
 	"perimeter/ent/target"
 	"perimeter/scanner/ports"
+	"perimeter/scanner/ssl"
 )
 
 //go:embed views/*
@@ -26,11 +29,26 @@ func main() {
 	// 1. Parse CLI Flags
 	targetFile := flag.String("targets", "", "Path to text file containing targets (one per line)")
 	httpPort := flag.String("port", "3000", "HTTP listen port")
+	firstName := flag.String("firstName", "", "First name for SSL Labs")
+	lastName := flag.String("lastName", "", "Last name for SSL Labs")
+	email := flag.String("email", "", "Email for SSL Labs")
+	organization := flag.String("organization", "", "Organization for SSL Labs")
 	flag.Parse()
 
 	if *targetFile == "" {
-		log.Fatal("Error: You must provide a target list. Usage: ./perimeter -targets=hosts.txt")
+		log.Fatal("Error: You must provide a target list. Usage: ./perimeter -targets=hosts.txt ...")
 	}
+
+	// SSL Labs Registration is mandatory for this app now
+	if *firstName == "" || *lastName == "" || *email == "" || *organization == "" {
+		log.Fatal("Error: SSL Labs registration requires -firstName, -lastName, -email, and -organization flags.")
+	}
+
+	log.Println("Registering with SSL Labs...")
+	if err := ssl.Register(*firstName, *lastName, *email, *organization); err != nil {
+		log.Fatalf("Failed to register with SSL Labs: %v", err)
+	}
+	log.Println("Registration successful.")
 
 	// 2. Initialize Database (SQLite)
 	client, err := ent.Open("sqlite3", "file:perimeter.db?cache=shared&_fk=1")
@@ -50,9 +68,10 @@ func main() {
 		log.Fatalf("Failed to import targets: %v", err)
 	}
 
-	// 4. Start the Scanner Loop (Background Worker)
+	// 4. Start the Scanner Loops (Background Workers)
 	// We pass the client so it can save results
-	go runScanLoop(client)
+	go runPortScanLoop(client)
+	go runSSLScanLoop(client, *email)
 
 	// 5. Start Web Server
 	engine := html.NewFileSystem(http.FS(viewsfs), ".html")
@@ -66,10 +85,17 @@ func main() {
 			WithScans(func(q *ent.PortScanQuery) {
 				q.WithPorts()
 			}).
+			WithSslScans().
 			All(c.Context())
 
 		if err != nil {
 			return c.Status(500).SendString(err.Error())
+		}
+
+		for _, t := range targets {
+			for _, s := range t.Edges.Scans {
+				fmt.Printf("Target: %s, Scan: %s, Ports: %v\n", t.Input, s.ScannedAt, s.Edges.Ports)
+			}
 		}
 
 		return c.Render("views/index", fiber.Map{
@@ -116,15 +142,15 @@ func importTargets(ctx context.Context, client *ent.Client, path string) error {
 }
 
 // ---------------------------------------------------------
-// Helper: The Scanner Loop
+// Helper: The Port Scanner Loop
 // ---------------------------------------------------------
-func runScanLoop(client *ent.Client) {
+func runPortScanLoop(client *ent.Client) {
 	// Scanner Config: 500ms timeout, 100 concurrent threads
 	portScanner := ports.NewSimpleScanner(1000, 100, 3)
 	ctx := context.Background()
 
 	for {
-		log.Println("--- Starting Scan Cycle ---")
+		log.Println("--- Starting Port Scan Cycle ---")
 
 		// 1. Get all targets
 		targets, err := client.Target.Query().WithScans().All(ctx)
@@ -143,7 +169,7 @@ func runScanLoop(client *ent.Client) {
 				}
 			}
 
-			log.Printf("Scanning %s...", t.Input)
+			log.Printf("Scanning Ports for %s...", t.Input)
 
 			// 2. Perform Scan
 			openPorts, err := portScanner.Scan(t.Input)
@@ -178,7 +204,75 @@ func runScanLoop(client *ent.Client) {
 			}
 		}
 
-		log.Println("--- Cycle Complete. Sleeping 1 hour. ---")
+		log.Println("--- Port Cycle Complete. Sleeping 1 hour. ---")
 		time.Sleep(1 * time.Hour)
 	}
+}
+
+// ---------------------------------------------------------
+// Helper: The SSL Scanner Loop
+// ---------------------------------------------------------
+func runSSLScanLoop(client *ent.Client, email string) {
+	sslScanner := ssl.NewSSLLabsScanner(email)
+	ctx := context.Background()
+
+	for {
+		log.Println("--- Starting SSL Scan Cycle ---")
+
+		// 1. Get all targets
+		targets, err := client.Target.Query().WithSslScans().All(ctx)
+		if err != nil {
+			log.Printf("DB Error: %v", err)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		for _, t := range targets {
+			// Filter: Only Hostnames
+			if !isHostname(t.Input) {
+				continue
+			}
+
+			// Check if target had recent scans
+			if len(t.Edges.SslScans) > 0 {
+				lastScan := t.Edges.SslScans[0]
+				if time.Since(lastScan.ScannedAt) < 12*time.Hour { // SSL Labs is slower/stricter, lets do 12h
+					continue
+				}
+			}
+
+			log.Printf("Scanning SSL for %s... (this may take a minute)", t.Input)
+
+			// 2. Perform Scan
+			result, err := sslScanner.Scan(t.Input)
+			if err != nil {
+				log.Printf("Failed to SSL scan %s: %v", t.Input, err)
+				continue
+			}
+
+			// 3. Save History
+			_, err = client.SSLScan.Create().
+				SetTarget(t).
+				SetScannedAt(time.Now()).
+				SetGrade(result.Grade).
+				SetStatus(result.Status).
+				SetCertIssuer(result.CertIssuer).
+				SetCertSubject(result.CertSubject).
+				SetCertExpiry(result.CertExpiry).
+				SetProtocols(result.Protocols).
+				SetVulnerabilities(result.Vulnerabilities).
+				Save(ctx)
+
+			if err != nil {
+				log.Printf("Failed to save SSL scan record: %v", err)
+			}
+		}
+
+		log.Println("--- SSL Cycle Complete. Sleeping 1 hour (checking loop). ---")
+		time.Sleep(1 * time.Hour)
+	}
+}
+
+func isHostname(input string) bool {
+	return net.ParseIP(input) == nil
 }

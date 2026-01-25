@@ -238,6 +238,29 @@ func HasScansWith(preds ...predicate.PortScan) predicate.Target {
 	})
 }
 
+// HasSslScans applies the HasEdge predicate on the "ssl_scans" edge.
+func HasSslScans() predicate.Target {
+	return predicate.Target(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, SslScansTable, SslScansColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSslScansWith applies the HasEdge predicate on the "ssl_scans" edge with a given conditions (other predicates).
+func HasSslScansWith(preds ...predicate.SSLScan) predicate.Target {
+	return predicate.Target(func(s *sql.Selector) {
+		step := newSslScansStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Target) predicate.Target {
 	return predicate.Target(sql.AndPredicates(predicates...))

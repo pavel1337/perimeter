@@ -13,6 +13,7 @@ import (
 
 	"perimeter/ent/port"
 	"perimeter/ent/portscan"
+	"perimeter/ent/sslscan"
 	"perimeter/ent/target"
 
 	"entgo.io/ent"
@@ -30,6 +31,8 @@ type Client struct {
 	Port *PortClient
 	// PortScan is the client for interacting with the PortScan builders.
 	PortScan *PortScanClient
+	// SSLScan is the client for interacting with the SSLScan builders.
+	SSLScan *SSLScanClient
 	// Target is the client for interacting with the Target builders.
 	Target *TargetClient
 }
@@ -45,6 +48,7 @@ func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.Port = NewPortClient(c.config)
 	c.PortScan = NewPortScanClient(c.config)
+	c.SSLScan = NewSSLScanClient(c.config)
 	c.Target = NewTargetClient(c.config)
 }
 
@@ -140,6 +144,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		config:   cfg,
 		Port:     NewPortClient(cfg),
 		PortScan: NewPortScanClient(cfg),
+		SSLScan:  NewSSLScanClient(cfg),
 		Target:   NewTargetClient(cfg),
 	}, nil
 }
@@ -162,6 +167,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		config:   cfg,
 		Port:     NewPortClient(cfg),
 		PortScan: NewPortScanClient(cfg),
+		SSLScan:  NewSSLScanClient(cfg),
 		Target:   NewTargetClient(cfg),
 	}, nil
 }
@@ -193,6 +199,7 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	c.Port.Use(hooks...)
 	c.PortScan.Use(hooks...)
+	c.SSLScan.Use(hooks...)
 	c.Target.Use(hooks...)
 }
 
@@ -201,6 +208,7 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	c.Port.Intercept(interceptors...)
 	c.PortScan.Intercept(interceptors...)
+	c.SSLScan.Intercept(interceptors...)
 	c.Target.Intercept(interceptors...)
 }
 
@@ -211,6 +219,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Port.mutate(ctx, m)
 	case *PortScanMutation:
 		return c.PortScan.mutate(ctx, m)
+	case *SSLScanMutation:
+		return c.SSLScan.mutate(ctx, m)
 	case *TargetMutation:
 		return c.Target.mutate(ctx, m)
 	default:
@@ -532,6 +542,155 @@ func (c *PortScanClient) mutate(ctx context.Context, m *PortScanMutation) (Value
 	}
 }
 
+// SSLScanClient is a client for the SSLScan schema.
+type SSLScanClient struct {
+	config
+}
+
+// NewSSLScanClient returns a client for the SSLScan from the given config.
+func NewSSLScanClient(c config) *SSLScanClient {
+	return &SSLScanClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `sslscan.Hooks(f(g(h())))`.
+func (c *SSLScanClient) Use(hooks ...Hook) {
+	c.hooks.SSLScan = append(c.hooks.SSLScan, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `sslscan.Intercept(f(g(h())))`.
+func (c *SSLScanClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SSLScan = append(c.inters.SSLScan, interceptors...)
+}
+
+// Create returns a builder for creating a SSLScan entity.
+func (c *SSLScanClient) Create() *SSLScanCreate {
+	mutation := newSSLScanMutation(c.config, OpCreate)
+	return &SSLScanCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SSLScan entities.
+func (c *SSLScanClient) CreateBulk(builders ...*SSLScanCreate) *SSLScanCreateBulk {
+	return &SSLScanCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SSLScanClient) MapCreateBulk(slice any, setFunc func(*SSLScanCreate, int)) *SSLScanCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SSLScanCreateBulk{err: fmt.Errorf("calling to SSLScanClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SSLScanCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SSLScanCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SSLScan.
+func (c *SSLScanClient) Update() *SSLScanUpdate {
+	mutation := newSSLScanMutation(c.config, OpUpdate)
+	return &SSLScanUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SSLScanClient) UpdateOne(_m *SSLScan) *SSLScanUpdateOne {
+	mutation := newSSLScanMutation(c.config, OpUpdateOne, withSSLScan(_m))
+	return &SSLScanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SSLScanClient) UpdateOneID(id int) *SSLScanUpdateOne {
+	mutation := newSSLScanMutation(c.config, OpUpdateOne, withSSLScanID(id))
+	return &SSLScanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SSLScan.
+func (c *SSLScanClient) Delete() *SSLScanDelete {
+	mutation := newSSLScanMutation(c.config, OpDelete)
+	return &SSLScanDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SSLScanClient) DeleteOne(_m *SSLScan) *SSLScanDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SSLScanClient) DeleteOneID(id int) *SSLScanDeleteOne {
+	builder := c.Delete().Where(sslscan.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SSLScanDeleteOne{builder}
+}
+
+// Query returns a query builder for SSLScan.
+func (c *SSLScanClient) Query() *SSLScanQuery {
+	return &SSLScanQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSSLScan},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SSLScan entity by its id.
+func (c *SSLScanClient) Get(ctx context.Context, id int) (*SSLScan, error) {
+	return c.Query().Where(sslscan.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SSLScanClient) GetX(ctx context.Context, id int) *SSLScan {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTarget queries the target edge of a SSLScan.
+func (c *SSLScanClient) QueryTarget(_m *SSLScan) *TargetQuery {
+	query := (&TargetClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(sslscan.Table, sslscan.FieldID, id),
+			sqlgraph.To(target.Table, target.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, sslscan.TargetTable, sslscan.TargetColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SSLScanClient) Hooks() []Hook {
+	return c.hooks.SSLScan
+}
+
+// Interceptors returns the client interceptors.
+func (c *SSLScanClient) Interceptors() []Interceptor {
+	return c.inters.SSLScan
+}
+
+func (c *SSLScanClient) mutate(ctx context.Context, m *SSLScanMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SSLScanCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SSLScanUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SSLScanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SSLScanDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SSLScan mutation op: %q", m.Op())
+	}
+}
+
 // TargetClient is a client for the Target schema.
 type TargetClient struct {
 	config
@@ -656,6 +815,22 @@ func (c *TargetClient) QueryScans(_m *Target) *PortScanQuery {
 	return query
 }
 
+// QuerySslScans queries the ssl_scans edge of a Target.
+func (c *TargetClient) QuerySslScans(_m *Target) *SSLScanQuery {
+	query := (&SSLScanClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(target.Table, target.FieldID, id),
+			sqlgraph.To(sslscan.Table, sslscan.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, target.SslScansTable, target.SslScansColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *TargetClient) Hooks() []Hook {
 	return c.hooks.Target
@@ -684,9 +859,9 @@ func (c *TargetClient) mutate(ctx context.Context, m *TargetMutation) (Value, er
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Port, PortScan, Target []ent.Hook
+		Port, PortScan, SSLScan, Target []ent.Hook
 	}
 	inters struct {
-		Port, PortScan, Target []ent.Interceptor
+		Port, PortScan, SSLScan, Target []ent.Interceptor
 	}
 )
