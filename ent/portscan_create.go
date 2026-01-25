@@ -36,15 +36,19 @@ func (_c *PortScanCreate) SetNillableScannedAt(v *time.Time) *PortScanCreate {
 	return _c
 }
 
-// SetTargetID sets the "target" edge to the Target entity by ID.
-func (_c *PortScanCreate) SetTargetID(id int) *PortScanCreate {
-	_c.mutation.SetTargetID(id)
+// AddTargetIDs adds the "targets" edge to the Target entity by IDs.
+func (_c *PortScanCreate) AddTargetIDs(ids ...int) *PortScanCreate {
+	_c.mutation.AddTargetIDs(ids...)
 	return _c
 }
 
-// SetTarget sets the "target" edge to the Target entity.
-func (_c *PortScanCreate) SetTarget(v *Target) *PortScanCreate {
-	return _c.SetTargetID(v.ID)
+// AddTargets adds the "targets" edges to the Target entity.
+func (_c *PortScanCreate) AddTargets(v ...*Target) *PortScanCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddTargetIDs(ids...)
 }
 
 // AddPortIDs adds the "ports" edge to the Port entity by IDs.
@@ -108,8 +112,8 @@ func (_c *PortScanCreate) check() error {
 	if _, ok := _c.mutation.ScannedAt(); !ok {
 		return &ValidationError{Name: "scanned_at", err: errors.New(`ent: missing required field "PortScan.scanned_at"`)}
 	}
-	if len(_c.mutation.TargetIDs()) == 0 {
-		return &ValidationError{Name: "target", err: errors.New(`ent: missing required edge "PortScan.target"`)}
+	if len(_c.mutation.TargetsIDs()) == 0 {
+		return &ValidationError{Name: "targets", err: errors.New(`ent: missing required edge "PortScan.targets"`)}
 	}
 	return nil
 }
@@ -141,12 +145,12 @@ func (_c *PortScanCreate) createSpec() (*PortScan, *sqlgraph.CreateSpec) {
 		_spec.SetField(portscan.FieldScannedAt, field.TypeTime, value)
 		_node.ScannedAt = value
 	}
-	if nodes := _c.mutation.TargetIDs(); len(nodes) > 0 {
+	if nodes := _c.mutation.TargetsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
+			Rel:     sqlgraph.M2M,
 			Inverse: true,
-			Table:   portscan.TargetTable,
-			Columns: []string{portscan.TargetColumn},
+			Table:   portscan.TargetsTable,
+			Columns: portscan.TargetsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(target.FieldID, field.TypeInt),
@@ -155,7 +159,6 @@ func (_c *PortScanCreate) createSpec() (*PortScan, *sqlgraph.CreateSpec) {
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.target_scans = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.PortsIDs(); len(nodes) > 0 {

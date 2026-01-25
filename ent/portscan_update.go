@@ -44,15 +44,19 @@ func (_u *PortScanUpdate) SetNillableScannedAt(v *time.Time) *PortScanUpdate {
 	return _u
 }
 
-// SetTargetID sets the "target" edge to the Target entity by ID.
-func (_u *PortScanUpdate) SetTargetID(id int) *PortScanUpdate {
-	_u.mutation.SetTargetID(id)
+// AddTargetIDs adds the "targets" edge to the Target entity by IDs.
+func (_u *PortScanUpdate) AddTargetIDs(ids ...int) *PortScanUpdate {
+	_u.mutation.AddTargetIDs(ids...)
 	return _u
 }
 
-// SetTarget sets the "target" edge to the Target entity.
-func (_u *PortScanUpdate) SetTarget(v *Target) *PortScanUpdate {
-	return _u.SetTargetID(v.ID)
+// AddTargets adds the "targets" edges to the Target entity.
+func (_u *PortScanUpdate) AddTargets(v ...*Target) *PortScanUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTargetIDs(ids...)
 }
 
 // AddPortIDs adds the "ports" edge to the Port entity by IDs.
@@ -75,10 +79,25 @@ func (_u *PortScanUpdate) Mutation() *PortScanMutation {
 	return _u.mutation
 }
 
-// ClearTarget clears the "target" edge to the Target entity.
-func (_u *PortScanUpdate) ClearTarget() *PortScanUpdate {
-	_u.mutation.ClearTarget()
+// ClearTargets clears all "targets" edges to the Target entity.
+func (_u *PortScanUpdate) ClearTargets() *PortScanUpdate {
+	_u.mutation.ClearTargets()
 	return _u
+}
+
+// RemoveTargetIDs removes the "targets" edge to Target entities by IDs.
+func (_u *PortScanUpdate) RemoveTargetIDs(ids ...int) *PortScanUpdate {
+	_u.mutation.RemoveTargetIDs(ids...)
+	return _u
+}
+
+// RemoveTargets removes "targets" edges to Target entities.
+func (_u *PortScanUpdate) RemoveTargets(v ...*Target) *PortScanUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTargetIDs(ids...)
 }
 
 // ClearPorts clears all "ports" edges to the Port entity.
@@ -129,18 +148,7 @@ func (_u *PortScanUpdate) ExecX(ctx context.Context) {
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *PortScanUpdate) check() error {
-	if _u.mutation.TargetCleared() && len(_u.mutation.TargetIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "PortScan.target"`)
-	}
-	return nil
-}
-
 func (_u *PortScanUpdate) sqlSave(ctx context.Context) (_node int, err error) {
-	if err := _u.check(); err != nil {
-		return _node, err
-	}
 	_spec := sqlgraph.NewUpdateSpec(portscan.Table, portscan.Columns, sqlgraph.NewFieldSpec(portscan.FieldID, field.TypeInt))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -152,12 +160,12 @@ func (_u *PortScanUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.ScannedAt(); ok {
 		_spec.SetField(portscan.FieldScannedAt, field.TypeTime, value)
 	}
-	if _u.mutation.TargetCleared() {
+	if _u.mutation.TargetsCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
+			Rel:     sqlgraph.M2M,
 			Inverse: true,
-			Table:   portscan.TargetTable,
-			Columns: []string{portscan.TargetColumn},
+			Table:   portscan.TargetsTable,
+			Columns: portscan.TargetsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(target.FieldID, field.TypeInt),
@@ -165,12 +173,28 @@ func (_u *PortScanUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.TargetIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.RemovedTargetsIDs(); len(nodes) > 0 && !_u.mutation.TargetsCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
+			Rel:     sqlgraph.M2M,
 			Inverse: true,
-			Table:   portscan.TargetTable,
-			Columns: []string{portscan.TargetColumn},
+			Table:   portscan.TargetsTable,
+			Columns: portscan.TargetsPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(target.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TargetsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   portscan.TargetsTable,
+			Columns: portscan.TargetsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(target.FieldID, field.TypeInt),
@@ -260,15 +284,19 @@ func (_u *PortScanUpdateOne) SetNillableScannedAt(v *time.Time) *PortScanUpdateO
 	return _u
 }
 
-// SetTargetID sets the "target" edge to the Target entity by ID.
-func (_u *PortScanUpdateOne) SetTargetID(id int) *PortScanUpdateOne {
-	_u.mutation.SetTargetID(id)
+// AddTargetIDs adds the "targets" edge to the Target entity by IDs.
+func (_u *PortScanUpdateOne) AddTargetIDs(ids ...int) *PortScanUpdateOne {
+	_u.mutation.AddTargetIDs(ids...)
 	return _u
 }
 
-// SetTarget sets the "target" edge to the Target entity.
-func (_u *PortScanUpdateOne) SetTarget(v *Target) *PortScanUpdateOne {
-	return _u.SetTargetID(v.ID)
+// AddTargets adds the "targets" edges to the Target entity.
+func (_u *PortScanUpdateOne) AddTargets(v ...*Target) *PortScanUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTargetIDs(ids...)
 }
 
 // AddPortIDs adds the "ports" edge to the Port entity by IDs.
@@ -291,10 +319,25 @@ func (_u *PortScanUpdateOne) Mutation() *PortScanMutation {
 	return _u.mutation
 }
 
-// ClearTarget clears the "target" edge to the Target entity.
-func (_u *PortScanUpdateOne) ClearTarget() *PortScanUpdateOne {
-	_u.mutation.ClearTarget()
+// ClearTargets clears all "targets" edges to the Target entity.
+func (_u *PortScanUpdateOne) ClearTargets() *PortScanUpdateOne {
+	_u.mutation.ClearTargets()
 	return _u
+}
+
+// RemoveTargetIDs removes the "targets" edge to Target entities by IDs.
+func (_u *PortScanUpdateOne) RemoveTargetIDs(ids ...int) *PortScanUpdateOne {
+	_u.mutation.RemoveTargetIDs(ids...)
+	return _u
+}
+
+// RemoveTargets removes "targets" edges to Target entities.
+func (_u *PortScanUpdateOne) RemoveTargets(v ...*Target) *PortScanUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTargetIDs(ids...)
 }
 
 // ClearPorts clears all "ports" edges to the Port entity.
@@ -358,18 +401,7 @@ func (_u *PortScanUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
-// check runs all checks and user-defined validators on the builder.
-func (_u *PortScanUpdateOne) check() error {
-	if _u.mutation.TargetCleared() && len(_u.mutation.TargetIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "PortScan.target"`)
-	}
-	return nil
-}
-
 func (_u *PortScanUpdateOne) sqlSave(ctx context.Context) (_node *PortScan, err error) {
-	if err := _u.check(); err != nil {
-		return _node, err
-	}
 	_spec := sqlgraph.NewUpdateSpec(portscan.Table, portscan.Columns, sqlgraph.NewFieldSpec(portscan.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -398,12 +430,12 @@ func (_u *PortScanUpdateOne) sqlSave(ctx context.Context) (_node *PortScan, err 
 	if value, ok := _u.mutation.ScannedAt(); ok {
 		_spec.SetField(portscan.FieldScannedAt, field.TypeTime, value)
 	}
-	if _u.mutation.TargetCleared() {
+	if _u.mutation.TargetsCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
+			Rel:     sqlgraph.M2M,
 			Inverse: true,
-			Table:   portscan.TargetTable,
-			Columns: []string{portscan.TargetColumn},
+			Table:   portscan.TargetsTable,
+			Columns: portscan.TargetsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(target.FieldID, field.TypeInt),
@@ -411,12 +443,28 @@ func (_u *PortScanUpdateOne) sqlSave(ctx context.Context) (_node *PortScan, err 
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.TargetIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.RemovedTargetsIDs(); len(nodes) > 0 && !_u.mutation.TargetsCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
+			Rel:     sqlgraph.M2M,
 			Inverse: true,
-			Table:   portscan.TargetTable,
-			Columns: []string{portscan.TargetColumn},
+			Table:   portscan.TargetsTable,
+			Columns: portscan.TargetsPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(target.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TargetsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   portscan.TargetsTable,
+			Columns: portscan.TargetsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(target.FieldID, field.TypeInt),

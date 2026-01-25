@@ -644,15 +644,15 @@ func (c *PortScanClient) GetX(ctx context.Context, id int) *PortScan {
 	return obj
 }
 
-// QueryTarget queries the target edge of a PortScan.
-func (c *PortScanClient) QueryTarget(_m *PortScan) *TargetQuery {
+// QueryTargets queries the targets edge of a PortScan.
+func (c *PortScanClient) QueryTargets(_m *PortScan) *TargetQuery {
 	query := (&TargetClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(portscan.Table, portscan.FieldID, id),
 			sqlgraph.To(target.Table, target.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, portscan.TargetTable, portscan.TargetColumn),
+			sqlgraph.Edge(sqlgraph.M2M, true, portscan.TargetsTable, portscan.TargetsPrimaryKey...),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -966,7 +966,7 @@ func (c *TargetClient) QueryScans(_m *Target) *PortScanQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(target.Table, target.FieldID, id),
 			sqlgraph.To(portscan.Table, portscan.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, target.ScansTable, target.ScansColumn),
+			sqlgraph.Edge(sqlgraph.M2M, false, target.ScansTable, target.ScansPrimaryKey...),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil

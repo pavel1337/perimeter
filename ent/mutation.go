@@ -1008,19 +1008,20 @@ func (m *PortMutation) ResetEdge(name string) error {
 // PortScanMutation represents an operation that mutates the PortScan nodes in the graph.
 type PortScanMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	scanned_at    *time.Time
-	clearedFields map[string]struct{}
-	target        *int
-	clearedtarget bool
-	ports         map[int]struct{}
-	removedports  map[int]struct{}
-	clearedports  bool
-	done          bool
-	oldValue      func(context.Context) (*PortScan, error)
-	predicates    []predicate.PortScan
+	op             Op
+	typ            string
+	id             *int
+	scanned_at     *time.Time
+	clearedFields  map[string]struct{}
+	targets        map[int]struct{}
+	removedtargets map[int]struct{}
+	clearedtargets bool
+	ports          map[int]struct{}
+	removedports   map[int]struct{}
+	clearedports   bool
+	done           bool
+	oldValue       func(context.Context) (*PortScan, error)
+	predicates     []predicate.PortScan
 }
 
 var _ ent.Mutation = (*PortScanMutation)(nil)
@@ -1157,43 +1158,58 @@ func (m *PortScanMutation) ResetScannedAt() {
 	m.scanned_at = nil
 }
 
-// SetTargetID sets the "target" edge to the Target entity by id.
-func (m *PortScanMutation) SetTargetID(id int) {
-	m.target = &id
+// AddTargetIDs adds the "targets" edge to the Target entity by ids.
+func (m *PortScanMutation) AddTargetIDs(ids ...int) {
+	if m.targets == nil {
+		m.targets = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.targets[ids[i]] = struct{}{}
+	}
 }
 
-// ClearTarget clears the "target" edge to the Target entity.
-func (m *PortScanMutation) ClearTarget() {
-	m.clearedtarget = true
+// ClearTargets clears the "targets" edge to the Target entity.
+func (m *PortScanMutation) ClearTargets() {
+	m.clearedtargets = true
 }
 
-// TargetCleared reports if the "target" edge to the Target entity was cleared.
-func (m *PortScanMutation) TargetCleared() bool {
-	return m.clearedtarget
+// TargetsCleared reports if the "targets" edge to the Target entity was cleared.
+func (m *PortScanMutation) TargetsCleared() bool {
+	return m.clearedtargets
 }
 
-// TargetID returns the "target" edge ID in the mutation.
-func (m *PortScanMutation) TargetID() (id int, exists bool) {
-	if m.target != nil {
-		return *m.target, true
+// RemoveTargetIDs removes the "targets" edge to the Target entity by IDs.
+func (m *PortScanMutation) RemoveTargetIDs(ids ...int) {
+	if m.removedtargets == nil {
+		m.removedtargets = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.targets, ids[i])
+		m.removedtargets[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedTargets returns the removed IDs of the "targets" edge to the Target entity.
+func (m *PortScanMutation) RemovedTargetsIDs() (ids []int) {
+	for id := range m.removedtargets {
+		ids = append(ids, id)
 	}
 	return
 }
 
-// TargetIDs returns the "target" edge IDs in the mutation.
-// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
-// TargetID instead. It exists only for internal usage by the builders.
-func (m *PortScanMutation) TargetIDs() (ids []int) {
-	if id := m.target; id != nil {
-		ids = append(ids, *id)
+// TargetsIDs returns the "targets" edge IDs in the mutation.
+func (m *PortScanMutation) TargetsIDs() (ids []int) {
+	for id := range m.targets {
+		ids = append(ids, id)
 	}
 	return
 }
 
-// ResetTarget resets all changes to the "target" edge.
-func (m *PortScanMutation) ResetTarget() {
-	m.target = nil
-	m.clearedtarget = false
+// ResetTargets resets all changes to the "targets" edge.
+func (m *PortScanMutation) ResetTargets() {
+	m.targets = nil
+	m.clearedtargets = false
+	m.removedtargets = nil
 }
 
 // AddPortIDs adds the "ports" edge to the Port entity by ids.
@@ -1384,8 +1400,8 @@ func (m *PortScanMutation) ResetField(name string) error {
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *PortScanMutation) AddedEdges() []string {
 	edges := make([]string, 0, 2)
-	if m.target != nil {
-		edges = append(edges, portscan.EdgeTarget)
+	if m.targets != nil {
+		edges = append(edges, portscan.EdgeTargets)
 	}
 	if m.ports != nil {
 		edges = append(edges, portscan.EdgePorts)
@@ -1397,10 +1413,12 @@ func (m *PortScanMutation) AddedEdges() []string {
 // name in this mutation.
 func (m *PortScanMutation) AddedIDs(name string) []ent.Value {
 	switch name {
-	case portscan.EdgeTarget:
-		if id := m.target; id != nil {
-			return []ent.Value{*id}
+	case portscan.EdgeTargets:
+		ids := make([]ent.Value, 0, len(m.targets))
+		for id := range m.targets {
+			ids = append(ids, id)
 		}
+		return ids
 	case portscan.EdgePorts:
 		ids := make([]ent.Value, 0, len(m.ports))
 		for id := range m.ports {
@@ -1414,6 +1432,9 @@ func (m *PortScanMutation) AddedIDs(name string) []ent.Value {
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *PortScanMutation) RemovedEdges() []string {
 	edges := make([]string, 0, 2)
+	if m.removedtargets != nil {
+		edges = append(edges, portscan.EdgeTargets)
+	}
 	if m.removedports != nil {
 		edges = append(edges, portscan.EdgePorts)
 	}
@@ -1424,6 +1445,12 @@ func (m *PortScanMutation) RemovedEdges() []string {
 // the given name in this mutation.
 func (m *PortScanMutation) RemovedIDs(name string) []ent.Value {
 	switch name {
+	case portscan.EdgeTargets:
+		ids := make([]ent.Value, 0, len(m.removedtargets))
+		for id := range m.removedtargets {
+			ids = append(ids, id)
+		}
+		return ids
 	case portscan.EdgePorts:
 		ids := make([]ent.Value, 0, len(m.removedports))
 		for id := range m.removedports {
@@ -1437,8 +1464,8 @@ func (m *PortScanMutation) RemovedIDs(name string) []ent.Value {
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *PortScanMutation) ClearedEdges() []string {
 	edges := make([]string, 0, 2)
-	if m.clearedtarget {
-		edges = append(edges, portscan.EdgeTarget)
+	if m.clearedtargets {
+		edges = append(edges, portscan.EdgeTargets)
 	}
 	if m.clearedports {
 		edges = append(edges, portscan.EdgePorts)
@@ -1450,8 +1477,8 @@ func (m *PortScanMutation) ClearedEdges() []string {
 // was cleared in this mutation.
 func (m *PortScanMutation) EdgeCleared(name string) bool {
 	switch name {
-	case portscan.EdgeTarget:
-		return m.clearedtarget
+	case portscan.EdgeTargets:
+		return m.clearedtargets
 	case portscan.EdgePorts:
 		return m.clearedports
 	}
@@ -1462,9 +1489,6 @@ func (m *PortScanMutation) EdgeCleared(name string) bool {
 // if that edge is not defined in the schema.
 func (m *PortScanMutation) ClearEdge(name string) error {
 	switch name {
-	case portscan.EdgeTarget:
-		m.ClearTarget()
-		return nil
 	}
 	return fmt.Errorf("unknown PortScan unique edge %s", name)
 }
@@ -1473,8 +1497,8 @@ func (m *PortScanMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *PortScanMutation) ResetEdge(name string) error {
 	switch name {
-	case portscan.EdgeTarget:
-		m.ResetTarget()
+	case portscan.EdgeTargets:
+		m.ResetTargets()
 		return nil
 	case portscan.EdgePorts:
 		m.ResetPorts()

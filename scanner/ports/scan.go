@@ -59,7 +59,7 @@ func (s *SimpleScanner) Scan(target string) ([]int, error) {
 				wg.Done()
 			}()
 
-			for i := 0; i < s.config.Retries; i++ {
+			for range s.config.Retries {
 				if s.isOpen(target, p) {
 					mutex.Lock()
 					openPorts = append(openPorts, p)

@@ -54,21 +54,12 @@ var (
 	PortScansColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "scanned_at", Type: field.TypeTime},
-		{Name: "target_scans", Type: field.TypeInt},
 	}
 	// PortScansTable holds the schema information for the "port_scans" table.
 	PortScansTable = &schema.Table{
 		Name:       "port_scans",
 		Columns:    PortScansColumns,
 		PrimaryKey: []*schema.Column{PortScansColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{
-			{
-				Symbol:     "port_scans_targets_scans",
-				Columns:    []*schema.Column{PortScansColumns[2]},
-				RefColumns: []*schema.Column{TargetsColumns[0]},
-				OnDelete:   schema.NoAction,
-			},
-		},
 	}
 	// SslScansColumns holds the columns for the "ssl_scans" table.
 	SslScansColumns = []*schema.Column{
@@ -110,6 +101,31 @@ var (
 		Columns:    TargetsColumns,
 		PrimaryKey: []*schema.Column{TargetsColumns[0]},
 	}
+	// TargetScansColumns holds the columns for the "target_scans" table.
+	TargetScansColumns = []*schema.Column{
+		{Name: "target_id", Type: field.TypeInt},
+		{Name: "port_scan_id", Type: field.TypeInt},
+	}
+	// TargetScansTable holds the schema information for the "target_scans" table.
+	TargetScansTable = &schema.Table{
+		Name:       "target_scans",
+		Columns:    TargetScansColumns,
+		PrimaryKey: []*schema.Column{TargetScansColumns[0], TargetScansColumns[1]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "target_scans_target_id",
+				Columns:    []*schema.Column{TargetScansColumns[0]},
+				RefColumns: []*schema.Column{TargetsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+			{
+				Symbol:     "target_scans_port_scan_id",
+				Columns:    []*schema.Column{TargetScansColumns[1]},
+				RefColumns: []*schema.Column{PortScansColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		CspScansTable,
@@ -117,12 +133,14 @@ var (
 		PortScansTable,
 		SslScansTable,
 		TargetsTable,
+		TargetScansTable,
 	}
 )
 
 func init() {
 	CspScansTable.ForeignKeys[0].RefTable = TargetsTable
 	PortsTable.ForeignKeys[0].RefTable = PortScansTable
-	PortScansTable.ForeignKeys[0].RefTable = TargetsTable
 	SslScansTable.ForeignKeys[0].RefTable = TargetsTable
+	TargetScansTable.ForeignKeys[0].RefTable = TargetsTable
+	TargetScansTable.ForeignKeys[1].RefTable = PortScansTable
 }

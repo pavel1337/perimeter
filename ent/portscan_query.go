@@ -21,13 +21,12 @@ import (
 // PortScanQuery is the builder for querying PortScan entities.
 type PortScanQuery struct {
 	config
-	ctx        *QueryContext
-	order      []portscan.OrderOption
-	inters     []Interceptor
-	predicates []predicate.PortScan
-	withTarget *TargetQuery
-	withPorts  *PortQuery
-	withFKs    bool
+	ctx         *QueryContext
+	order       []portscan.OrderOption
+	inters      []Interceptor
+	predicates  []predicate.PortScan
+	withTargets *TargetQuery
+	withPorts   *PortQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -64,8 +63,8 @@ func (_q *PortScanQuery) Order(o ...portscan.OrderOption) *PortScanQuery {
 	return _q
 }
 
-// QueryTarget chains the current query on the "target" edge.
-func (_q *PortScanQuery) QueryTarget() *TargetQuery {
+// QueryTargets chains the current query on the "targets" edge.
+func (_q *PortScanQuery) QueryTargets() *TargetQuery {
 	query := (&TargetClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
@@ -78,7 +77,7 @@ func (_q *PortScanQuery) QueryTarget() *TargetQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(portscan.Table, portscan.FieldID, selector),
 			sqlgraph.To(target.Table, target.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, portscan.TargetTable, portscan.TargetColumn),
+			sqlgraph.Edge(sqlgraph.M2M, true, portscan.TargetsTable, portscan.TargetsPrimaryKey...),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -295,27 +294,27 @@ func (_q *PortScanQuery) Clone() *PortScanQuery {
 		return nil
 	}
 	return &PortScanQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]portscan.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.PortScan{}, _q.predicates...),
-		withTarget: _q.withTarget.Clone(),
-		withPorts:  _q.withPorts.Clone(),
+		config:      _q.config,
+		ctx:         _q.ctx.Clone(),
+		order:       append([]portscan.OrderOption{}, _q.order...),
+		inters:      append([]Interceptor{}, _q.inters...),
+		predicates:  append([]predicate.PortScan{}, _q.predicates...),
+		withTargets: _q.withTargets.Clone(),
+		withPorts:   _q.withPorts.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
 }
 
-// WithTarget tells the query-builder to eager-load the nodes that are connected to
-// the "target" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *PortScanQuery) WithTarget(opts ...func(*TargetQuery)) *PortScanQuery {
+// WithTargets tells the query-builder to eager-load the nodes that are connected to
+// the "targets" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *PortScanQuery) WithTargets(opts ...func(*TargetQuery)) *PortScanQuery {
 	query := (&TargetClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withTarget = query
+	_q.withTargets = query
 	return _q
 }
 
@@ -407,19 +406,12 @@ func (_q *PortScanQuery) prepareQuery(ctx context.Context) error {
 func (_q *PortScanQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*PortScan, error) {
 	var (
 		nodes       = []*PortScan{}
-		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
 		loadedTypes = [2]bool{
-			_q.withTarget != nil,
+			_q.withTargets != nil,
 			_q.withPorts != nil,
 		}
 	)
-	if _q.withTarget != nil {
-		withFKs = true
-	}
-	if withFKs {
-		_spec.Node.Columns = append(_spec.Node.Columns, portscan.ForeignKeys...)
-	}
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*PortScan).scanValues(nil, columns)
 	}
@@ -438,9 +430,10 @@ func (_q *PortScanQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Por
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := _q.withTarget; query != nil {
-		if err := _q.loadTarget(ctx, query, nodes, nil,
-			func(n *PortScan, e *Target) { n.Edges.Target = e }); err != nil {
+	if query := _q.withTargets; query != nil {
+		if err := _q.loadTargets(ctx, query, nodes,
+			func(n *PortScan) { n.Edges.Targets = []*Target{} },
+			func(n *PortScan, e *Target) { n.Edges.Targets = append(n.Edges.Targets, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -454,34 +447,63 @@ func (_q *PortScanQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Por
 	return nodes, nil
 }
 
-func (_q *PortScanQuery) loadTarget(ctx context.Context, query *TargetQuery, nodes []*PortScan, init func(*PortScan), assign func(*PortScan, *Target)) error {
-	ids := make([]int, 0, len(nodes))
-	nodeids := make(map[int][]*PortScan)
-	for i := range nodes {
-		if nodes[i].target_scans == nil {
-			continue
+func (_q *PortScanQuery) loadTargets(ctx context.Context, query *TargetQuery, nodes []*PortScan, init func(*PortScan), assign func(*PortScan, *Target)) error {
+	edgeIDs := make([]driver.Value, len(nodes))
+	byID := make(map[int]*PortScan)
+	nids := make(map[int]map[*PortScan]struct{})
+	for i, node := range nodes {
+		edgeIDs[i] = node.ID
+		byID[node.ID] = node
+		if init != nil {
+			init(node)
 		}
-		fk := *nodes[i].target_scans
-		if _, ok := nodeids[fk]; !ok {
-			ids = append(ids, fk)
-		}
-		nodeids[fk] = append(nodeids[fk], nodes[i])
 	}
-	if len(ids) == 0 {
-		return nil
+	query.Where(func(s *sql.Selector) {
+		joinT := sql.Table(portscan.TargetsTable)
+		s.Join(joinT).On(s.C(target.FieldID), joinT.C(portscan.TargetsPrimaryKey[0]))
+		s.Where(sql.InValues(joinT.C(portscan.TargetsPrimaryKey[1]), edgeIDs...))
+		columns := s.SelectedColumns()
+		s.Select(joinT.C(portscan.TargetsPrimaryKey[1]))
+		s.AppendSelect(columns...)
+		s.SetDistinct(false)
+	})
+	if err := query.prepareQuery(ctx); err != nil {
+		return err
 	}
-	query.Where(target.IDIn(ids...))
-	neighbors, err := query.All(ctx)
+	qr := QuerierFunc(func(ctx context.Context, q Query) (Value, error) {
+		return query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
+			assign := spec.Assign
+			values := spec.ScanValues
+			spec.ScanValues = func(columns []string) ([]any, error) {
+				values, err := values(columns[1:])
+				if err != nil {
+					return nil, err
+				}
+				return append([]any{new(sql.NullInt64)}, values...), nil
+			}
+			spec.Assign = func(columns []string, values []any) error {
+				outValue := int(values[0].(*sql.NullInt64).Int64)
+				inValue := int(values[1].(*sql.NullInt64).Int64)
+				if nids[inValue] == nil {
+					nids[inValue] = map[*PortScan]struct{}{byID[outValue]: {}}
+					return assign(columns[1:], values[1:])
+				}
+				nids[inValue][byID[outValue]] = struct{}{}
+				return nil
+			}
+		})
+	})
+	neighbors, err := withInterceptors[[]*Target](ctx, query, qr, query.inters)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		nodes, ok := nodeids[n.ID]
+		nodes, ok := nids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "target_scans" returned %v`, n.ID)
+			return fmt.Errorf(`unexpected "targets" node returned %v`, n.ID)
 		}
-		for i := range nodes {
-			assign(nodes[i], n)
+		for kn := range nodes {
+			assign(kn, n)
 		}
 	}
 	return nil

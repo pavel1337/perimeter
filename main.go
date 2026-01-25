@@ -18,6 +18,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"perimeter/ent"
+	"perimeter/ent/portscan"
 	"perimeter/ent/target"
 	"perimeter/scanner/csp"
 	"perimeter/scanner/ports"
@@ -87,7 +88,6 @@ func main() {
 		targets, err := client.Target.Query().
 			WithScans(func(q *ent.PortScanQuery) {
 				q.WithPorts()
-				// Ideally we order by desc time and limit 1, but we do this in view for simplicity or slice Logic
 			}).
 			WithSslScans().
 			WithCspScans().
@@ -120,6 +120,8 @@ func main() {
 			Where(target.ID(id)).
 			WithScans(func(q *ent.PortScanQuery) {
 				q.WithPorts()
+				q.Order(ent.Desc(portscan.FieldScannedAt))
+				q.Limit(1)
 			}).
 			WithSslScans().
 			WithCspScans().
@@ -177,42 +179,76 @@ func importTargets(ctx context.Context, client *ent.Client, path string) error {
 // ---------------------------------------------------------
 func runPortScanLoop(client *ent.Client) {
 	// Scanner Config: 500ms timeout, 100 concurrent threads
-	portScanner := ports.NewSimpleScanner(1000, 100, 3)
+	portScanner := ports.NewSimpleScanner(50, 100, 3)
 	ctx := context.Background()
 
 	for {
 		log.Println("--- Starting Port Scan Cycle ---")
 
-		// 1. Get all targets
-		targets, err := client.Target.Query().WithScans().All(ctx)
+		// 1. Get all targets with their latest scan
+		targets, err := client.Target.Query().
+			WithScans(func(q *ent.PortScanQuery) {
+				q.Order(ent.Desc(portscan.FieldScannedAt))
+				q.Limit(1)
+			}).
+			All(ctx)
+
 		if err != nil {
 			log.Printf("DB Error: %v", err)
 			time.Sleep(10 * time.Second)
 			continue
 		}
 
+		// 2. Group Targets by IP
+		// Map: IP (or Input if resolve fails) -> slice of Targets
+		targetGroups := make(map[string][]*ent.Target)
+
 		for _, t := range targets {
-			// Check if target had recent scans
-			if len(t.Edges.Scans) > 0 {
+			// Resolve IP
+			ips, err := net.LookupIP(t.Input)
+			key := t.Input // Default to input string if resolution fails
+			if err == nil && len(ips) > 0 {
+				key = ips[0].String() // Use first IP as grouping key
+			}
+			targetGroups[key] = append(targetGroups[key], t)
+		}
+
+		log.Printf("identified %d unique scan targets from %d total targets", len(targetGroups), len(targets))
+
+		// 3. Iterate Groups and Scan
+		for ipOrHost, group := range targetGroups {
+			// Check if we need to scan this group
+			// We scan if ANY target in the group is "stale" (no scan or old scan)
+			needsScan := false
+			for _, t := range group {
+				if len(t.Edges.Scans) == 0 {
+					needsScan = true
+					break
+				}
 				lastScan := t.Edges.Scans[0]
-				if time.Since(lastScan.ScannedAt) < 1*time.Hour {
-					continue
+				if time.Since(lastScan.ScannedAt) >= 1*time.Hour {
+					needsScan = true
+					break
 				}
 			}
 
-			log.Printf("Scanning Ports for %s...", t.Input)
-
-			// 2. Perform Scan
-			openPorts, err := portScanner.Scan(t.Input)
-			if err != nil {
-				log.Printf("Failed to scan %s: %v", t.Input, err)
+			if !needsScan {
 				continue
 			}
 
-			// 3. Save History (Create Scan + Ports)
-			// We wrap this in a transaction implicitly by using the builders
+			log.Printf("Scanning Ports for %s (covers %d targets)...", ipOrHost, len(group))
+
+			// Perform Scan on the resolved IP/Host
+			openPorts, err := portScanner.Scan(ipOrHost)
+			if err != nil {
+				log.Printf("Failed to scan %s: %v", ipOrHost, err)
+				continue
+			}
+
+			// Save History (Create Scan + Ports)
+			// We link this ONE scan to ALL targets in the group
 			scan, err := client.PortScan.Create().
-				SetTarget(t).
+				AddTargets(group...). // Add all targets in this group
 				SetScannedAt(time.Now()).
 				Save(ctx)
 

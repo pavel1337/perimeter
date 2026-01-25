@@ -220,7 +220,7 @@ func HasScans() predicate.Target {
 	return predicate.Target(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, ScansTable, ScansColumn),
+			sqlgraph.Edge(sqlgraph.M2M, false, ScansTable, ScansPrimaryKey...),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})

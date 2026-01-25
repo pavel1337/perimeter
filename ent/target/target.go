@@ -28,13 +28,11 @@ const (
 	EdgeCspScans = "csp_scans"
 	// Table holds the table name of the target in the database.
 	Table = "targets"
-	// ScansTable is the table that holds the scans relation/edge.
-	ScansTable = "port_scans"
+	// ScansTable is the table that holds the scans relation/edge. The primary key declared below.
+	ScansTable = "target_scans"
 	// ScansInverseTable is the table name for the PortScan entity.
 	// It exists in this package in order to avoid circular dependency with the "portscan" package.
 	ScansInverseTable = "port_scans"
-	// ScansColumn is the table column denoting the scans relation/edge.
-	ScansColumn = "target_scans"
 	// SslScansTable is the table that holds the ssl_scans relation/edge.
 	SslScansTable = "ssl_scans"
 	// SslScansInverseTable is the table name for the SSLScan entity.
@@ -58,6 +56,12 @@ var Columns = []string{
 	FieldUpdateTime,
 	FieldInput,
 }
+
+var (
+	// ScansPrimaryKey and ScansColumn2 are the table columns denoting the
+	// primary key for the scans relation (M2M).
+	ScansPrimaryKey = []string{"target_id", "port_scan_id"}
+)
 
 // ValidColumn reports if the column name is valid (part of the table columns).
 func ValidColumn(column string) bool {
@@ -148,7 +152,7 @@ func newScansStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ScansInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, false, ScansTable, ScansColumn),
+		sqlgraph.Edge(sqlgraph.M2M, false, ScansTable, ScansPrimaryKey...),
 	)
 }
 func newSslScansStep() *sqlgraph.Step {

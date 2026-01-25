@@ -22,9 +22,9 @@ func (PortScan) Fields() []ent.Field {
 func (PortScan) Edges() []ent.Edge {
 	return []ent.Edge{
 		// Link back to the parent Target
-		edge.From("target", Target.Type).
+		// Link back to parent Targets (Many-to-Many now, as multiple targets can share a scan if they resolve to same IP)
+		edge.From("targets", Target.Type).
 			Ref("scans").
-			Unique().
 			Required(),
 
 		// Link to the specific ports found open in this scan
