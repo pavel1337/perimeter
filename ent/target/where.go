@@ -261,6 +261,29 @@ func HasSslScansWith(preds ...predicate.SSLScan) predicate.Target {
 	})
 }
 
+// HasCspScans applies the HasEdge predicate on the "csp_scans" edge.
+func HasCspScans() predicate.Target {
+	return predicate.Target(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, CspScansTable, CspScansColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCspScansWith applies the HasEdge predicate on the "csp_scans" edge with a given conditions (other predicates).
+func HasCspScansWith(preds ...predicate.CSPScan) predicate.Target {
+	return predicate.Target(func(s *sql.Selector) {
+		step := newCspScansStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Target) predicate.Target {
 	return predicate.Target(sql.AndPredicates(predicates...))

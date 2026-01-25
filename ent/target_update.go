@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"perimeter/ent/cspscan"
 	"perimeter/ent/portscan"
 	"perimeter/ent/predicate"
 	"perimeter/ent/sslscan"
@@ -80,6 +81,21 @@ func (_u *TargetUpdate) AddSslScans(v ...*SSLScan) *TargetUpdate {
 	return _u.AddSslScanIDs(ids...)
 }
 
+// AddCspScanIDs adds the "csp_scans" edge to the CSPScan entity by IDs.
+func (_u *TargetUpdate) AddCspScanIDs(ids ...int) *TargetUpdate {
+	_u.mutation.AddCspScanIDs(ids...)
+	return _u
+}
+
+// AddCspScans adds the "csp_scans" edges to the CSPScan entity.
+func (_u *TargetUpdate) AddCspScans(v ...*CSPScan) *TargetUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCspScanIDs(ids...)
+}
+
 // Mutation returns the TargetMutation object of the builder.
 func (_u *TargetUpdate) Mutation() *TargetMutation {
 	return _u.mutation
@@ -125,6 +141,27 @@ func (_u *TargetUpdate) RemoveSslScans(v ...*SSLScan) *TargetUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveSslScanIDs(ids...)
+}
+
+// ClearCspScans clears all "csp_scans" edges to the CSPScan entity.
+func (_u *TargetUpdate) ClearCspScans() *TargetUpdate {
+	_u.mutation.ClearCspScans()
+	return _u
+}
+
+// RemoveCspScanIDs removes the "csp_scans" edge to CSPScan entities by IDs.
+func (_u *TargetUpdate) RemoveCspScanIDs(ids ...int) *TargetUpdate {
+	_u.mutation.RemoveCspScanIDs(ids...)
+	return _u
+}
+
+// RemoveCspScans removes "csp_scans" edges to CSPScan entities.
+func (_u *TargetUpdate) RemoveCspScans(v ...*CSPScan) *TargetUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCspScanIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -281,6 +318,51 @@ func (_u *TargetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.CspScansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.CspScansTable,
+			Columns: []string{target.CspScansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cspscan.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCspScansIDs(); len(nodes) > 0 && !_u.mutation.CspScansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.CspScansTable,
+			Columns: []string{target.CspScansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cspscan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CspScansIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.CspScansTable,
+			Columns: []string{target.CspScansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cspscan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{target.Label}
@@ -351,6 +433,21 @@ func (_u *TargetUpdateOne) AddSslScans(v ...*SSLScan) *TargetUpdateOne {
 	return _u.AddSslScanIDs(ids...)
 }
 
+// AddCspScanIDs adds the "csp_scans" edge to the CSPScan entity by IDs.
+func (_u *TargetUpdateOne) AddCspScanIDs(ids ...int) *TargetUpdateOne {
+	_u.mutation.AddCspScanIDs(ids...)
+	return _u
+}
+
+// AddCspScans adds the "csp_scans" edges to the CSPScan entity.
+func (_u *TargetUpdateOne) AddCspScans(v ...*CSPScan) *TargetUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCspScanIDs(ids...)
+}
+
 // Mutation returns the TargetMutation object of the builder.
 func (_u *TargetUpdateOne) Mutation() *TargetMutation {
 	return _u.mutation
@@ -396,6 +493,27 @@ func (_u *TargetUpdateOne) RemoveSslScans(v ...*SSLScan) *TargetUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveSslScanIDs(ids...)
+}
+
+// ClearCspScans clears all "csp_scans" edges to the CSPScan entity.
+func (_u *TargetUpdateOne) ClearCspScans() *TargetUpdateOne {
+	_u.mutation.ClearCspScans()
+	return _u
+}
+
+// RemoveCspScanIDs removes the "csp_scans" edge to CSPScan entities by IDs.
+func (_u *TargetUpdateOne) RemoveCspScanIDs(ids ...int) *TargetUpdateOne {
+	_u.mutation.RemoveCspScanIDs(ids...)
+	return _u
+}
+
+// RemoveCspScans removes "csp_scans" edges to CSPScan entities.
+func (_u *TargetUpdateOne) RemoveCspScans(v ...*CSPScan) *TargetUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCspScanIDs(ids...)
 }
 
 // Where appends a list predicates to the TargetUpdate builder.
@@ -575,6 +693,51 @@ func (_u *TargetUpdateOne) sqlSave(ctx context.Context) (_node *Target, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(sslscan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CspScansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.CspScansTable,
+			Columns: []string{target.CspScansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cspscan.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCspScansIDs(); len(nodes) > 0 && !_u.mutation.CspScansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.CspScansTable,
+			Columns: []string{target.CspScansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cspscan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CspScansIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.CspScansTable,
+			Columns: []string{target.CspScansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cspscan.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

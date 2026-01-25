@@ -24,6 +24,8 @@ const (
 	EdgeScans = "scans"
 	// EdgeSslScans holds the string denoting the ssl_scans edge name in mutations.
 	EdgeSslScans = "ssl_scans"
+	// EdgeCspScans holds the string denoting the csp_scans edge name in mutations.
+	EdgeCspScans = "csp_scans"
 	// Table holds the table name of the target in the database.
 	Table = "targets"
 	// ScansTable is the table that holds the scans relation/edge.
@@ -40,6 +42,13 @@ const (
 	SslScansInverseTable = "ssl_scans"
 	// SslScansColumn is the table column denoting the ssl_scans relation/edge.
 	SslScansColumn = "target_ssl_scans"
+	// CspScansTable is the table that holds the csp_scans relation/edge.
+	CspScansTable = "csp_scans"
+	// CspScansInverseTable is the table name for the CSPScan entity.
+	// It exists in this package in order to avoid circular dependency with the "cspscan" package.
+	CspScansInverseTable = "csp_scans"
+	// CspScansColumn is the table column denoting the csp_scans relation/edge.
+	CspScansColumn = "target_csp_scans"
 )
 
 // Columns holds all SQL columns for target fields.
@@ -121,6 +130,20 @@ func BySslScans(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newSslScansStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByCspScansCount orders the results by csp_scans count.
+func ByCspScansCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCspScansStep(), opts...)
+	}
+}
+
+// ByCspScans orders the results by csp_scans terms.
+func ByCspScans(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCspScansStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newScansStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -133,5 +156,12 @@ func newSslScansStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(SslScansInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, SslScansTable, SslScansColumn),
+	)
+}
+func newCspScansStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CspScansInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CspScansTable, CspScansColumn),
 	)
 }

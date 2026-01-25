@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"perimeter/ent/cspscan"
 	"perimeter/ent/port"
 	"perimeter/ent/portscan"
 	"perimeter/ent/sslscan"
@@ -76,6 +77,7 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			cspscan.Table:  cspscan.ValidColumn,
 			port.Table:     port.ValidColumn,
 			portscan.Table: portscan.ValidColumn,
 			sslscan.Table:  sslscan.ValidColumn,

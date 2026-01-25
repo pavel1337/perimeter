@@ -8,6 +8,28 @@ import (
 )
 
 var (
+	// CspScansColumns holds the columns for the "csp_scans" table.
+	CspScansColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "scanned_at", Type: field.TypeTime},
+		{Name: "csp_header", Type: field.TypeString},
+		{Name: "findings", Type: field.TypeJSON, Nullable: true},
+		{Name: "target_csp_scans", Type: field.TypeInt},
+	}
+	// CspScansTable holds the schema information for the "csp_scans" table.
+	CspScansTable = &schema.Table{
+		Name:       "csp_scans",
+		Columns:    CspScansColumns,
+		PrimaryKey: []*schema.Column{CspScansColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "csp_scans_targets_csp_scans",
+				Columns:    []*schema.Column{CspScansColumns[4]},
+				RefColumns: []*schema.Column{TargetsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
 	// PortsColumns holds the columns for the "ports" table.
 	PortsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -90,6 +112,7 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		CspScansTable,
 		PortsTable,
 		PortScansTable,
 		SslScansTable,
@@ -98,6 +121,7 @@ var (
 )
 
 func init() {
+	CspScansTable.ForeignKeys[0].RefTable = TargetsTable
 	PortsTable.ForeignKeys[0].RefTable = PortScansTable
 	PortScansTable.ForeignKeys[0].RefTable = TargetsTable
 	SslScansTable.ForeignKeys[0].RefTable = TargetsTable

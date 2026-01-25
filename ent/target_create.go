@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"perimeter/ent/cspscan"
 	"perimeter/ent/portscan"
 	"perimeter/ent/sslscan"
 	"perimeter/ent/target"
@@ -84,6 +85,21 @@ func (_c *TargetCreate) AddSslScans(v ...*SSLScan) *TargetCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddSslScanIDs(ids...)
+}
+
+// AddCspScanIDs adds the "csp_scans" edge to the CSPScan entity by IDs.
+func (_c *TargetCreate) AddCspScanIDs(ids ...int) *TargetCreate {
+	_c.mutation.AddCspScanIDs(ids...)
+	return _c
+}
+
+// AddCspScans adds the "csp_scans" edges to the CSPScan entity.
+func (_c *TargetCreate) AddCspScans(v ...*CSPScan) *TargetCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddCspScanIDs(ids...)
 }
 
 // Mutation returns the TargetMutation object of the builder.
@@ -210,6 +226,22 @@ func (_c *TargetCreate) createSpec() (*Target, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(sslscan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.CspScansIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.CspScansTable,
+			Columns: []string{target.CspScansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cspscan.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

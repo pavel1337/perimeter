@@ -6,6 +6,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// CSPScan is the predicate function for cspscan builders.
+type CSPScan func(*sql.Selector)
+
 // Port is the predicate function for port builders.
 type Port func(*sql.Selector)
 

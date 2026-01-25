@@ -35,9 +35,11 @@ type TargetEdges struct {
 	Scans []*PortScan `json:"scans,omitempty"`
 	// SslScans holds the value of the ssl_scans edge.
 	SslScans []*SSLScan `json:"ssl_scans,omitempty"`
+	// CspScans holds the value of the csp_scans edge.
+	CspScans []*CSPScan `json:"csp_scans,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // ScansOrErr returns the Scans value or an error if the edge
@@ -56,6 +58,15 @@ func (e TargetEdges) SslScansOrErr() ([]*SSLScan, error) {
 		return e.SslScans, nil
 	}
 	return nil, &NotLoadedError{edge: "ssl_scans"}
+}
+
+// CspScansOrErr returns the CspScans value or an error if the edge
+// was not loaded in eager-loading.
+func (e TargetEdges) CspScansOrErr() ([]*CSPScan, error) {
+	if e.loadedTypes[2] {
+		return e.CspScans, nil
+	}
+	return nil, &NotLoadedError{edge: "csp_scans"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -129,6 +140,11 @@ func (_m *Target) QueryScans() *PortScanQuery {
 // QuerySslScans queries the "ssl_scans" edge of the Target entity.
 func (_m *Target) QuerySslScans() *SSLScanQuery {
 	return NewTargetClient(_m.config).QuerySslScans(_m)
+}
+
+// QueryCspScans queries the "csp_scans" edge of the Target entity.
+func (_m *Target) QueryCspScans() *CSPScanQuery {
+	return NewTargetClient(_m.config).QueryCspScans(_m)
 }
 
 // Update returns a builder for updating this Target.

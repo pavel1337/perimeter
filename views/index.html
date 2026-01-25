@@ -6,7 +6,7 @@
   <thead>
     <tr>
       <th>Target Input</th>
-      <th>Last Scanned</th>
+      <th>CSP Scan</th>
       <th>Open Ports</th>
       <th>SSL Grade</th>
     </tr>
@@ -16,10 +16,22 @@
     <tr>
       <td><strong><a href="/targets/{{.ID}}">{{.Input}}</a></strong></td>
 
+      <td>
+        {{if .Edges.CspScans}}
+        {{$latestCSP := index .Edges.CspScans 0}}
+        {{if $latestCSP.Findings}}
+        {{$count := len $latestCSP.Findings}}
+        <span style="color:red"><strong>{{$count}} Findings</strong></span>
+        {{else}}
+        <span style="color:green"><strong>OK</strong></span>
+        {{end}}
+        {{else}}
+        <small>N/A</small>
+        {{end}}
+      </td>
+
       {{if .Edges.Scans}}
       {{$latest := index .Edges.Scans 0}}
-
-      <td>{{$latest.ScannedAt.Format "Jan 02, 15:04:05"}}</td>
 
       <td>
         {{if $latest.Edges.Ports}}
@@ -34,7 +46,7 @@
       </td>
 
       {{else}}
-      <td colspan="2"><em>Pending Port Scan...</em></td>
+      <td><em>Pending Port Scan...</em></td>
       {{end}}
 
       <td>

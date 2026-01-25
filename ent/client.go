@@ -11,6 +11,7 @@ import (
 
 	"perimeter/ent/migrate"
 
+	"perimeter/ent/cspscan"
 	"perimeter/ent/port"
 	"perimeter/ent/portscan"
 	"perimeter/ent/sslscan"
@@ -27,6 +28,8 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// CSPScan is the client for interacting with the CSPScan builders.
+	CSPScan *CSPScanClient
 	// Port is the client for interacting with the Port builders.
 	Port *PortClient
 	// PortScan is the client for interacting with the PortScan builders.
@@ -46,6 +49,7 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.CSPScan = NewCSPScanClient(c.config)
 	c.Port = NewPortClient(c.config)
 	c.PortScan = NewPortScanClient(c.config)
 	c.SSLScan = NewSSLScanClient(c.config)
@@ -142,6 +146,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	return &Tx{
 		ctx:      ctx,
 		config:   cfg,
+		CSPScan:  NewCSPScanClient(cfg),
 		Port:     NewPortClient(cfg),
 		PortScan: NewPortScanClient(cfg),
 		SSLScan:  NewSSLScanClient(cfg),
@@ -165,6 +170,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	return &Tx{
 		ctx:      ctx,
 		config:   cfg,
+		CSPScan:  NewCSPScanClient(cfg),
 		Port:     NewPortClient(cfg),
 		PortScan: NewPortScanClient(cfg),
 		SSLScan:  NewSSLScanClient(cfg),
@@ -175,7 +181,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		Port.
+//		CSPScan.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -197,6 +203,7 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
+	c.CSPScan.Use(hooks...)
 	c.Port.Use(hooks...)
 	c.PortScan.Use(hooks...)
 	c.SSLScan.Use(hooks...)
@@ -206,6 +213,7 @@ func (c *Client) Use(hooks ...Hook) {
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
+	c.CSPScan.Intercept(interceptors...)
 	c.Port.Intercept(interceptors...)
 	c.PortScan.Intercept(interceptors...)
 	c.SSLScan.Intercept(interceptors...)
@@ -215,6 +223,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *CSPScanMutation:
+		return c.CSPScan.mutate(ctx, m)
 	case *PortMutation:
 		return c.Port.mutate(ctx, m)
 	case *PortScanMutation:
@@ -225,6 +235,155 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Target.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
+// CSPScanClient is a client for the CSPScan schema.
+type CSPScanClient struct {
+	config
+}
+
+// NewCSPScanClient returns a client for the CSPScan from the given config.
+func NewCSPScanClient(c config) *CSPScanClient {
+	return &CSPScanClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `cspscan.Hooks(f(g(h())))`.
+func (c *CSPScanClient) Use(hooks ...Hook) {
+	c.hooks.CSPScan = append(c.hooks.CSPScan, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `cspscan.Intercept(f(g(h())))`.
+func (c *CSPScanClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CSPScan = append(c.inters.CSPScan, interceptors...)
+}
+
+// Create returns a builder for creating a CSPScan entity.
+func (c *CSPScanClient) Create() *CSPScanCreate {
+	mutation := newCSPScanMutation(c.config, OpCreate)
+	return &CSPScanCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CSPScan entities.
+func (c *CSPScanClient) CreateBulk(builders ...*CSPScanCreate) *CSPScanCreateBulk {
+	return &CSPScanCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CSPScanClient) MapCreateBulk(slice any, setFunc func(*CSPScanCreate, int)) *CSPScanCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CSPScanCreateBulk{err: fmt.Errorf("calling to CSPScanClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CSPScanCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CSPScanCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CSPScan.
+func (c *CSPScanClient) Update() *CSPScanUpdate {
+	mutation := newCSPScanMutation(c.config, OpUpdate)
+	return &CSPScanUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CSPScanClient) UpdateOne(_m *CSPScan) *CSPScanUpdateOne {
+	mutation := newCSPScanMutation(c.config, OpUpdateOne, withCSPScan(_m))
+	return &CSPScanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CSPScanClient) UpdateOneID(id int) *CSPScanUpdateOne {
+	mutation := newCSPScanMutation(c.config, OpUpdateOne, withCSPScanID(id))
+	return &CSPScanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CSPScan.
+func (c *CSPScanClient) Delete() *CSPScanDelete {
+	mutation := newCSPScanMutation(c.config, OpDelete)
+	return &CSPScanDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CSPScanClient) DeleteOne(_m *CSPScan) *CSPScanDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CSPScanClient) DeleteOneID(id int) *CSPScanDeleteOne {
+	builder := c.Delete().Where(cspscan.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CSPScanDeleteOne{builder}
+}
+
+// Query returns a query builder for CSPScan.
+func (c *CSPScanClient) Query() *CSPScanQuery {
+	return &CSPScanQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCSPScan},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CSPScan entity by its id.
+func (c *CSPScanClient) Get(ctx context.Context, id int) (*CSPScan, error) {
+	return c.Query().Where(cspscan.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CSPScanClient) GetX(ctx context.Context, id int) *CSPScan {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTarget queries the target edge of a CSPScan.
+func (c *CSPScanClient) QueryTarget(_m *CSPScan) *TargetQuery {
+	query := (&TargetClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(cspscan.Table, cspscan.FieldID, id),
+			sqlgraph.To(target.Table, target.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, cspscan.TargetTable, cspscan.TargetColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *CSPScanClient) Hooks() []Hook {
+	return c.hooks.CSPScan
+}
+
+// Interceptors returns the client interceptors.
+func (c *CSPScanClient) Interceptors() []Interceptor {
+	return c.inters.CSPScan
+}
+
+func (c *CSPScanClient) mutate(ctx context.Context, m *CSPScanMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CSPScanCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CSPScanUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CSPScanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CSPScanDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CSPScan mutation op: %q", m.Op())
 	}
 }
 
@@ -831,6 +990,22 @@ func (c *TargetClient) QuerySslScans(_m *Target) *SSLScanQuery {
 	return query
 }
 
+// QueryCspScans queries the csp_scans edge of a Target.
+func (c *TargetClient) QueryCspScans(_m *Target) *CSPScanQuery {
+	query := (&CSPScanClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(target.Table, target.FieldID, id),
+			sqlgraph.To(cspscan.Table, cspscan.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, target.CspScansTable, target.CspScansColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *TargetClient) Hooks() []Hook {
 	return c.hooks.Target
@@ -859,9 +1034,9 @@ func (c *TargetClient) mutate(ctx context.Context, m *TargetMutation) (Value, er
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Port, PortScan, SSLScan, Target []ent.Hook
+		CSPScan, Port, PortScan, SSLScan, Target []ent.Hook
 	}
 	inters struct {
-		Port, PortScan, SSLScan, Target []ent.Interceptor
+		CSPScan, Port, PortScan, SSLScan, Target []ent.Interceptor
 	}
 )

@@ -12,6 +12,8 @@ import (
 // Tx is a transactional client that is created by calling Client.Tx().
 type Tx struct {
 	config
+	// CSPScan is the client for interacting with the CSPScan builders.
+	CSPScan *CSPScanClient
 	// Port is the client for interacting with the Port builders.
 	Port *PortClient
 	// PortScan is the client for interacting with the PortScan builders.
@@ -151,6 +153,7 @@ func (tx *Tx) Client() *Client {
 }
 
 func (tx *Tx) init() {
+	tx.CSPScan = NewCSPScanClient(tx.config)
 	tx.Port = NewPortClient(tx.config)
 	tx.PortScan = NewPortScanClient(tx.config)
 	tx.SSLScan = NewSSLScanClient(tx.config)
@@ -164,7 +167,7 @@ func (tx *Tx) init() {
 // of them in order to commit or rollback the transaction.
 //
 // If a closed transaction is embedded in one of the generated entities, and the entity
-// applies a query, for example: Port.QueryXXX(), the query will be executed
+// applies a query, for example: CSPScan.QueryXXX(), the query will be executed
 // through the driver which created this transaction.
 //
 // Note that txDriver is not goroutine safe.

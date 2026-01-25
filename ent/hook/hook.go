@@ -8,6 +8,18 @@ import (
 	"perimeter/ent"
 )
 
+// The CSPScanFunc type is an adapter to allow the use of ordinary
+// function as CSPScan mutator.
+type CSPScanFunc func(context.Context, *ent.CSPScanMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CSPScanFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CSPScanMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CSPScanMutation", m)
+}
+
 // The PortFunc type is an adapter to allow the use of ordinary
 // function as Port mutator.
 type PortFunc func(context.Context, *ent.PortMutation) (ent.Value, error)

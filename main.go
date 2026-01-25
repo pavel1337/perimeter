@@ -19,6 +19,7 @@ import (
 
 	"perimeter/ent"
 	"perimeter/ent/target"
+	"perimeter/scanner/csp"
 	"perimeter/scanner/ports"
 	"perimeter/scanner/ssl"
 )
@@ -72,6 +73,7 @@ func main() {
 	// 4. Start the Scanner Loops (Background Workers)
 	// We pass the client so it can save results
 	go runPortScanLoop(client)
+	go runCSPScanLoop(client)
 	go runSSLScanLoop(client, *email)
 
 	// 5. Start Web Server
@@ -88,6 +90,7 @@ func main() {
 				// Ideally we order by desc time and limit 1, but we do this in view for simplicity or slice Logic
 			}).
 			WithSslScans().
+			WithCspScans().
 			All(c.Context())
 
 		if err != nil {
@@ -119,6 +122,7 @@ func main() {
 				q.WithPorts()
 			}).
 			WithSslScans().
+			WithCspScans().
 			Only(c.Context())
 
 		if err != nil {
@@ -296,6 +300,99 @@ func runSSLScanLoop(client *ent.Client, email string) {
 		}
 
 		log.Println("--- SSL Cycle Complete. Sleeping 1 hour (checking loop). ---")
+		time.Sleep(1 * time.Hour)
+	}
+}
+
+// ---------------------------------------------------------
+// Helper: The CSP Scanner Loop
+// ---------------------------------------------------------
+func runCSPScanLoop(client *ent.Client) {
+	evaluator := csp.NewEvaluator()
+	ctx := context.Background()
+
+	for {
+		log.Println("--- Starting CSP Scan Cycle ---")
+		targets, err := client.Target.Query().WithCspScans().All(ctx)
+		if err != nil {
+			log.Printf("DB Error: %v", err)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		for _, t := range targets {
+			if !isHostname(t.Input) {
+				continue
+			}
+
+			// Debounce
+			if len(t.Edges.CspScans) > 0 {
+				lastScan := t.Edges.CspScans[0]
+				if time.Since(lastScan.ScannedAt) < 1*time.Hour {
+					continue
+				}
+			}
+
+			log.Printf("Scanning CSP for %s...", t.Input)
+			// Fetch CSP Header
+			// We try HTTPS first, then HTTP
+			// Timeout 5s
+			clientHttp := http.Client{
+				Timeout: 5 * time.Second,
+			}
+
+			var cspHeader string
+			resp, err := clientHttp.Head("https://" + t.Input)
+			if err != nil {
+				// Try HTTP
+				resp, err = clientHttp.Head("http://" + t.Input)
+			}
+
+			var findings []csp.Finding
+
+			if err != nil {
+				log.Printf("Failed to connect to %s: %v", t.Input, err)
+				// We still might want to save a record indicating failure, but for now we skip?
+				// Or we create a finding saying "Unreachable"?
+				// The prompt says "handle absence of csp, it must be marked as a security issue".
+				// If unreachable, we probably can't say much about CSP.
+				continue
+			} else {
+				defer resp.Body.Close()
+				cspHeader = resp.Header.Get("Content-Security-Policy")
+
+				if cspHeader == "" {
+					// Absence of CSP Finding
+					findings = append(findings, csp.Finding{
+						Type:        csp.TypeMissingDirectives, // Reuse generic missing directives type
+						Description: "No Content-Security-Policy header found.",
+						Severity:    csp.SeverityHigh,
+						Directive:   "Header",
+					})
+				} else {
+					// Evaluate
+					f, err := evaluator.Evaluate(cspHeader)
+					if err != nil {
+						log.Printf("Error evaluating CSP for %s: %v", t.Input, err)
+					}
+					findings = append(findings, f...)
+				}
+			}
+
+			// Save
+			_, err = client.CSPScan.Create().
+				SetTarget(t).
+				SetScannedAt(time.Now()).
+				SetCspHeader(cspHeader).
+				SetFindings(findings).
+				Save(ctx)
+
+			if err != nil {
+				log.Printf("Failed to save CSP scan: %v", err)
+			}
+		}
+
+		log.Println("--- CSP Cycle Complete. Sleeping 1 hour. ---")
 		time.Sleep(1 * time.Hour)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"math"
+	"perimeter/ent/cspscan"
 	"perimeter/ent/portscan"
 	"perimeter/ent/predicate"
 	"perimeter/ent/sslscan"
@@ -27,6 +28,7 @@ type TargetQuery struct {
 	predicates   []predicate.Target
 	withScans    *PortScanQuery
 	withSslScans *SSLScanQuery
+	withCspScans *CSPScanQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -100,6 +102,28 @@ func (_q *TargetQuery) QuerySslScans() *SSLScanQuery {
 			sqlgraph.From(target.Table, target.FieldID, selector),
 			sqlgraph.To(sslscan.Table, sslscan.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, target.SslScansTable, target.SslScansColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryCspScans chains the current query on the "csp_scans" edge.
+func (_q *TargetQuery) QueryCspScans() *CSPScanQuery {
+	query := (&CSPScanClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(target.Table, target.FieldID, selector),
+			sqlgraph.To(cspscan.Table, cspscan.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, target.CspScansTable, target.CspScansColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -301,6 +325,7 @@ func (_q *TargetQuery) Clone() *TargetQuery {
 		predicates:   append([]predicate.Target{}, _q.predicates...),
 		withScans:    _q.withScans.Clone(),
 		withSslScans: _q.withSslScans.Clone(),
+		withCspScans: _q.withCspScans.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -326,6 +351,17 @@ func (_q *TargetQuery) WithSslScans(opts ...func(*SSLScanQuery)) *TargetQuery {
 		opt(query)
 	}
 	_q.withSslScans = query
+	return _q
+}
+
+// WithCspScans tells the query-builder to eager-load the nodes that are connected to
+// the "csp_scans" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TargetQuery) WithCspScans(opts ...func(*CSPScanQuery)) *TargetQuery {
+	query := (&CSPScanClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCspScans = query
 	return _q
 }
 
@@ -407,9 +443,10 @@ func (_q *TargetQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Targe
 	var (
 		nodes       = []*Target{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [3]bool{
 			_q.withScans != nil,
 			_q.withSslScans != nil,
+			_q.withCspScans != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -441,6 +478,13 @@ func (_q *TargetQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Targe
 		if err := _q.loadSslScans(ctx, query, nodes,
 			func(n *Target) { n.Edges.SslScans = []*SSLScan{} },
 			func(n *Target, e *SSLScan) { n.Edges.SslScans = append(n.Edges.SslScans, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withCspScans; query != nil {
+		if err := _q.loadCspScans(ctx, query, nodes,
+			func(n *Target) { n.Edges.CspScans = []*CSPScan{} },
+			func(n *Target, e *CSPScan) { n.Edges.CspScans = append(n.Edges.CspScans, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -504,6 +548,37 @@ func (_q *TargetQuery) loadSslScans(ctx context.Context, query *SSLScanQuery, no
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "target_ssl_scans" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TargetQuery) loadCspScans(ctx context.Context, query *CSPScanQuery, nodes []*Target, init func(*Target), assign func(*Target, *CSPScan)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Target)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.CSPScan(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(target.CspScansColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.target_csp_scans
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "target_csp_scans" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "target_csp_scans" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}
