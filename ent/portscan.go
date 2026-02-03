@@ -4,6 +4,7 @@ package ent
 
 import (
 	"fmt"
+	"perimeter/ent/ip"
 	"perimeter/ent/portscan"
 	"strings"
 	"time"
@@ -22,13 +23,14 @@ type PortScan struct {
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the PortScanQuery when eager-loading is set.
 	Edges        PortScanEdges `json:"edges"`
+	ip_scans     *int
 	selectValues sql.SelectValues
 }
 
 // PortScanEdges holds the relations/edges for other nodes in the graph.
 type PortScanEdges struct {
-	// Targets holds the value of the targets edge.
-	Targets []*Target `json:"targets,omitempty"`
+	// IP holds the value of the ip edge.
+	IP *IP `json:"ip,omitempty"`
 	// Ports holds the value of the ports edge.
 	Ports []*Port `json:"ports,omitempty"`
 	// loadedTypes holds the information for reporting if a
@@ -36,13 +38,15 @@ type PortScanEdges struct {
 	loadedTypes [2]bool
 }
 
-// TargetsOrErr returns the Targets value or an error if the edge
-// was not loaded in eager-loading.
-func (e PortScanEdges) TargetsOrErr() ([]*Target, error) {
-	if e.loadedTypes[0] {
-		return e.Targets, nil
+// IPOrErr returns the IP value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e PortScanEdges) IPOrErr() (*IP, error) {
+	if e.IP != nil {
+		return e.IP, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: ip.Label}
 	}
-	return nil, &NotLoadedError{edge: "targets"}
+	return nil, &NotLoadedError{edge: "ip"}
 }
 
 // PortsOrErr returns the Ports value or an error if the edge
@@ -63,6 +67,8 @@ func (*PortScan) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case portscan.FieldScannedAt:
 			values[i] = new(sql.NullTime)
+		case portscan.ForeignKeys[0]: // ip_scans
+			values[i] = new(sql.NullInt64)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -90,6 +96,13 @@ func (_m *PortScan) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ScannedAt = value.Time
 			}
+		case portscan.ForeignKeys[0]:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for edge-field ip_scans", value)
+			} else if value.Valid {
+				_m.ip_scans = new(int)
+				*_m.ip_scans = int(value.Int64)
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -103,9 +116,9 @@ func (_m *PortScan) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
 }
 
-// QueryTargets queries the "targets" edge of the PortScan entity.
-func (_m *PortScan) QueryTargets() *TargetQuery {
-	return NewPortScanClient(_m.config).QueryTargets(_m)
+// QueryIP queries the "ip" edge of the PortScan entity.
+func (_m *PortScan) QueryIP() *IPQuery {
+	return NewPortScanClient(_m.config).QueryIP(_m)
 }
 
 // QueryPorts queries the "ports" edge of the PortScan entity.

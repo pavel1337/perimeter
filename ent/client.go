@@ -12,6 +12,7 @@ import (
 	"perimeter/ent/migrate"
 
 	"perimeter/ent/cspscan"
+	"perimeter/ent/ip"
 	"perimeter/ent/port"
 	"perimeter/ent/portscan"
 	"perimeter/ent/sslscan"
@@ -30,6 +31,8 @@ type Client struct {
 	Schema *migrate.Schema
 	// CSPScan is the client for interacting with the CSPScan builders.
 	CSPScan *CSPScanClient
+	// IP is the client for interacting with the IP builders.
+	IP *IPClient
 	// Port is the client for interacting with the Port builders.
 	Port *PortClient
 	// PortScan is the client for interacting with the PortScan builders.
@@ -50,6 +53,7 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.CSPScan = NewCSPScanClient(c.config)
+	c.IP = NewIPClient(c.config)
 	c.Port = NewPortClient(c.config)
 	c.PortScan = NewPortScanClient(c.config)
 	c.SSLScan = NewSSLScanClient(c.config)
@@ -147,6 +151,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ctx:      ctx,
 		config:   cfg,
 		CSPScan:  NewCSPScanClient(cfg),
+		IP:       NewIPClient(cfg),
 		Port:     NewPortClient(cfg),
 		PortScan: NewPortScanClient(cfg),
 		SSLScan:  NewSSLScanClient(cfg),
@@ -171,6 +176,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ctx:      ctx,
 		config:   cfg,
 		CSPScan:  NewCSPScanClient(cfg),
+		IP:       NewIPClient(cfg),
 		Port:     NewPortClient(cfg),
 		PortScan: NewPortScanClient(cfg),
 		SSLScan:  NewSSLScanClient(cfg),
@@ -203,21 +209,21 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.CSPScan.Use(hooks...)
-	c.Port.Use(hooks...)
-	c.PortScan.Use(hooks...)
-	c.SSLScan.Use(hooks...)
-	c.Target.Use(hooks...)
+	for _, n := range []interface{ Use(...Hook) }{
+		c.CSPScan, c.IP, c.Port, c.PortScan, c.SSLScan, c.Target,
+	} {
+		n.Use(hooks...)
+	}
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.CSPScan.Intercept(interceptors...)
-	c.Port.Intercept(interceptors...)
-	c.PortScan.Intercept(interceptors...)
-	c.SSLScan.Intercept(interceptors...)
-	c.Target.Intercept(interceptors...)
+	for _, n := range []interface{ Intercept(...Interceptor) }{
+		c.CSPScan, c.IP, c.Port, c.PortScan, c.SSLScan, c.Target,
+	} {
+		n.Intercept(interceptors...)
+	}
 }
 
 // Mutate implements the ent.Mutator interface.
@@ -225,6 +231,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *CSPScanMutation:
 		return c.CSPScan.mutate(ctx, m)
+	case *IPMutation:
+		return c.IP.mutate(ctx, m)
 	case *PortMutation:
 		return c.Port.mutate(ctx, m)
 	case *PortScanMutation:
@@ -384,6 +392,171 @@ func (c *CSPScanClient) mutate(ctx context.Context, m *CSPScanMutation) (Value, 
 		return (&CSPScanDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown CSPScan mutation op: %q", m.Op())
+	}
+}
+
+// IPClient is a client for the IP schema.
+type IPClient struct {
+	config
+}
+
+// NewIPClient returns a client for the IP from the given config.
+func NewIPClient(c config) *IPClient {
+	return &IPClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `ip.Hooks(f(g(h())))`.
+func (c *IPClient) Use(hooks ...Hook) {
+	c.hooks.IP = append(c.hooks.IP, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `ip.Intercept(f(g(h())))`.
+func (c *IPClient) Intercept(interceptors ...Interceptor) {
+	c.inters.IP = append(c.inters.IP, interceptors...)
+}
+
+// Create returns a builder for creating a IP entity.
+func (c *IPClient) Create() *IPCreate {
+	mutation := newIPMutation(c.config, OpCreate)
+	return &IPCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of IP entities.
+func (c *IPClient) CreateBulk(builders ...*IPCreate) *IPCreateBulk {
+	return &IPCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *IPClient) MapCreateBulk(slice any, setFunc func(*IPCreate, int)) *IPCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &IPCreateBulk{err: fmt.Errorf("calling to IPClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*IPCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &IPCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for IP.
+func (c *IPClient) Update() *IPUpdate {
+	mutation := newIPMutation(c.config, OpUpdate)
+	return &IPUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *IPClient) UpdateOne(_m *IP) *IPUpdateOne {
+	mutation := newIPMutation(c.config, OpUpdateOne, withIP(_m))
+	return &IPUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *IPClient) UpdateOneID(id int) *IPUpdateOne {
+	mutation := newIPMutation(c.config, OpUpdateOne, withIPID(id))
+	return &IPUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for IP.
+func (c *IPClient) Delete() *IPDelete {
+	mutation := newIPMutation(c.config, OpDelete)
+	return &IPDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *IPClient) DeleteOne(_m *IP) *IPDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *IPClient) DeleteOneID(id int) *IPDeleteOne {
+	builder := c.Delete().Where(ip.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &IPDeleteOne{builder}
+}
+
+// Query returns a query builder for IP.
+func (c *IPClient) Query() *IPQuery {
+	return &IPQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeIP},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a IP entity by its id.
+func (c *IPClient) Get(ctx context.Context, id int) (*IP, error) {
+	return c.Query().Where(ip.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *IPClient) GetX(ctx context.Context, id int) *IP {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTargets queries the targets edge of a IP.
+func (c *IPClient) QueryTargets(_m *IP) *TargetQuery {
+	query := (&TargetClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ip.Table, ip.FieldID, id),
+			sqlgraph.To(target.Table, target.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, ip.TargetsTable, ip.TargetsPrimaryKey...),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryScans queries the scans edge of a IP.
+func (c *IPClient) QueryScans(_m *IP) *PortScanQuery {
+	query := (&PortScanClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ip.Table, ip.FieldID, id),
+			sqlgraph.To(portscan.Table, portscan.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ip.ScansTable, ip.ScansColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *IPClient) Hooks() []Hook {
+	return c.hooks.IP
+}
+
+// Interceptors returns the client interceptors.
+func (c *IPClient) Interceptors() []Interceptor {
+	return c.inters.IP
+}
+
+func (c *IPClient) mutate(ctx context.Context, m *IPMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&IPCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&IPUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&IPUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&IPDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown IP mutation op: %q", m.Op())
 	}
 }
 
@@ -644,15 +817,15 @@ func (c *PortScanClient) GetX(ctx context.Context, id int) *PortScan {
 	return obj
 }
 
-// QueryTargets queries the targets edge of a PortScan.
-func (c *PortScanClient) QueryTargets(_m *PortScan) *TargetQuery {
-	query := (&TargetClient{config: c.config}).Query()
+// QueryIP queries the ip edge of a PortScan.
+func (c *PortScanClient) QueryIP(_m *PortScan) *IPQuery {
+	query := (&IPClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(portscan.Table, portscan.FieldID, id),
-			sqlgraph.To(target.Table, target.FieldID),
-			sqlgraph.Edge(sqlgraph.M2M, true, portscan.TargetsTable, portscan.TargetsPrimaryKey...),
+			sqlgraph.To(ip.Table, ip.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, portscan.IPTable, portscan.IPColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -958,15 +1131,15 @@ func (c *TargetClient) GetX(ctx context.Context, id int) *Target {
 	return obj
 }
 
-// QueryScans queries the scans edge of a Target.
-func (c *TargetClient) QueryScans(_m *Target) *PortScanQuery {
-	query := (&PortScanClient{config: c.config}).Query()
+// QueryIps queries the ips edge of a Target.
+func (c *TargetClient) QueryIps(_m *Target) *IPQuery {
+	query := (&IPClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(target.Table, target.FieldID, id),
-			sqlgraph.To(portscan.Table, portscan.FieldID),
-			sqlgraph.Edge(sqlgraph.M2M, false, target.ScansTable, target.ScansPrimaryKey...),
+			sqlgraph.To(ip.Table, ip.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, false, target.IpsTable, target.IpsPrimaryKey...),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -1034,9 +1207,9 @@ func (c *TargetClient) mutate(ctx context.Context, m *TargetMutation) (Value, er
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		CSPScan, Port, PortScan, SSLScan, Target []ent.Hook
+		CSPScan, IP, Port, PortScan, SSLScan, Target []ent.Hook
 	}
 	inters struct {
-		CSPScan, Port, PortScan, SSLScan, Target []ent.Interceptor
+		CSPScan, IP, Port, PortScan, SSLScan, Target []ent.Interceptor
 	}
 )

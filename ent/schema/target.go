@@ -20,8 +20,10 @@ func (Target) Fields() []ent.Field {
 
 func (Target) Edges() []ent.Edge {
 	return []ent.Edge{
-		// A target has a history of many scans
-		edge.To("scans", PortScan.Type),
+		// A target resolves to one or more IPs
+		edge.To("ips", IP.Type),
+
+		// A target has a history of other scans
 		edge.To("ssl_scans", SSLScan.Type),
 		edge.To("csp_scans", CSPScan.Type),
 	}

@@ -215,21 +215,21 @@ func InputContainsFold(v string) predicate.Target {
 	return predicate.Target(sql.FieldContainsFold(FieldInput, v))
 }
 
-// HasScans applies the HasEdge predicate on the "scans" edge.
-func HasScans() predicate.Target {
+// HasIps applies the HasEdge predicate on the "ips" edge.
+func HasIps() predicate.Target {
 	return predicate.Target(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.M2M, false, ScansTable, ScansPrimaryKey...),
+			sqlgraph.Edge(sqlgraph.M2M, false, IpsTable, IpsPrimaryKey...),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
 }
 
-// HasScansWith applies the HasEdge predicate on the "scans" edge with a given conditions (other predicates).
-func HasScansWith(preds ...predicate.PortScan) predicate.Target {
+// HasIpsWith applies the HasEdge predicate on the "ips" edge with a given conditions (other predicates).
+func HasIpsWith(preds ...predicate.IP) predicate.Target {
 	return predicate.Target(func(s *sql.Selector) {
-		step := newScansStep()
+		step := newIpsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

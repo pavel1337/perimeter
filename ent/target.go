@@ -31,8 +31,8 @@ type Target struct {
 
 // TargetEdges holds the relations/edges for other nodes in the graph.
 type TargetEdges struct {
-	// Scans holds the value of the scans edge.
-	Scans []*PortScan `json:"scans,omitempty"`
+	// Ips holds the value of the ips edge.
+	Ips []*IP `json:"ips,omitempty"`
 	// SslScans holds the value of the ssl_scans edge.
 	SslScans []*SSLScan `json:"ssl_scans,omitempty"`
 	// CspScans holds the value of the csp_scans edge.
@@ -42,13 +42,13 @@ type TargetEdges struct {
 	loadedTypes [3]bool
 }
 
-// ScansOrErr returns the Scans value or an error if the edge
+// IpsOrErr returns the Ips value or an error if the edge
 // was not loaded in eager-loading.
-func (e TargetEdges) ScansOrErr() ([]*PortScan, error) {
+func (e TargetEdges) IpsOrErr() ([]*IP, error) {
 	if e.loadedTypes[0] {
-		return e.Scans, nil
+		return e.Ips, nil
 	}
-	return nil, &NotLoadedError{edge: "scans"}
+	return nil, &NotLoadedError{edge: "ips"}
 }
 
 // SslScansOrErr returns the SslScans value or an error if the edge
@@ -132,9 +132,9 @@ func (_m *Target) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
 }
 
-// QueryScans queries the "scans" edge of the Target entity.
-func (_m *Target) QueryScans() *PortScanQuery {
-	return NewTargetClient(_m.config).QueryScans(_m)
+// QueryIps queries the "ips" edge of the Target entity.
+func (_m *Target) QueryIps() *IPQuery {
+	return NewTargetClient(_m.config).QueryIps(_m)
 }
 
 // QuerySslScans queries the "ssl_scans" edge of the Target entity.

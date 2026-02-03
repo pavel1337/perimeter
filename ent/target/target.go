@@ -20,19 +20,19 @@ const (
 	FieldUpdateTime = "update_time"
 	// FieldInput holds the string denoting the input field in the database.
 	FieldInput = "input"
-	// EdgeScans holds the string denoting the scans edge name in mutations.
-	EdgeScans = "scans"
+	// EdgeIps holds the string denoting the ips edge name in mutations.
+	EdgeIps = "ips"
 	// EdgeSslScans holds the string denoting the ssl_scans edge name in mutations.
 	EdgeSslScans = "ssl_scans"
 	// EdgeCspScans holds the string denoting the csp_scans edge name in mutations.
 	EdgeCspScans = "csp_scans"
 	// Table holds the table name of the target in the database.
 	Table = "targets"
-	// ScansTable is the table that holds the scans relation/edge. The primary key declared below.
-	ScansTable = "target_scans"
-	// ScansInverseTable is the table name for the PortScan entity.
-	// It exists in this package in order to avoid circular dependency with the "portscan" package.
-	ScansInverseTable = "port_scans"
+	// IpsTable is the table that holds the ips relation/edge. The primary key declared below.
+	IpsTable = "target_ips"
+	// IpsInverseTable is the table name for the IP entity.
+	// It exists in this package in order to avoid circular dependency with the "ip" package.
+	IpsInverseTable = "ips"
 	// SslScansTable is the table that holds the ssl_scans relation/edge.
 	SslScansTable = "ssl_scans"
 	// SslScansInverseTable is the table name for the SSLScan entity.
@@ -58,9 +58,9 @@ var Columns = []string{
 }
 
 var (
-	// ScansPrimaryKey and ScansColumn2 are the table columns denoting the
-	// primary key for the scans relation (M2M).
-	ScansPrimaryKey = []string{"target_id", "port_scan_id"}
+	// IpsPrimaryKey and IpsColumn2 are the table columns denoting the
+	// primary key for the ips relation (M2M).
+	IpsPrimaryKey = []string{"target_id", "ip_id"}
 )
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -107,17 +107,17 @@ func ByInput(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldInput, opts...).ToFunc()
 }
 
-// ByScansCount orders the results by scans count.
-func ByScansCount(opts ...sql.OrderTermOption) OrderOption {
+// ByIpsCount orders the results by ips count.
+func ByIpsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newScansStep(), opts...)
+		sqlgraph.OrderByNeighborsCount(s, newIpsStep(), opts...)
 	}
 }
 
-// ByScans orders the results by scans terms.
-func ByScans(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+// ByIps orders the results by ips terms.
+func ByIps(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newScansStep(), append([]sql.OrderTerm{term}, terms...)...)
+		sqlgraph.OrderByNeighborTerms(s, newIpsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
 
@@ -148,11 +148,11 @@ func ByCspScans(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newCspScansStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
-func newScansStep() *sqlgraph.Step {
+func newIpsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(ScansInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.M2M, false, ScansTable, ScansPrimaryKey...),
+		sqlgraph.To(IpsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2M, false, IpsTable, IpsPrimaryKey...),
 	)
 }
 func newSslScansStep() *sqlgraph.Step {

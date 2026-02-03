@@ -30,23 +30,29 @@
         {{end}}
       </td>
 
-      {{if .Edges.Scans}}
-      {{$latest := index .Edges.Scans 0}}
-
+      {{if .Edges.Ips}}
       <td>
-        {{if $latest.Edges.Ports}}
-        <span style="color:red">
-          {{range $latest.Edges.Ports}}
-          [{{.Number}}]
-          {{end}}
-        </span>
-        {{else}}
-        <span style="color:green">No open ports</span>
+        {{range .Edges.Ips}}
+          <div style="margin-bottom: 5px;">
+            <strong>{{.Address}}</strong>:
+            {{if .Edges.Scans}}
+              {{$latestScan := index .Edges.Scans 0}}
+              {{if $latestScan.Edges.Ports}}
+                <span style="color:red">
+                  {{range $latestScan.Edges.Ports}}[{{.Number}}] {{end}}
+                </span>
+              {{else}}
+                <span style="color:green">Safe</span>
+              {{end}}
+              <small>({{$latestScan.ScannedAt.Format "01/02 15:04"}})</small>
+            {{else}}
+              <em>Pending...</em>
+            {{end}}
+          </div>
         {{end}}
       </td>
-
       {{else}}
-      <td><em>Pending Port Scan...</em></td>
+      <td><em>Resolving...</em></td>
       {{end}}
 
       <td>

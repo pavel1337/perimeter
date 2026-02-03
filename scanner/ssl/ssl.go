@@ -52,6 +52,8 @@ type apiHost struct {
 	Host          string        `json:"host"`
 	Status        string        `json:"status"`
 	StatusMessage string        `json:"statusMessage"`
+	StartTime     int64         `json:"startTime"`
+	TestTime      int64         `json:"testTime"`
 	Endpoints     []apiEndpoint `json:"endpoints"`
 	Certs         []apiCert     `json:"certs"`
 }
@@ -86,25 +88,61 @@ type apiCert struct {
 }
 
 func (s *SSLLabsScanner) Scan(target string) (*SSLResult, error) {
-	// 1. Check Info / Availability (Optional but good practice, skipping for minimalism unless 429)
+	// 1. Check for existing scan first (startNew=false)
+	// This helps avoid 529 errors by not triggering new scans unnecessarily.
+	hostData, err := s.analyze(target, false)
 
-	// 2. Invoke analyze with startNew=on & all=done
-	// Note: startNew should only be used once. If we want to poll, we drop it.
-	// For simplicity, we'll try to get a cached one or start new.
-	// Actually, the docs say: "Invoke analyze with the startNew parameter to on. Set all to done."
+	shouldStartNew := false
 
-	// Initial call to start or retrieve status
-	hostData, err := s.analyze(target, true)
 	if err != nil {
-		return nil, err
+		// If 529 Service Overloaded, we should back off.
+		// Manager sleeps 5s, so we add more delay here to be polite.
+		if strings.Contains(err.Error(), "529") {
+			time.Sleep(60 * time.Second)
+			return nil, err
+		}
+		// For other errors (e.g. connectivity), we might try to start new or fail.
+		// Assuming if fetch failed, we try to start new.
+		shouldStartNew = true
+	} else {
+		// We have some data
+		if hostData.Status == "READY" {
+			// Check age
+			scanTime := time.Unix(hostData.TestTime/1000, 0)
+			// If scan is reasonably fresh (e.g. < 24 hours), use it.
+			// The user said "if its old, then trigger new scan".
+			// 12-24 hours is a typical "fresh" window for SSL Labs.
+			if time.Since(scanTime) < 24*time.Hour {
+				return s.buildResult(hostData), nil
+			}
+			// It's old, trigger new
+			shouldStartNew = true
+		} else if hostData.Status == "IN_PROGRESS" || hostData.Status == "DNS" {
+			// Already running, join the poll
+			shouldStartNew = false
+		} else {
+			// ERROR or unknown, start new
+			shouldStartNew = true
+		}
+	}
+
+	// 2. Start new scan if needed
+	if shouldStartNew {
+		hostData, err = s.analyze(target, true)
+		if err != nil {
+			if strings.Contains(err.Error(), "529") {
+				time.Sleep(60 * time.Second)
+			}
+			return nil, err
+		}
 	}
 
 	// 3. Poll until READY or ERROR
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(30 * time.Second) // Slower polling to be polite
 	defer ticker.Stop()
 
-	// Hard timeout of 5 minutes roughly
-	timeout := time.After(5 * time.Minute)
+	// Hard timeout of 10 minutes (SSL Labs can be slow)
+	timeout := time.After(10 * time.Minute)
 
 	for hostData.Status == "IN_PROGRESS" || hostData.Status == "DNS" {
 		select {
@@ -114,6 +152,10 @@ func (s *SSLLabsScanner) Scan(target string) (*SSLResult, error) {
 			// Poll without startNew
 			hostData, err = s.analyze(target, false)
 			if err != nil {
+				// If 529 during poll, just wait and retry next tick
+				if strings.Contains(err.Error(), "529") {
+					continue
+				}
 				return nil, err
 			}
 		}
@@ -123,6 +165,10 @@ func (s *SSLLabsScanner) Scan(target string) (*SSLResult, error) {
 		return nil, fmt.Errorf("scan failed: %s", hostData.StatusMessage)
 	}
 
+	return s.buildResult(hostData), nil
+}
+
+func (s *SSLLabsScanner) buildResult(hostData *apiHost) *SSLResult {
 	// 4. Construct Result
 	result := &SSLResult{
 		Target: hostData.Host,
@@ -173,13 +219,13 @@ func (s *SSLLabsScanner) Scan(target string) (*SSLResult, error) {
 
 	// Certs
 	if len(hostData.Certs) > 0 {
-		cert := hostData.Certs[0] // Leaf cert usually first? Doc check: "chain certificates in the order in which they were retrieved". Usually leaf is first.
+		cert := hostData.Certs[0] // Leaf cert usually first
 		result.CertSubject = cert.Subject
 		result.CertIssuer = cert.Issuer
 		result.CertExpiry = time.Unix(cert.NotAfter/1000, 0) // API returns ms
 	}
 
-	return result, nil
+	return result
 }
 
 func (s *SSLLabsScanner) analyze(host string, startNew bool) (*apiHost, error) {

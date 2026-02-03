@@ -6,10 +6,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"perimeter/ent/ip"
 	"perimeter/ent/port"
 	"perimeter/ent/portscan"
 	"perimeter/ent/predicate"
-	"perimeter/ent/target"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -44,19 +44,15 @@ func (_u *PortScanUpdate) SetNillableScannedAt(v *time.Time) *PortScanUpdate {
 	return _u
 }
 
-// AddTargetIDs adds the "targets" edge to the Target entity by IDs.
-func (_u *PortScanUpdate) AddTargetIDs(ids ...int) *PortScanUpdate {
-	_u.mutation.AddTargetIDs(ids...)
+// SetIPID sets the "ip" edge to the IP entity by ID.
+func (_u *PortScanUpdate) SetIPID(id int) *PortScanUpdate {
+	_u.mutation.SetIPID(id)
 	return _u
 }
 
-// AddTargets adds the "targets" edges to the Target entity.
-func (_u *PortScanUpdate) AddTargets(v ...*Target) *PortScanUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.AddTargetIDs(ids...)
+// SetIP sets the "ip" edge to the IP entity.
+func (_u *PortScanUpdate) SetIP(v *IP) *PortScanUpdate {
+	return _u.SetIPID(v.ID)
 }
 
 // AddPortIDs adds the "ports" edge to the Port entity by IDs.
@@ -79,25 +75,10 @@ func (_u *PortScanUpdate) Mutation() *PortScanMutation {
 	return _u.mutation
 }
 
-// ClearTargets clears all "targets" edges to the Target entity.
-func (_u *PortScanUpdate) ClearTargets() *PortScanUpdate {
-	_u.mutation.ClearTargets()
+// ClearIP clears the "ip" edge to the IP entity.
+func (_u *PortScanUpdate) ClearIP() *PortScanUpdate {
+	_u.mutation.ClearIP()
 	return _u
-}
-
-// RemoveTargetIDs removes the "targets" edge to Target entities by IDs.
-func (_u *PortScanUpdate) RemoveTargetIDs(ids ...int) *PortScanUpdate {
-	_u.mutation.RemoveTargetIDs(ids...)
-	return _u
-}
-
-// RemoveTargets removes "targets" edges to Target entities.
-func (_u *PortScanUpdate) RemoveTargets(v ...*Target) *PortScanUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.RemoveTargetIDs(ids...)
 }
 
 // ClearPorts clears all "ports" edges to the Port entity.
@@ -148,7 +129,18 @@ func (_u *PortScanUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *PortScanUpdate) check() error {
+	if _u.mutation.IPCleared() && len(_u.mutation.IPIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "PortScan.ip"`)
+	}
+	return nil
+}
+
 func (_u *PortScanUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(portscan.Table, portscan.Columns, sqlgraph.NewFieldSpec(portscan.FieldID, field.TypeInt))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -160,44 +152,28 @@ func (_u *PortScanUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.ScannedAt(); ok {
 		_spec.SetField(portscan.FieldScannedAt, field.TypeTime, value)
 	}
-	if _u.mutation.TargetsCleared() {
+	if _u.mutation.IPCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
+			Rel:     sqlgraph.M2O,
 			Inverse: true,
-			Table:   portscan.TargetsTable,
-			Columns: portscan.TargetsPrimaryKey,
+			Table:   portscan.IPTable,
+			Columns: []string{portscan.IPColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(target.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(ip.FieldID, field.TypeInt),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedTargetsIDs(); len(nodes) > 0 && !_u.mutation.TargetsCleared() {
+	if nodes := _u.mutation.IPIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
+			Rel:     sqlgraph.M2O,
 			Inverse: true,
-			Table:   portscan.TargetsTable,
-			Columns: portscan.TargetsPrimaryKey,
+			Table:   portscan.IPTable,
+			Columns: []string{portscan.IPColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(target.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.TargetsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
-			Inverse: true,
-			Table:   portscan.TargetsTable,
-			Columns: portscan.TargetsPrimaryKey,
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(target.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(ip.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -284,19 +260,15 @@ func (_u *PortScanUpdateOne) SetNillableScannedAt(v *time.Time) *PortScanUpdateO
 	return _u
 }
 
-// AddTargetIDs adds the "targets" edge to the Target entity by IDs.
-func (_u *PortScanUpdateOne) AddTargetIDs(ids ...int) *PortScanUpdateOne {
-	_u.mutation.AddTargetIDs(ids...)
+// SetIPID sets the "ip" edge to the IP entity by ID.
+func (_u *PortScanUpdateOne) SetIPID(id int) *PortScanUpdateOne {
+	_u.mutation.SetIPID(id)
 	return _u
 }
 
-// AddTargets adds the "targets" edges to the Target entity.
-func (_u *PortScanUpdateOne) AddTargets(v ...*Target) *PortScanUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.AddTargetIDs(ids...)
+// SetIP sets the "ip" edge to the IP entity.
+func (_u *PortScanUpdateOne) SetIP(v *IP) *PortScanUpdateOne {
+	return _u.SetIPID(v.ID)
 }
 
 // AddPortIDs adds the "ports" edge to the Port entity by IDs.
@@ -319,25 +291,10 @@ func (_u *PortScanUpdateOne) Mutation() *PortScanMutation {
 	return _u.mutation
 }
 
-// ClearTargets clears all "targets" edges to the Target entity.
-func (_u *PortScanUpdateOne) ClearTargets() *PortScanUpdateOne {
-	_u.mutation.ClearTargets()
+// ClearIP clears the "ip" edge to the IP entity.
+func (_u *PortScanUpdateOne) ClearIP() *PortScanUpdateOne {
+	_u.mutation.ClearIP()
 	return _u
-}
-
-// RemoveTargetIDs removes the "targets" edge to Target entities by IDs.
-func (_u *PortScanUpdateOne) RemoveTargetIDs(ids ...int) *PortScanUpdateOne {
-	_u.mutation.RemoveTargetIDs(ids...)
-	return _u
-}
-
-// RemoveTargets removes "targets" edges to Target entities.
-func (_u *PortScanUpdateOne) RemoveTargets(v ...*Target) *PortScanUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.RemoveTargetIDs(ids...)
 }
 
 // ClearPorts clears all "ports" edges to the Port entity.
@@ -401,7 +358,18 @@ func (_u *PortScanUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *PortScanUpdateOne) check() error {
+	if _u.mutation.IPCleared() && len(_u.mutation.IPIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "PortScan.ip"`)
+	}
+	return nil
+}
+
 func (_u *PortScanUpdateOne) sqlSave(ctx context.Context) (_node *PortScan, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(portscan.Table, portscan.Columns, sqlgraph.NewFieldSpec(portscan.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -430,44 +398,28 @@ func (_u *PortScanUpdateOne) sqlSave(ctx context.Context) (_node *PortScan, err 
 	if value, ok := _u.mutation.ScannedAt(); ok {
 		_spec.SetField(portscan.FieldScannedAt, field.TypeTime, value)
 	}
-	if _u.mutation.TargetsCleared() {
+	if _u.mutation.IPCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
+			Rel:     sqlgraph.M2O,
 			Inverse: true,
-			Table:   portscan.TargetsTable,
-			Columns: portscan.TargetsPrimaryKey,
+			Table:   portscan.IPTable,
+			Columns: []string{portscan.IPColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(target.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(ip.FieldID, field.TypeInt),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedTargetsIDs(); len(nodes) > 0 && !_u.mutation.TargetsCleared() {
+	if nodes := _u.mutation.IPIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
+			Rel:     sqlgraph.M2O,
 			Inverse: true,
-			Table:   portscan.TargetsTable,
-			Columns: portscan.TargetsPrimaryKey,
+			Table:   portscan.IPTable,
+			Columns: []string{portscan.IPColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(target.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.TargetsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
-			Inverse: true,
-			Table:   portscan.TargetsTable,
-			Columns: portscan.TargetsPrimaryKey,
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(target.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(ip.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

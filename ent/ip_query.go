@@ -7,10 +7,9 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"math"
-	"perimeter/ent/cspscan"
 	"perimeter/ent/ip"
+	"perimeter/ent/portscan"
 	"perimeter/ent/predicate"
-	"perimeter/ent/sslscan"
 	"perimeter/ent/target"
 
 	"entgo.io/ent"
@@ -19,55 +18,54 @@ import (
 	"entgo.io/ent/schema/field"
 )
 
-// TargetQuery is the builder for querying Target entities.
-type TargetQuery struct {
+// IPQuery is the builder for querying IP entities.
+type IPQuery struct {
 	config
-	ctx          *QueryContext
-	order        []target.OrderOption
-	inters       []Interceptor
-	predicates   []predicate.Target
-	withIps      *IPQuery
-	withSslScans *SSLScanQuery
-	withCspScans *CSPScanQuery
+	ctx         *QueryContext
+	order       []ip.OrderOption
+	inters      []Interceptor
+	predicates  []predicate.IP
+	withTargets *TargetQuery
+	withScans   *PortScanQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the TargetQuery builder.
-func (_q *TargetQuery) Where(ps ...predicate.Target) *TargetQuery {
+// Where adds a new predicate for the IPQuery builder.
+func (_q *IPQuery) Where(ps ...predicate.IP) *IPQuery {
 	_q.predicates = append(_q.predicates, ps...)
 	return _q
 }
 
 // Limit the number of records to be returned by this query.
-func (_q *TargetQuery) Limit(limit int) *TargetQuery {
+func (_q *IPQuery) Limit(limit int) *IPQuery {
 	_q.ctx.Limit = &limit
 	return _q
 }
 
 // Offset to start from.
-func (_q *TargetQuery) Offset(offset int) *TargetQuery {
+func (_q *IPQuery) Offset(offset int) *IPQuery {
 	_q.ctx.Offset = &offset
 	return _q
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (_q *TargetQuery) Unique(unique bool) *TargetQuery {
+func (_q *IPQuery) Unique(unique bool) *IPQuery {
 	_q.ctx.Unique = &unique
 	return _q
 }
 
 // Order specifies how the records should be ordered.
-func (_q *TargetQuery) Order(o ...target.OrderOption) *TargetQuery {
+func (_q *IPQuery) Order(o ...ip.OrderOption) *IPQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
 
-// QueryIps chains the current query on the "ips" edge.
-func (_q *TargetQuery) QueryIps() *IPQuery {
-	query := (&IPClient{config: _q.config}).Query()
+// QueryTargets chains the current query on the "targets" edge.
+func (_q *IPQuery) QueryTargets() *TargetQuery {
+	query := (&TargetClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -77,9 +75,9 @@ func (_q *TargetQuery) QueryIps() *IPQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(target.Table, target.FieldID, selector),
-			sqlgraph.To(ip.Table, ip.FieldID),
-			sqlgraph.Edge(sqlgraph.M2M, false, target.IpsTable, target.IpsPrimaryKey...),
+			sqlgraph.From(ip.Table, ip.FieldID, selector),
+			sqlgraph.To(target.Table, target.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, ip.TargetsTable, ip.TargetsPrimaryKey...),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -87,9 +85,9 @@ func (_q *TargetQuery) QueryIps() *IPQuery {
 	return query
 }
 
-// QuerySslScans chains the current query on the "ssl_scans" edge.
-func (_q *TargetQuery) QuerySslScans() *SSLScanQuery {
-	query := (&SSLScanClient{config: _q.config}).Query()
+// QueryScans chains the current query on the "scans" edge.
+func (_q *IPQuery) QueryScans() *PortScanQuery {
+	query := (&PortScanClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -99,9 +97,9 @@ func (_q *TargetQuery) QuerySslScans() *SSLScanQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(target.Table, target.FieldID, selector),
-			sqlgraph.To(sslscan.Table, sslscan.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, target.SslScansTable, target.SslScansColumn),
+			sqlgraph.From(ip.Table, ip.FieldID, selector),
+			sqlgraph.To(portscan.Table, portscan.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ip.ScansTable, ip.ScansColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -109,43 +107,21 @@ func (_q *TargetQuery) QuerySslScans() *SSLScanQuery {
 	return query
 }
 
-// QueryCspScans chains the current query on the "csp_scans" edge.
-func (_q *TargetQuery) QueryCspScans() *CSPScanQuery {
-	query := (&CSPScanClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(target.Table, target.FieldID, selector),
-			sqlgraph.To(cspscan.Table, cspscan.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, target.CspScansTable, target.CspScansColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// First returns the first Target entity from the query.
-// Returns a *NotFoundError when no Target was found.
-func (_q *TargetQuery) First(ctx context.Context) (*Target, error) {
+// First returns the first IP entity from the query.
+// Returns a *NotFoundError when no IP was found.
+func (_q *IPQuery) First(ctx context.Context) (*IP, error) {
 	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{target.Label}
+		return nil, &NotFoundError{ip.Label}
 	}
 	return nodes[0], nil
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (_q *TargetQuery) FirstX(ctx context.Context) *Target {
+func (_q *IPQuery) FirstX(ctx context.Context) *IP {
 	node, err := _q.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -153,22 +129,22 @@ func (_q *TargetQuery) FirstX(ctx context.Context) *Target {
 	return node
 }
 
-// FirstID returns the first Target ID from the query.
-// Returns a *NotFoundError when no Target ID was found.
-func (_q *TargetQuery) FirstID(ctx context.Context) (id int, err error) {
+// FirstID returns the first IP ID from the query.
+// Returns a *NotFoundError when no IP ID was found.
+func (_q *IPQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{target.Label}
+		err = &NotFoundError{ip.Label}
 		return
 	}
 	return ids[0], nil
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *TargetQuery) FirstIDX(ctx context.Context) int {
+func (_q *IPQuery) FirstIDX(ctx context.Context) int {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -176,10 +152,10 @@ func (_q *TargetQuery) FirstIDX(ctx context.Context) int {
 	return id
 }
 
-// Only returns a single Target entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one Target entity is found.
-// Returns a *NotFoundError when no Target entities are found.
-func (_q *TargetQuery) Only(ctx context.Context) (*Target, error) {
+// Only returns a single IP entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when more than one IP entity is found.
+// Returns a *NotFoundError when no IP entities are found.
+func (_q *IPQuery) Only(ctx context.Context) (*IP, error) {
 	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
@@ -188,14 +164,14 @@ func (_q *TargetQuery) Only(ctx context.Context) (*Target, error) {
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{target.Label}
+		return nil, &NotFoundError{ip.Label}
 	default:
-		return nil, &NotSingularError{target.Label}
+		return nil, &NotSingularError{ip.Label}
 	}
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (_q *TargetQuery) OnlyX(ctx context.Context) *Target {
+func (_q *IPQuery) OnlyX(ctx context.Context) *IP {
 	node, err := _q.Only(ctx)
 	if err != nil {
 		panic(err)
@@ -203,10 +179,10 @@ func (_q *TargetQuery) OnlyX(ctx context.Context) *Target {
 	return node
 }
 
-// OnlyID is like Only, but returns the only Target ID in the query.
-// Returns a *NotSingularError when more than one Target ID is found.
+// OnlyID is like Only, but returns the only IP ID in the query.
+// Returns a *NotSingularError when more than one IP ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *TargetQuery) OnlyID(ctx context.Context) (id int, err error) {
+func (_q *IPQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
@@ -215,15 +191,15 @@ func (_q *TargetQuery) OnlyID(ctx context.Context) (id int, err error) {
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{target.Label}
+		err = &NotFoundError{ip.Label}
 	default:
-		err = &NotSingularError{target.Label}
+		err = &NotSingularError{ip.Label}
 	}
 	return
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *TargetQuery) OnlyIDX(ctx context.Context) int {
+func (_q *IPQuery) OnlyIDX(ctx context.Context) int {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -231,18 +207,18 @@ func (_q *TargetQuery) OnlyIDX(ctx context.Context) int {
 	return id
 }
 
-// All executes the query and returns a list of Targets.
-func (_q *TargetQuery) All(ctx context.Context) ([]*Target, error) {
+// All executes the query and returns a list of IPs.
+func (_q *IPQuery) All(ctx context.Context) ([]*IP, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*Target, *TargetQuery]()
-	return withInterceptors[[]*Target](ctx, _q, qr, _q.inters)
+	qr := querierAll[[]*IP, *IPQuery]()
+	return withInterceptors[[]*IP](ctx, _q, qr, _q.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
-func (_q *TargetQuery) AllX(ctx context.Context) []*Target {
+func (_q *IPQuery) AllX(ctx context.Context) []*IP {
 	nodes, err := _q.All(ctx)
 	if err != nil {
 		panic(err)
@@ -250,20 +226,20 @@ func (_q *TargetQuery) AllX(ctx context.Context) []*Target {
 	return nodes
 }
 
-// IDs executes the query and returns a list of Target IDs.
-func (_q *TargetQuery) IDs(ctx context.Context) (ids []int, err error) {
+// IDs executes the query and returns a list of IP IDs.
+func (_q *IPQuery) IDs(ctx context.Context) (ids []int, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(target.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(ip.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *TargetQuery) IDsX(ctx context.Context) []int {
+func (_q *IPQuery) IDsX(ctx context.Context) []int {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -272,16 +248,16 @@ func (_q *TargetQuery) IDsX(ctx context.Context) []int {
 }
 
 // Count returns the count of the given query.
-func (_q *TargetQuery) Count(ctx context.Context) (int, error) {
+func (_q *IPQuery) Count(ctx context.Context) (int, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*TargetQuery](), _q.inters)
+	return withInterceptors[int](ctx, _q, querierCount[*IPQuery](), _q.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (_q *TargetQuery) CountX(ctx context.Context) int {
+func (_q *IPQuery) CountX(ctx context.Context) int {
 	count, err := _q.Count(ctx)
 	if err != nil {
 		panic(err)
@@ -290,7 +266,7 @@ func (_q *TargetQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (_q *TargetQuery) Exist(ctx context.Context) (bool, error) {
+func (_q *IPQuery) Exist(ctx context.Context) (bool, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
@@ -303,7 +279,7 @@ func (_q *TargetQuery) Exist(ctx context.Context) (bool, error) {
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (_q *TargetQuery) ExistX(ctx context.Context) bool {
+func (_q *IPQuery) ExistX(ctx context.Context) bool {
 	exist, err := _q.Exist(ctx)
 	if err != nil {
 		panic(err)
@@ -311,57 +287,45 @@ func (_q *TargetQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the TargetQuery builder, including all associated steps. It can be
+// Clone returns a duplicate of the IPQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (_q *TargetQuery) Clone() *TargetQuery {
+func (_q *IPQuery) Clone() *IPQuery {
 	if _q == nil {
 		return nil
 	}
-	return &TargetQuery{
-		config:       _q.config,
-		ctx:          _q.ctx.Clone(),
-		order:        append([]target.OrderOption{}, _q.order...),
-		inters:       append([]Interceptor{}, _q.inters...),
-		predicates:   append([]predicate.Target{}, _q.predicates...),
-		withIps:      _q.withIps.Clone(),
-		withSslScans: _q.withSslScans.Clone(),
-		withCspScans: _q.withCspScans.Clone(),
+	return &IPQuery{
+		config:      _q.config,
+		ctx:         _q.ctx.Clone(),
+		order:       append([]ip.OrderOption{}, _q.order...),
+		inters:      append([]Interceptor{}, _q.inters...),
+		predicates:  append([]predicate.IP{}, _q.predicates...),
+		withTargets: _q.withTargets.Clone(),
+		withScans:   _q.withScans.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
 }
 
-// WithIps tells the query-builder to eager-load the nodes that are connected to
-// the "ips" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *TargetQuery) WithIps(opts ...func(*IPQuery)) *TargetQuery {
-	query := (&IPClient{config: _q.config}).Query()
+// WithTargets tells the query-builder to eager-load the nodes that are connected to
+// the "targets" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *IPQuery) WithTargets(opts ...func(*TargetQuery)) *IPQuery {
+	query := (&TargetClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withIps = query
+	_q.withTargets = query
 	return _q
 }
 
-// WithSslScans tells the query-builder to eager-load the nodes that are connected to
-// the "ssl_scans" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *TargetQuery) WithSslScans(opts ...func(*SSLScanQuery)) *TargetQuery {
-	query := (&SSLScanClient{config: _q.config}).Query()
+// WithScans tells the query-builder to eager-load the nodes that are connected to
+// the "scans" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *IPQuery) WithScans(opts ...func(*PortScanQuery)) *IPQuery {
+	query := (&PortScanClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withSslScans = query
-	return _q
-}
-
-// WithCspScans tells the query-builder to eager-load the nodes that are connected to
-// the "csp_scans" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *TargetQuery) WithCspScans(opts ...func(*CSPScanQuery)) *TargetQuery {
-	query := (&CSPScanClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withCspScans = query
+	_q.withScans = query
 	return _q
 }
 
@@ -375,15 +339,15 @@ func (_q *TargetQuery) WithCspScans(opts ...func(*CSPScanQuery)) *TargetQuery {
 //		Count int `json:"count,omitempty"`
 //	}
 //
-//	client.Target.Query().
-//		GroupBy(target.FieldCreateTime).
+//	client.IP.Query().
+//		GroupBy(ip.FieldCreateTime).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *TargetQuery) GroupBy(field string, fields ...string) *TargetGroupBy {
+func (_q *IPQuery) GroupBy(field string, fields ...string) *IPGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &TargetGroupBy{build: _q}
+	grbuild := &IPGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = target.Label
+	grbuild.label = ip.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -397,23 +361,23 @@ func (_q *TargetQuery) GroupBy(field string, fields ...string) *TargetGroupBy {
 //		CreateTime time.Time `json:"create_time,omitempty"`
 //	}
 //
-//	client.Target.Query().
-//		Select(target.FieldCreateTime).
+//	client.IP.Query().
+//		Select(ip.FieldCreateTime).
 //		Scan(ctx, &v)
-func (_q *TargetQuery) Select(fields ...string) *TargetSelect {
+func (_q *IPQuery) Select(fields ...string) *IPSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &TargetSelect{TargetQuery: _q}
-	sbuild.label = target.Label
+	sbuild := &IPSelect{IPQuery: _q}
+	sbuild.label = ip.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
-// Aggregate returns a TargetSelect configured with the given aggregations.
-func (_q *TargetQuery) Aggregate(fns ...AggregateFunc) *TargetSelect {
+// Aggregate returns a IPSelect configured with the given aggregations.
+func (_q *IPQuery) Aggregate(fns ...AggregateFunc) *IPSelect {
 	return _q.Select().Aggregate(fns...)
 }
 
-func (_q *TargetQuery) prepareQuery(ctx context.Context) error {
+func (_q *IPQuery) prepareQuery(ctx context.Context) error {
 	for _, inter := range _q.inters {
 		if inter == nil {
 			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
@@ -425,7 +389,7 @@ func (_q *TargetQuery) prepareQuery(ctx context.Context) error {
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !target.ValidColumn(f) {
+		if !ip.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -439,21 +403,20 @@ func (_q *TargetQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (_q *TargetQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Target, error) {
+func (_q *IPQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*IP, error) {
 	var (
-		nodes       = []*Target{}
+		nodes       = []*IP{}
 		_spec       = _q.querySpec()
-		loadedTypes = [3]bool{
-			_q.withIps != nil,
-			_q.withSslScans != nil,
-			_q.withCspScans != nil,
+		loadedTypes = [2]bool{
+			_q.withTargets != nil,
+			_q.withScans != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
-		return (*Target).scanValues(nil, columns)
+		return (*IP).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &Target{config: _q.config}
+		node := &IP{config: _q.config}
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
@@ -467,34 +430,27 @@ func (_q *TargetQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Targe
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := _q.withIps; query != nil {
-		if err := _q.loadIps(ctx, query, nodes,
-			func(n *Target) { n.Edges.Ips = []*IP{} },
-			func(n *Target, e *IP) { n.Edges.Ips = append(n.Edges.Ips, e) }); err != nil {
+	if query := _q.withTargets; query != nil {
+		if err := _q.loadTargets(ctx, query, nodes,
+			func(n *IP) { n.Edges.Targets = []*Target{} },
+			func(n *IP, e *Target) { n.Edges.Targets = append(n.Edges.Targets, e) }); err != nil {
 			return nil, err
 		}
 	}
-	if query := _q.withSslScans; query != nil {
-		if err := _q.loadSslScans(ctx, query, nodes,
-			func(n *Target) { n.Edges.SslScans = []*SSLScan{} },
-			func(n *Target, e *SSLScan) { n.Edges.SslScans = append(n.Edges.SslScans, e) }); err != nil {
-			return nil, err
-		}
-	}
-	if query := _q.withCspScans; query != nil {
-		if err := _q.loadCspScans(ctx, query, nodes,
-			func(n *Target) { n.Edges.CspScans = []*CSPScan{} },
-			func(n *Target, e *CSPScan) { n.Edges.CspScans = append(n.Edges.CspScans, e) }); err != nil {
+	if query := _q.withScans; query != nil {
+		if err := _q.loadScans(ctx, query, nodes,
+			func(n *IP) { n.Edges.Scans = []*PortScan{} },
+			func(n *IP, e *PortScan) { n.Edges.Scans = append(n.Edges.Scans, e) }); err != nil {
 			return nil, err
 		}
 	}
 	return nodes, nil
 }
 
-func (_q *TargetQuery) loadIps(ctx context.Context, query *IPQuery, nodes []*Target, init func(*Target), assign func(*Target, *IP)) error {
+func (_q *IPQuery) loadTargets(ctx context.Context, query *TargetQuery, nodes []*IP, init func(*IP), assign func(*IP, *Target)) error {
 	edgeIDs := make([]driver.Value, len(nodes))
-	byID := make(map[int]*Target)
-	nids := make(map[int]map[*Target]struct{})
+	byID := make(map[int]*IP)
+	nids := make(map[int]map[*IP]struct{})
 	for i, node := range nodes {
 		edgeIDs[i] = node.ID
 		byID[node.ID] = node
@@ -503,11 +459,11 @@ func (_q *TargetQuery) loadIps(ctx context.Context, query *IPQuery, nodes []*Tar
 		}
 	}
 	query.Where(func(s *sql.Selector) {
-		joinT := sql.Table(target.IpsTable)
-		s.Join(joinT).On(s.C(ip.FieldID), joinT.C(target.IpsPrimaryKey[1]))
-		s.Where(sql.InValues(joinT.C(target.IpsPrimaryKey[0]), edgeIDs...))
+		joinT := sql.Table(ip.TargetsTable)
+		s.Join(joinT).On(s.C(target.FieldID), joinT.C(ip.TargetsPrimaryKey[0]))
+		s.Where(sql.InValues(joinT.C(ip.TargetsPrimaryKey[1]), edgeIDs...))
 		columns := s.SelectedColumns()
-		s.Select(joinT.C(target.IpsPrimaryKey[0]))
+		s.Select(joinT.C(ip.TargetsPrimaryKey[1]))
 		s.AppendSelect(columns...)
 		s.SetDistinct(false)
 	})
@@ -529,7 +485,7 @@ func (_q *TargetQuery) loadIps(ctx context.Context, query *IPQuery, nodes []*Tar
 				outValue := int(values[0].(*sql.NullInt64).Int64)
 				inValue := int(values[1].(*sql.NullInt64).Int64)
 				if nids[inValue] == nil {
-					nids[inValue] = map[*Target]struct{}{byID[outValue]: {}}
+					nids[inValue] = map[*IP]struct{}{byID[outValue]: {}}
 					return assign(columns[1:], values[1:])
 				}
 				nids[inValue][byID[outValue]] = struct{}{}
@@ -537,14 +493,14 @@ func (_q *TargetQuery) loadIps(ctx context.Context, query *IPQuery, nodes []*Tar
 			}
 		})
 	})
-	neighbors, err := withInterceptors[[]*IP](ctx, query, qr, query.inters)
+	neighbors, err := withInterceptors[[]*Target](ctx, query, qr, query.inters)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
 		nodes, ok := nids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected "ips" node returned %v`, n.ID)
+			return fmt.Errorf(`unexpected "targets" node returned %v`, n.ID)
 		}
 		for kn := range nodes {
 			assign(kn, n)
@@ -552,9 +508,9 @@ func (_q *TargetQuery) loadIps(ctx context.Context, query *IPQuery, nodes []*Tar
 	}
 	return nil
 }
-func (_q *TargetQuery) loadSslScans(ctx context.Context, query *SSLScanQuery, nodes []*Target, init func(*Target), assign func(*Target, *SSLScan)) error {
+func (_q *IPQuery) loadScans(ctx context.Context, query *PortScanQuery, nodes []*IP, init func(*IP), assign func(*IP, *PortScan)) error {
 	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[int]*Target)
+	nodeids := make(map[int]*IP)
 	for i := range nodes {
 		fks = append(fks, nodes[i].ID)
 		nodeids[nodes[i].ID] = nodes[i]
@@ -563,59 +519,28 @@ func (_q *TargetQuery) loadSslScans(ctx context.Context, query *SSLScanQuery, no
 		}
 	}
 	query.withFKs = true
-	query.Where(predicate.SSLScan(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(target.SslScansColumn), fks...))
+	query.Where(predicate.PortScan(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(ip.ScansColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.target_ssl_scans
+		fk := n.ip_scans
 		if fk == nil {
-			return fmt.Errorf(`foreign-key "target_ssl_scans" is nil for node %v`, n.ID)
+			return fmt.Errorf(`foreign-key "ip_scans" is nil for node %v`, n.ID)
 		}
 		node, ok := nodeids[*fk]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "target_ssl_scans" returned %v for node %v`, *fk, n.ID)
-		}
-		assign(node, n)
-	}
-	return nil
-}
-func (_q *TargetQuery) loadCspScans(ctx context.Context, query *CSPScanQuery, nodes []*Target, init func(*Target), assign func(*Target, *CSPScan)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[int]*Target)
-	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
-		}
-	}
-	query.withFKs = true
-	query.Where(predicate.CSPScan(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(target.CspScansColumn), fks...))
-	}))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		fk := n.target_csp_scans
-		if fk == nil {
-			return fmt.Errorf(`foreign-key "target_csp_scans" is nil for node %v`, n.ID)
-		}
-		node, ok := nodeids[*fk]
-		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "target_csp_scans" returned %v for node %v`, *fk, n.ID)
+			return fmt.Errorf(`unexpected referenced foreign-key "ip_scans" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}
 	return nil
 }
 
-func (_q *TargetQuery) sqlCount(ctx context.Context) (int, error) {
+func (_q *IPQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
@@ -624,8 +549,8 @@ func (_q *TargetQuery) sqlCount(ctx context.Context) (int, error) {
 	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
 }
 
-func (_q *TargetQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(target.Table, target.Columns, sqlgraph.NewFieldSpec(target.FieldID, field.TypeInt))
+func (_q *IPQuery) querySpec() *sqlgraph.QuerySpec {
+	_spec := sqlgraph.NewQuerySpec(ip.Table, ip.Columns, sqlgraph.NewFieldSpec(ip.FieldID, field.TypeInt))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -634,9 +559,9 @@ func (_q *TargetQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, target.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, ip.FieldID)
 		for i := range fields {
-			if fields[i] != target.FieldID {
+			if fields[i] != ip.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
@@ -664,12 +589,12 @@ func (_q *TargetQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (_q *TargetQuery) sqlQuery(ctx context.Context) *sql.Selector {
+func (_q *IPQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(target.Table)
+	t1 := builder.Table(ip.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = target.Columns
+		columns = ip.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {
@@ -696,28 +621,28 @@ func (_q *TargetQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	return selector
 }
 
-// TargetGroupBy is the group-by builder for Target entities.
-type TargetGroupBy struct {
+// IPGroupBy is the group-by builder for IP entities.
+type IPGroupBy struct {
 	selector
-	build *TargetQuery
+	build *IPQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (_g *TargetGroupBy) Aggregate(fns ...AggregateFunc) *TargetGroupBy {
+func (_g *IPGroupBy) Aggregate(fns ...AggregateFunc) *IPGroupBy {
 	_g.fns = append(_g.fns, fns...)
 	return _g
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_g *TargetGroupBy) Scan(ctx context.Context, v any) error {
+func (_g *IPGroupBy) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
 	if err := _g.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*TargetQuery, *TargetGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return scanWithInterceptors[*IPQuery, *IPGroupBy](ctx, _g.build, _g, _g.build.inters, v)
 }
 
-func (_g *TargetGroupBy) sqlScan(ctx context.Context, root *TargetQuery, v any) error {
+func (_g *IPGroupBy) sqlScan(ctx context.Context, root *IPQuery, v any) error {
 	selector := root.sqlQuery(ctx).Select()
 	aggregation := make([]string, 0, len(_g.fns))
 	for _, fn := range _g.fns {
@@ -744,28 +669,28 @@ func (_g *TargetGroupBy) sqlScan(ctx context.Context, root *TargetQuery, v any) 
 	return sql.ScanSlice(rows, v)
 }
 
-// TargetSelect is the builder for selecting fields of Target entities.
-type TargetSelect struct {
-	*TargetQuery
+// IPSelect is the builder for selecting fields of IP entities.
+type IPSelect struct {
+	*IPQuery
 	selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (_s *TargetSelect) Aggregate(fns ...AggregateFunc) *TargetSelect {
+func (_s *IPSelect) Aggregate(fns ...AggregateFunc) *IPSelect {
 	_s.fns = append(_s.fns, fns...)
 	return _s
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_s *TargetSelect) Scan(ctx context.Context, v any) error {
+func (_s *IPSelect) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
 	if err := _s.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*TargetQuery, *TargetSelect](ctx, _s.TargetQuery, _s, _s.inters, v)
+	return scanWithInterceptors[*IPQuery, *IPSelect](ctx, _s.IPQuery, _s, _s.inters, v)
 }
 
-func (_s *TargetSelect) sqlScan(ctx context.Context, root *TargetQuery, v any) error {
+func (_s *IPSelect) sqlScan(ctx context.Context, root *IPQuery, v any) error {
 	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(_s.fns))
 	for _, fn := range _s.fns {

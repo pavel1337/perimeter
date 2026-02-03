@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"perimeter/ent/cspscan"
+	"perimeter/ent/ip"
 	"perimeter/ent/port"
 	"perimeter/ent/portscan"
 	"perimeter/ent/predicate"
@@ -30,6 +31,7 @@ const (
 
 	// Node types.
 	TypeCSPScan  = "CSPScan"
+	TypeIP       = "IP"
 	TypePort     = "Port"
 	TypePortScan = "PortScan"
 	TypeSSLScan  = "SSLScan"
@@ -576,6 +578,616 @@ func (m *CSPScanMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown CSPScan edge %s", name)
 }
 
+// IPMutation represents an operation that mutates the IP nodes in the graph.
+type IPMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int
+	create_time    *time.Time
+	update_time    *time.Time
+	address        *string
+	clearedFields  map[string]struct{}
+	targets        map[int]struct{}
+	removedtargets map[int]struct{}
+	clearedtargets bool
+	scans          map[int]struct{}
+	removedscans   map[int]struct{}
+	clearedscans   bool
+	done           bool
+	oldValue       func(context.Context) (*IP, error)
+	predicates     []predicate.IP
+}
+
+var _ ent.Mutation = (*IPMutation)(nil)
+
+// ipOption allows management of the mutation configuration using functional options.
+type ipOption func(*IPMutation)
+
+// newIPMutation creates new mutation for the IP entity.
+func newIPMutation(c config, op Op, opts ...ipOption) *IPMutation {
+	m := &IPMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeIP,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withIPID sets the ID field of the mutation.
+func withIPID(id int) ipOption {
+	return func(m *IPMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *IP
+		)
+		m.oldValue = func(ctx context.Context) (*IP, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().IP.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withIP sets the old IP of the mutation.
+func withIP(node *IP) ipOption {
+	return func(m *IPMutation) {
+		m.oldValue = func(context.Context) (*IP, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m IPMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m IPMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *IPMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *IPMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().IP.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreateTime sets the "create_time" field.
+func (m *IPMutation) SetCreateTime(t time.Time) {
+	m.create_time = &t
+}
+
+// CreateTime returns the value of the "create_time" field in the mutation.
+func (m *IPMutation) CreateTime() (r time.Time, exists bool) {
+	v := m.create_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreateTime returns the old "create_time" field's value of the IP entity.
+// If the IP object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IPMutation) OldCreateTime(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreateTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreateTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreateTime: %w", err)
+	}
+	return oldValue.CreateTime, nil
+}
+
+// ResetCreateTime resets all changes to the "create_time" field.
+func (m *IPMutation) ResetCreateTime() {
+	m.create_time = nil
+}
+
+// SetUpdateTime sets the "update_time" field.
+func (m *IPMutation) SetUpdateTime(t time.Time) {
+	m.update_time = &t
+}
+
+// UpdateTime returns the value of the "update_time" field in the mutation.
+func (m *IPMutation) UpdateTime() (r time.Time, exists bool) {
+	v := m.update_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdateTime returns the old "update_time" field's value of the IP entity.
+// If the IP object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IPMutation) OldUpdateTime(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdateTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdateTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdateTime: %w", err)
+	}
+	return oldValue.UpdateTime, nil
+}
+
+// ResetUpdateTime resets all changes to the "update_time" field.
+func (m *IPMutation) ResetUpdateTime() {
+	m.update_time = nil
+}
+
+// SetAddress sets the "address" field.
+func (m *IPMutation) SetAddress(s string) {
+	m.address = &s
+}
+
+// Address returns the value of the "address" field in the mutation.
+func (m *IPMutation) Address() (r string, exists bool) {
+	v := m.address
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAddress returns the old "address" field's value of the IP entity.
+// If the IP object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IPMutation) OldAddress(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAddress is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAddress requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAddress: %w", err)
+	}
+	return oldValue.Address, nil
+}
+
+// ResetAddress resets all changes to the "address" field.
+func (m *IPMutation) ResetAddress() {
+	m.address = nil
+}
+
+// AddTargetIDs adds the "targets" edge to the Target entity by ids.
+func (m *IPMutation) AddTargetIDs(ids ...int) {
+	if m.targets == nil {
+		m.targets = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.targets[ids[i]] = struct{}{}
+	}
+}
+
+// ClearTargets clears the "targets" edge to the Target entity.
+func (m *IPMutation) ClearTargets() {
+	m.clearedtargets = true
+}
+
+// TargetsCleared reports if the "targets" edge to the Target entity was cleared.
+func (m *IPMutation) TargetsCleared() bool {
+	return m.clearedtargets
+}
+
+// RemoveTargetIDs removes the "targets" edge to the Target entity by IDs.
+func (m *IPMutation) RemoveTargetIDs(ids ...int) {
+	if m.removedtargets == nil {
+		m.removedtargets = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.targets, ids[i])
+		m.removedtargets[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedTargets returns the removed IDs of the "targets" edge to the Target entity.
+func (m *IPMutation) RemovedTargetsIDs() (ids []int) {
+	for id := range m.removedtargets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// TargetsIDs returns the "targets" edge IDs in the mutation.
+func (m *IPMutation) TargetsIDs() (ids []int) {
+	for id := range m.targets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetTargets resets all changes to the "targets" edge.
+func (m *IPMutation) ResetTargets() {
+	m.targets = nil
+	m.clearedtargets = false
+	m.removedtargets = nil
+}
+
+// AddScanIDs adds the "scans" edge to the PortScan entity by ids.
+func (m *IPMutation) AddScanIDs(ids ...int) {
+	if m.scans == nil {
+		m.scans = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.scans[ids[i]] = struct{}{}
+	}
+}
+
+// ClearScans clears the "scans" edge to the PortScan entity.
+func (m *IPMutation) ClearScans() {
+	m.clearedscans = true
+}
+
+// ScansCleared reports if the "scans" edge to the PortScan entity was cleared.
+func (m *IPMutation) ScansCleared() bool {
+	return m.clearedscans
+}
+
+// RemoveScanIDs removes the "scans" edge to the PortScan entity by IDs.
+func (m *IPMutation) RemoveScanIDs(ids ...int) {
+	if m.removedscans == nil {
+		m.removedscans = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.scans, ids[i])
+		m.removedscans[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedScans returns the removed IDs of the "scans" edge to the PortScan entity.
+func (m *IPMutation) RemovedScansIDs() (ids []int) {
+	for id := range m.removedscans {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ScansIDs returns the "scans" edge IDs in the mutation.
+func (m *IPMutation) ScansIDs() (ids []int) {
+	for id := range m.scans {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetScans resets all changes to the "scans" edge.
+func (m *IPMutation) ResetScans() {
+	m.scans = nil
+	m.clearedscans = false
+	m.removedscans = nil
+}
+
+// Where appends a list predicates to the IPMutation builder.
+func (m *IPMutation) Where(ps ...predicate.IP) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the IPMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *IPMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.IP, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *IPMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *IPMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (IP).
+func (m *IPMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *IPMutation) Fields() []string {
+	fields := make([]string, 0, 3)
+	if m.create_time != nil {
+		fields = append(fields, ip.FieldCreateTime)
+	}
+	if m.update_time != nil {
+		fields = append(fields, ip.FieldUpdateTime)
+	}
+	if m.address != nil {
+		fields = append(fields, ip.FieldAddress)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *IPMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case ip.FieldCreateTime:
+		return m.CreateTime()
+	case ip.FieldUpdateTime:
+		return m.UpdateTime()
+	case ip.FieldAddress:
+		return m.Address()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *IPMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case ip.FieldCreateTime:
+		return m.OldCreateTime(ctx)
+	case ip.FieldUpdateTime:
+		return m.OldUpdateTime(ctx)
+	case ip.FieldAddress:
+		return m.OldAddress(ctx)
+	}
+	return nil, fmt.Errorf("unknown IP field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *IPMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case ip.FieldCreateTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreateTime(v)
+		return nil
+	case ip.FieldUpdateTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdateTime(v)
+		return nil
+	case ip.FieldAddress:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAddress(v)
+		return nil
+	}
+	return fmt.Errorf("unknown IP field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *IPMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *IPMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *IPMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown IP numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *IPMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *IPMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *IPMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown IP nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *IPMutation) ResetField(name string) error {
+	switch name {
+	case ip.FieldCreateTime:
+		m.ResetCreateTime()
+		return nil
+	case ip.FieldUpdateTime:
+		m.ResetUpdateTime()
+		return nil
+	case ip.FieldAddress:
+		m.ResetAddress()
+		return nil
+	}
+	return fmt.Errorf("unknown IP field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *IPMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.targets != nil {
+		edges = append(edges, ip.EdgeTargets)
+	}
+	if m.scans != nil {
+		edges = append(edges, ip.EdgeScans)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *IPMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case ip.EdgeTargets:
+		ids := make([]ent.Value, 0, len(m.targets))
+		for id := range m.targets {
+			ids = append(ids, id)
+		}
+		return ids
+	case ip.EdgeScans:
+		ids := make([]ent.Value, 0, len(m.scans))
+		for id := range m.scans {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *IPMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.removedtargets != nil {
+		edges = append(edges, ip.EdgeTargets)
+	}
+	if m.removedscans != nil {
+		edges = append(edges, ip.EdgeScans)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *IPMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case ip.EdgeTargets:
+		ids := make([]ent.Value, 0, len(m.removedtargets))
+		for id := range m.removedtargets {
+			ids = append(ids, id)
+		}
+		return ids
+	case ip.EdgeScans:
+		ids := make([]ent.Value, 0, len(m.removedscans))
+		for id := range m.removedscans {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *IPMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedtargets {
+		edges = append(edges, ip.EdgeTargets)
+	}
+	if m.clearedscans {
+		edges = append(edges, ip.EdgeScans)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *IPMutation) EdgeCleared(name string) bool {
+	switch name {
+	case ip.EdgeTargets:
+		return m.clearedtargets
+	case ip.EdgeScans:
+		return m.clearedscans
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *IPMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown IP unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *IPMutation) ResetEdge(name string) error {
+	switch name {
+	case ip.EdgeTargets:
+		m.ResetTargets()
+		return nil
+	case ip.EdgeScans:
+		m.ResetScans()
+		return nil
+	}
+	return fmt.Errorf("unknown IP edge %s", name)
+}
+
 // PortMutation represents an operation that mutates the Port nodes in the graph.
 type PortMutation struct {
 	config
@@ -1008,20 +1620,19 @@ func (m *PortMutation) ResetEdge(name string) error {
 // PortScanMutation represents an operation that mutates the PortScan nodes in the graph.
 type PortScanMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *int
-	scanned_at     *time.Time
-	clearedFields  map[string]struct{}
-	targets        map[int]struct{}
-	removedtargets map[int]struct{}
-	clearedtargets bool
-	ports          map[int]struct{}
-	removedports   map[int]struct{}
-	clearedports   bool
-	done           bool
-	oldValue       func(context.Context) (*PortScan, error)
-	predicates     []predicate.PortScan
+	op            Op
+	typ           string
+	id            *int
+	scanned_at    *time.Time
+	clearedFields map[string]struct{}
+	ip            *int
+	clearedip     bool
+	ports         map[int]struct{}
+	removedports  map[int]struct{}
+	clearedports  bool
+	done          bool
+	oldValue      func(context.Context) (*PortScan, error)
+	predicates    []predicate.PortScan
 }
 
 var _ ent.Mutation = (*PortScanMutation)(nil)
@@ -1158,58 +1769,43 @@ func (m *PortScanMutation) ResetScannedAt() {
 	m.scanned_at = nil
 }
 
-// AddTargetIDs adds the "targets" edge to the Target entity by ids.
-func (m *PortScanMutation) AddTargetIDs(ids ...int) {
-	if m.targets == nil {
-		m.targets = make(map[int]struct{})
-	}
-	for i := range ids {
-		m.targets[ids[i]] = struct{}{}
-	}
+// SetIPID sets the "ip" edge to the IP entity by id.
+func (m *PortScanMutation) SetIPID(id int) {
+	m.ip = &id
 }
 
-// ClearTargets clears the "targets" edge to the Target entity.
-func (m *PortScanMutation) ClearTargets() {
-	m.clearedtargets = true
+// ClearIP clears the "ip" edge to the IP entity.
+func (m *PortScanMutation) ClearIP() {
+	m.clearedip = true
 }
 
-// TargetsCleared reports if the "targets" edge to the Target entity was cleared.
-func (m *PortScanMutation) TargetsCleared() bool {
-	return m.clearedtargets
+// IPCleared reports if the "ip" edge to the IP entity was cleared.
+func (m *PortScanMutation) IPCleared() bool {
+	return m.clearedip
 }
 
-// RemoveTargetIDs removes the "targets" edge to the Target entity by IDs.
-func (m *PortScanMutation) RemoveTargetIDs(ids ...int) {
-	if m.removedtargets == nil {
-		m.removedtargets = make(map[int]struct{})
-	}
-	for i := range ids {
-		delete(m.targets, ids[i])
-		m.removedtargets[ids[i]] = struct{}{}
-	}
-}
-
-// RemovedTargets returns the removed IDs of the "targets" edge to the Target entity.
-func (m *PortScanMutation) RemovedTargetsIDs() (ids []int) {
-	for id := range m.removedtargets {
-		ids = append(ids, id)
+// IPID returns the "ip" edge ID in the mutation.
+func (m *PortScanMutation) IPID() (id int, exists bool) {
+	if m.ip != nil {
+		return *m.ip, true
 	}
 	return
 }
 
-// TargetsIDs returns the "targets" edge IDs in the mutation.
-func (m *PortScanMutation) TargetsIDs() (ids []int) {
-	for id := range m.targets {
-		ids = append(ids, id)
+// IPIDs returns the "ip" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// IPID instead. It exists only for internal usage by the builders.
+func (m *PortScanMutation) IPIDs() (ids []int) {
+	if id := m.ip; id != nil {
+		ids = append(ids, *id)
 	}
 	return
 }
 
-// ResetTargets resets all changes to the "targets" edge.
-func (m *PortScanMutation) ResetTargets() {
-	m.targets = nil
-	m.clearedtargets = false
-	m.removedtargets = nil
+// ResetIP resets all changes to the "ip" edge.
+func (m *PortScanMutation) ResetIP() {
+	m.ip = nil
+	m.clearedip = false
 }
 
 // AddPortIDs adds the "ports" edge to the Port entity by ids.
@@ -1400,8 +1996,8 @@ func (m *PortScanMutation) ResetField(name string) error {
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *PortScanMutation) AddedEdges() []string {
 	edges := make([]string, 0, 2)
-	if m.targets != nil {
-		edges = append(edges, portscan.EdgeTargets)
+	if m.ip != nil {
+		edges = append(edges, portscan.EdgeIP)
 	}
 	if m.ports != nil {
 		edges = append(edges, portscan.EdgePorts)
@@ -1413,12 +2009,10 @@ func (m *PortScanMutation) AddedEdges() []string {
 // name in this mutation.
 func (m *PortScanMutation) AddedIDs(name string) []ent.Value {
 	switch name {
-	case portscan.EdgeTargets:
-		ids := make([]ent.Value, 0, len(m.targets))
-		for id := range m.targets {
-			ids = append(ids, id)
+	case portscan.EdgeIP:
+		if id := m.ip; id != nil {
+			return []ent.Value{*id}
 		}
-		return ids
 	case portscan.EdgePorts:
 		ids := make([]ent.Value, 0, len(m.ports))
 		for id := range m.ports {
@@ -1432,9 +2026,6 @@ func (m *PortScanMutation) AddedIDs(name string) []ent.Value {
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *PortScanMutation) RemovedEdges() []string {
 	edges := make([]string, 0, 2)
-	if m.removedtargets != nil {
-		edges = append(edges, portscan.EdgeTargets)
-	}
 	if m.removedports != nil {
 		edges = append(edges, portscan.EdgePorts)
 	}
@@ -1445,12 +2036,6 @@ func (m *PortScanMutation) RemovedEdges() []string {
 // the given name in this mutation.
 func (m *PortScanMutation) RemovedIDs(name string) []ent.Value {
 	switch name {
-	case portscan.EdgeTargets:
-		ids := make([]ent.Value, 0, len(m.removedtargets))
-		for id := range m.removedtargets {
-			ids = append(ids, id)
-		}
-		return ids
 	case portscan.EdgePorts:
 		ids := make([]ent.Value, 0, len(m.removedports))
 		for id := range m.removedports {
@@ -1464,8 +2049,8 @@ func (m *PortScanMutation) RemovedIDs(name string) []ent.Value {
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *PortScanMutation) ClearedEdges() []string {
 	edges := make([]string, 0, 2)
-	if m.clearedtargets {
-		edges = append(edges, portscan.EdgeTargets)
+	if m.clearedip {
+		edges = append(edges, portscan.EdgeIP)
 	}
 	if m.clearedports {
 		edges = append(edges, portscan.EdgePorts)
@@ -1477,8 +2062,8 @@ func (m *PortScanMutation) ClearedEdges() []string {
 // was cleared in this mutation.
 func (m *PortScanMutation) EdgeCleared(name string) bool {
 	switch name {
-	case portscan.EdgeTargets:
-		return m.clearedtargets
+	case portscan.EdgeIP:
+		return m.clearedip
 	case portscan.EdgePorts:
 		return m.clearedports
 	}
@@ -1489,6 +2074,9 @@ func (m *PortScanMutation) EdgeCleared(name string) bool {
 // if that edge is not defined in the schema.
 func (m *PortScanMutation) ClearEdge(name string) error {
 	switch name {
+	case portscan.EdgeIP:
+		m.ClearIP()
+		return nil
 	}
 	return fmt.Errorf("unknown PortScan unique edge %s", name)
 }
@@ -1497,8 +2085,8 @@ func (m *PortScanMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *PortScanMutation) ResetEdge(name string) error {
 	switch name {
-	case portscan.EdgeTargets:
-		m.ResetTargets()
+	case portscan.EdgeIP:
+		m.ResetIP()
 		return nil
 	case portscan.EdgePorts:
 		m.ResetPorts()
@@ -2420,9 +3008,9 @@ type TargetMutation struct {
 	update_time      *time.Time
 	input            *string
 	clearedFields    map[string]struct{}
-	scans            map[int]struct{}
-	removedscans     map[int]struct{}
-	clearedscans     bool
+	ips              map[int]struct{}
+	removedips       map[int]struct{}
+	clearedips       bool
 	ssl_scans        map[int]struct{}
 	removedssl_scans map[int]struct{}
 	clearedssl_scans bool
@@ -2640,58 +3228,58 @@ func (m *TargetMutation) ResetInput() {
 	m.input = nil
 }
 
-// AddScanIDs adds the "scans" edge to the PortScan entity by ids.
-func (m *TargetMutation) AddScanIDs(ids ...int) {
-	if m.scans == nil {
-		m.scans = make(map[int]struct{})
+// AddIPIDs adds the "ips" edge to the IP entity by ids.
+func (m *TargetMutation) AddIPIDs(ids ...int) {
+	if m.ips == nil {
+		m.ips = make(map[int]struct{})
 	}
 	for i := range ids {
-		m.scans[ids[i]] = struct{}{}
+		m.ips[ids[i]] = struct{}{}
 	}
 }
 
-// ClearScans clears the "scans" edge to the PortScan entity.
-func (m *TargetMutation) ClearScans() {
-	m.clearedscans = true
+// ClearIps clears the "ips" edge to the IP entity.
+func (m *TargetMutation) ClearIps() {
+	m.clearedips = true
 }
 
-// ScansCleared reports if the "scans" edge to the PortScan entity was cleared.
-func (m *TargetMutation) ScansCleared() bool {
-	return m.clearedscans
+// IpsCleared reports if the "ips" edge to the IP entity was cleared.
+func (m *TargetMutation) IpsCleared() bool {
+	return m.clearedips
 }
 
-// RemoveScanIDs removes the "scans" edge to the PortScan entity by IDs.
-func (m *TargetMutation) RemoveScanIDs(ids ...int) {
-	if m.removedscans == nil {
-		m.removedscans = make(map[int]struct{})
+// RemoveIPIDs removes the "ips" edge to the IP entity by IDs.
+func (m *TargetMutation) RemoveIPIDs(ids ...int) {
+	if m.removedips == nil {
+		m.removedips = make(map[int]struct{})
 	}
 	for i := range ids {
-		delete(m.scans, ids[i])
-		m.removedscans[ids[i]] = struct{}{}
+		delete(m.ips, ids[i])
+		m.removedips[ids[i]] = struct{}{}
 	}
 }
 
-// RemovedScans returns the removed IDs of the "scans" edge to the PortScan entity.
-func (m *TargetMutation) RemovedScansIDs() (ids []int) {
-	for id := range m.removedscans {
+// RemovedIps returns the removed IDs of the "ips" edge to the IP entity.
+func (m *TargetMutation) RemovedIpsIDs() (ids []int) {
+	for id := range m.removedips {
 		ids = append(ids, id)
 	}
 	return
 }
 
-// ScansIDs returns the "scans" edge IDs in the mutation.
-func (m *TargetMutation) ScansIDs() (ids []int) {
-	for id := range m.scans {
+// IpsIDs returns the "ips" edge IDs in the mutation.
+func (m *TargetMutation) IpsIDs() (ids []int) {
+	for id := range m.ips {
 		ids = append(ids, id)
 	}
 	return
 }
 
-// ResetScans resets all changes to the "scans" edge.
-func (m *TargetMutation) ResetScans() {
-	m.scans = nil
-	m.clearedscans = false
-	m.removedscans = nil
+// ResetIps resets all changes to the "ips" edge.
+func (m *TargetMutation) ResetIps() {
+	m.ips = nil
+	m.clearedips = false
+	m.removedips = nil
 }
 
 // AddSslScanIDs adds the "ssl_scans" edge to the SSLScan entity by ids.
@@ -2970,8 +3558,8 @@ func (m *TargetMutation) ResetField(name string) error {
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TargetMutation) AddedEdges() []string {
 	edges := make([]string, 0, 3)
-	if m.scans != nil {
-		edges = append(edges, target.EdgeScans)
+	if m.ips != nil {
+		edges = append(edges, target.EdgeIps)
 	}
 	if m.ssl_scans != nil {
 		edges = append(edges, target.EdgeSslScans)
@@ -2986,9 +3574,9 @@ func (m *TargetMutation) AddedEdges() []string {
 // name in this mutation.
 func (m *TargetMutation) AddedIDs(name string) []ent.Value {
 	switch name {
-	case target.EdgeScans:
-		ids := make([]ent.Value, 0, len(m.scans))
-		for id := range m.scans {
+	case target.EdgeIps:
+		ids := make([]ent.Value, 0, len(m.ips))
+		for id := range m.ips {
 			ids = append(ids, id)
 		}
 		return ids
@@ -3011,8 +3599,8 @@ func (m *TargetMutation) AddedIDs(name string) []ent.Value {
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TargetMutation) RemovedEdges() []string {
 	edges := make([]string, 0, 3)
-	if m.removedscans != nil {
-		edges = append(edges, target.EdgeScans)
+	if m.removedips != nil {
+		edges = append(edges, target.EdgeIps)
 	}
 	if m.removedssl_scans != nil {
 		edges = append(edges, target.EdgeSslScans)
@@ -3027,9 +3615,9 @@ func (m *TargetMutation) RemovedEdges() []string {
 // the given name in this mutation.
 func (m *TargetMutation) RemovedIDs(name string) []ent.Value {
 	switch name {
-	case target.EdgeScans:
-		ids := make([]ent.Value, 0, len(m.removedscans))
-		for id := range m.removedscans {
+	case target.EdgeIps:
+		ids := make([]ent.Value, 0, len(m.removedips))
+		for id := range m.removedips {
 			ids = append(ids, id)
 		}
 		return ids
@@ -3052,8 +3640,8 @@ func (m *TargetMutation) RemovedIDs(name string) []ent.Value {
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TargetMutation) ClearedEdges() []string {
 	edges := make([]string, 0, 3)
-	if m.clearedscans {
-		edges = append(edges, target.EdgeScans)
+	if m.clearedips {
+		edges = append(edges, target.EdgeIps)
 	}
 	if m.clearedssl_scans {
 		edges = append(edges, target.EdgeSslScans)
@@ -3068,8 +3656,8 @@ func (m *TargetMutation) ClearedEdges() []string {
 // was cleared in this mutation.
 func (m *TargetMutation) EdgeCleared(name string) bool {
 	switch name {
-	case target.EdgeScans:
-		return m.clearedscans
+	case target.EdgeIps:
+		return m.clearedips
 	case target.EdgeSslScans:
 		return m.clearedssl_scans
 	case target.EdgeCspScans:
@@ -3090,8 +3678,8 @@ func (m *TargetMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *TargetMutation) ResetEdge(name string) error {
 	switch name {
-	case target.EdgeScans:
-		m.ResetScans()
+	case target.EdgeIps:
+		m.ResetIps()
 		return nil
 	case target.EdgeSslScans:
 		m.ResetSslScans()

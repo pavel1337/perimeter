@@ -16,17 +16,19 @@ const (
 	FieldID = "id"
 	// FieldScannedAt holds the string denoting the scanned_at field in the database.
 	FieldScannedAt = "scanned_at"
-	// EdgeTargets holds the string denoting the targets edge name in mutations.
-	EdgeTargets = "targets"
+	// EdgeIP holds the string denoting the ip edge name in mutations.
+	EdgeIP = "ip"
 	// EdgePorts holds the string denoting the ports edge name in mutations.
 	EdgePorts = "ports"
 	// Table holds the table name of the portscan in the database.
 	Table = "port_scans"
-	// TargetsTable is the table that holds the targets relation/edge. The primary key declared below.
-	TargetsTable = "target_scans"
-	// TargetsInverseTable is the table name for the Target entity.
-	// It exists in this package in order to avoid circular dependency with the "target" package.
-	TargetsInverseTable = "targets"
+	// IPTable is the table that holds the ip relation/edge.
+	IPTable = "port_scans"
+	// IPInverseTable is the table name for the IP entity.
+	// It exists in this package in order to avoid circular dependency with the "ip" package.
+	IPInverseTable = "ips"
+	// IPColumn is the table column denoting the ip relation/edge.
+	IPColumn = "ip_scans"
 	// PortsTable is the table that holds the ports relation/edge.
 	PortsTable = "ports"
 	// PortsInverseTable is the table name for the Port entity.
@@ -42,16 +44,21 @@ var Columns = []string{
 	FieldScannedAt,
 }
 
-var (
-	// TargetsPrimaryKey and TargetsColumn2 are the table columns denoting the
-	// primary key for the targets relation (M2M).
-	TargetsPrimaryKey = []string{"target_id", "port_scan_id"}
-)
+// ForeignKeys holds the SQL foreign-keys that are owned by the "port_scans"
+// table and are not defined as standalone fields in the schema.
+var ForeignKeys = []string{
+	"ip_scans",
+}
 
 // ValidColumn reports if the column name is valid (part of the table columns).
 func ValidColumn(column string) bool {
 	for i := range Columns {
 		if column == Columns[i] {
+			return true
+		}
+	}
+	for i := range ForeignKeys {
+		if column == ForeignKeys[i] {
 			return true
 		}
 	}
@@ -76,17 +83,10 @@ func ByScannedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldScannedAt, opts...).ToFunc()
 }
 
-// ByTargetsCount orders the results by targets count.
-func ByTargetsCount(opts ...sql.OrderTermOption) OrderOption {
+// ByIPField orders the results by ip field.
+func ByIPField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newTargetsStep(), opts...)
-	}
-}
-
-// ByTargets orders the results by targets terms.
-func ByTargets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newTargetsStep(), append([]sql.OrderTerm{term}, terms...)...)
+		sqlgraph.OrderByNeighborTerms(s, newIPStep(), sql.OrderByField(field, opts...))
 	}
 }
 
@@ -103,11 +103,11 @@ func ByPorts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newPortsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
-func newTargetsStep() *sqlgraph.Step {
+func newIPStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(TargetsInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.M2M, true, TargetsTable, TargetsPrimaryKey...),
+		sqlgraph.To(IPInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, IPTable, IPColumn),
 	)
 }
 func newPortsStep() *sqlgraph.Step {

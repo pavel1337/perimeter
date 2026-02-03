@@ -14,10 +14,11 @@ import (
 )
 
 type ScannerConfig struct {
-	PortScanInterval time.Duration
-	SSLScanInterval  time.Duration
-	CSPScanInterval  time.Duration
-	SSLEmail         string
+	PortScanInterval   time.Duration
+	SSLScanInterval    time.Duration
+	CSPScanInterval    time.Duration
+	ResolutionInterval time.Duration // New interval for checking resolutions
+	SSLEmail           string
 }
 
 type Manager struct {
@@ -26,6 +27,9 @@ type Manager struct {
 }
 
 func NewManager(s storage.Storage, cfg ScannerConfig) *Manager {
+	if cfg.ResolutionInterval == 0 {
+		cfg.ResolutionInterval = 1 * time.Minute // Default
+	}
 	return &Manager{
 		storage: s,
 		config:  cfg,
@@ -33,57 +37,102 @@ func NewManager(s storage.Storage, cfg ScannerConfig) *Manager {
 }
 
 func (m *Manager) Start() {
-	go m.runPortScanLoop()
+	go m.runResolutionLoop()
+	go m.runIPScanLoop()
 	go m.runSSLScanLoop()
 	go m.runCSPScanLoop()
 }
 
-func (m *Manager) runPortScanLoop() {
-	// Initialize Port Scanner (parameters from original main.go)
+func (m *Manager) runResolutionLoop() {
+	log.Println("Starting Resolution Loop")
+	ctx := context.Background()
+
+	for {
+		// Fetch targets that need resolution (limiting to 10 at a time)
+		targets, err := m.storage.GetUnresolvedTargets(ctx, 10)
+		if err != nil {
+			log.Printf("Resolution: Error fetching targets: %v", err)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		if len(targets) == 0 {
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		for _, t := range targets {
+			log.Printf("Resolution: Resolving %s", t.Input)
+
+			// Resolve
+			ips, err := net.LookupIP(t.Input)
+			if err != nil {
+				log.Printf("Resolution: Failed to resolve %s: %v", t.Input, err)
+				// Currently we don't mark it as failed in DB, so it might loop.
+				// But we are sleeping in main loop.
+				// Ideally we should mark 'last_checked' even on failure.
+				// For now, let's assume transient DNS issues.
+				// To prevent tight loop on bad domains, we could sleep or just rely on the fact we process only 10.
+				continue
+			}
+
+			var ipStrings []string
+			for _, ip := range ips {
+				ipStrings = append(ipStrings, ip.String())
+			}
+
+			err = m.storage.SaveIPs(ctx, t.Input, ipStrings)
+			if err != nil {
+				log.Printf("Resolution: Failed to save IPs for %s: %v", t.Input, err)
+			} else {
+				log.Printf("Resolution: Resolved %s to %v", t.Input, ipStrings)
+			}
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func (m *Manager) runIPScanLoop() {
+	// Initialize Port Scanner
 	scanner := ports.NewSimpleScanner(100, 50, 3, 1, 1000)
 	ctx := context.Background()
 
-	log.Println("Starting Port Scan Loop")
+	log.Println("Starting IP Port Scan Loop")
 
 	for {
-		// 1. Fetch oldest target that hasn't been scanned in Interval
-		t, err := m.storage.GetOldestOutdatedTarget(ctx, storage.ScanTypePort, m.config.PortScanInterval)
+		// 1. Fetch oldest IP that hasn't been scanned
+		ipEntity, err := m.storage.GetOldestOutdatedIP(ctx, m.config.PortScanInterval)
 		if err != nil {
-			log.Printf("PortScan: Error fetching target: %v", err)
+			log.Printf("PortScan: Error fetching IP: %v", err)
 			time.Sleep(10 * time.Second)
 			continue
 		}
 
-		if t == nil {
-			// No targets need scanning
-			// log.Println("PortScan: All targets fresh. Sleeping...")
+		if ipEntity == nil {
 			time.Sleep(10 * time.Second)
 			continue
 		}
 
-		log.Printf("PortScan: Scanning %s", t.Input)
+		log.Printf("PortScan: Scanning IP %s", ipEntity.Address)
 
 		// 2. Scan
-		// Determine IP (Logic from original: group by IP. Here we scan individual input)
-		// We might want to resolve it.
-		// ports.NewSimpleScanner().Scan(host)
-		openPorts, err := scanner.Scan(t.Input)
+		openPorts, err := scanner.Scan(ipEntity.Address)
 		if err != nil {
-			log.Printf("PortScan: Failed to scan %s: %v", t.Input, err)
-			// Sleep a bit to avoid hot loop if failure is persistent (though GetOldest should cycle)
+			log.Printf("PortScan: Failed to scan %s: %v", ipEntity.Address, err)
 			time.Sleep(1 * time.Second)
 			continue
 		}
 
 		// 3. Save
-		err = m.storage.SavePortScan(ctx, t.Input, openPorts)
+		err = m.storage.SavePortScan(ctx, ipEntity.Address, openPorts)
 		if err != nil {
-			log.Printf("PortScan: Failed to save results for %s: %v", t.Input, err)
+			log.Printf("PortScan: Failed to save results for %s: %v", ipEntity.Address, err)
 		} else {
-			log.Printf("PortScan: Saved %d ports for %s", len(openPorts), t.Input)
+			log.Printf("PortScan: Saved %d ports for %s", len(openPorts), ipEntity.Address)
 		}
 
-		// Small delay to be nice
+		// Small delay
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -112,20 +161,8 @@ func (m *Manager) runSSLScanLoop() {
 			continue
 		}
 
-		// Filter non-hostnames (IPs)
 		if !isHostname(t.Input) {
-			// It will keep picking this IP if we don't do something.
-			// But GetOldestOutdatedTarget logic relies on "Timestamp".
-			// If we don't scan it, we never update timestamp, so we loop on it.
-			// FIX: We must "skip" it effectively.
-			// Options:
-			// 1. Mark as "skipped" in DB? (No status field in schema currently, except maybe just saving a dummy scan?)
-			// 2. Storage should filter IPs for SSL?
-
-			// Let's modify Storage to support filtering, OR just save a "N/A" result to bump timestamp.
 			log.Printf("SSLScan: Skipping IP %s (not a hostname)", t.Input)
-
-			// Save empty/dummy result to update timestamp
 			m.storage.SaveSSLScan(ctx, t.Input, storage.SSLResult{Status: "Skipped (IP Address)"})
 			continue
 		}
@@ -135,13 +172,10 @@ func (m *Manager) runSSLScanLoop() {
 		res, err := scanner.Scan(t.Input)
 		if err != nil {
 			log.Printf("SSLScan: Scan failed for %s: %v", t.Input, err)
-			// Save failure to avoid tight loop retry?
-			// The original code retried?
 			time.Sleep(5 * time.Second)
 			continue
 		}
 
-		// Convert result
 		saveRes := storage.SSLResult{
 			Grade:           res.Grade,
 			Status:          res.Status,
@@ -182,7 +216,6 @@ func (m *Manager) runCSPScanLoop() {
 		}
 
 		if !isHostname(t.Input) {
-			// Save dummy to bump timestamp
 			log.Printf("CSPScan: Skipping IP %s", t.Input)
 			m.storage.SaveCSPScan(ctx, t.Input, "N/A - IP Address", nil)
 			continue
@@ -190,7 +223,6 @@ func (m *Manager) runCSPScanLoop() {
 
 		log.Printf("CSPScan: Scanning %s", t.Input)
 
-		// Scan Logic from main.go
 		var cspHeader string
 		resp, err := clientHttp.Head("https://" + t.Input)
 		if err != nil {
@@ -201,11 +233,6 @@ func (m *Manager) runCSPScanLoop() {
 
 		if err != nil {
 			log.Printf("CSPScan: Failed to connect to %s: %v", t.Input, err)
-			// Original logic: continued.
-			// We should save something to bump timestamp, maybe "Unreachable"?
-			// Or just ignore and let it be retried (but that blocks others).
-			// Saving with empty header implies missing?
-			// I'll save with no header and maybe a finding "Unreachable"?
 			m.storage.SaveCSPScan(ctx, t.Input, "", []csp.Finding{{
 				Description: "Target Unreachable",
 				Severity:    csp.SeverityInfo,

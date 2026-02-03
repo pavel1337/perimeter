@@ -6,9 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"perimeter/ent/cspscan"
 	"perimeter/ent/ip"
-	"perimeter/ent/sslscan"
+	"perimeter/ent/portscan"
 	"perimeter/ent/target"
 	"time"
 
@@ -16,21 +15,21 @@ import (
 	"entgo.io/ent/schema/field"
 )
 
-// TargetCreate is the builder for creating a Target entity.
-type TargetCreate struct {
+// IPCreate is the builder for creating a IP entity.
+type IPCreate struct {
 	config
-	mutation *TargetMutation
+	mutation *IPMutation
 	hooks    []Hook
 }
 
 // SetCreateTime sets the "create_time" field.
-func (_c *TargetCreate) SetCreateTime(v time.Time) *TargetCreate {
+func (_c *IPCreate) SetCreateTime(v time.Time) *IPCreate {
 	_c.mutation.SetCreateTime(v)
 	return _c
 }
 
 // SetNillableCreateTime sets the "create_time" field if the given value is not nil.
-func (_c *TargetCreate) SetNillableCreateTime(v *time.Time) *TargetCreate {
+func (_c *IPCreate) SetNillableCreateTime(v *time.Time) *IPCreate {
 	if v != nil {
 		_c.SetCreateTime(*v)
 	}
@@ -38,83 +37,68 @@ func (_c *TargetCreate) SetNillableCreateTime(v *time.Time) *TargetCreate {
 }
 
 // SetUpdateTime sets the "update_time" field.
-func (_c *TargetCreate) SetUpdateTime(v time.Time) *TargetCreate {
+func (_c *IPCreate) SetUpdateTime(v time.Time) *IPCreate {
 	_c.mutation.SetUpdateTime(v)
 	return _c
 }
 
 // SetNillableUpdateTime sets the "update_time" field if the given value is not nil.
-func (_c *TargetCreate) SetNillableUpdateTime(v *time.Time) *TargetCreate {
+func (_c *IPCreate) SetNillableUpdateTime(v *time.Time) *IPCreate {
 	if v != nil {
 		_c.SetUpdateTime(*v)
 	}
 	return _c
 }
 
-// SetInput sets the "input" field.
-func (_c *TargetCreate) SetInput(v string) *TargetCreate {
-	_c.mutation.SetInput(v)
+// SetAddress sets the "address" field.
+func (_c *IPCreate) SetAddress(v string) *IPCreate {
+	_c.mutation.SetAddress(v)
 	return _c
 }
 
-// AddIPIDs adds the "ips" edge to the IP entity by IDs.
-func (_c *TargetCreate) AddIPIDs(ids ...int) *TargetCreate {
-	_c.mutation.AddIPIDs(ids...)
+// AddTargetIDs adds the "targets" edge to the Target entity by IDs.
+func (_c *IPCreate) AddTargetIDs(ids ...int) *IPCreate {
+	_c.mutation.AddTargetIDs(ids...)
 	return _c
 }
 
-// AddIps adds the "ips" edges to the IP entity.
-func (_c *TargetCreate) AddIps(v ...*IP) *TargetCreate {
+// AddTargets adds the "targets" edges to the Target entity.
+func (_c *IPCreate) AddTargets(v ...*Target) *IPCreate {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _c.AddIPIDs(ids...)
+	return _c.AddTargetIDs(ids...)
 }
 
-// AddSslScanIDs adds the "ssl_scans" edge to the SSLScan entity by IDs.
-func (_c *TargetCreate) AddSslScanIDs(ids ...int) *TargetCreate {
-	_c.mutation.AddSslScanIDs(ids...)
+// AddScanIDs adds the "scans" edge to the PortScan entity by IDs.
+func (_c *IPCreate) AddScanIDs(ids ...int) *IPCreate {
+	_c.mutation.AddScanIDs(ids...)
 	return _c
 }
 
-// AddSslScans adds the "ssl_scans" edges to the SSLScan entity.
-func (_c *TargetCreate) AddSslScans(v ...*SSLScan) *TargetCreate {
+// AddScans adds the "scans" edges to the PortScan entity.
+func (_c *IPCreate) AddScans(v ...*PortScan) *IPCreate {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _c.AddSslScanIDs(ids...)
+	return _c.AddScanIDs(ids...)
 }
 
-// AddCspScanIDs adds the "csp_scans" edge to the CSPScan entity by IDs.
-func (_c *TargetCreate) AddCspScanIDs(ids ...int) *TargetCreate {
-	_c.mutation.AddCspScanIDs(ids...)
-	return _c
-}
-
-// AddCspScans adds the "csp_scans" edges to the CSPScan entity.
-func (_c *TargetCreate) AddCspScans(v ...*CSPScan) *TargetCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _c.AddCspScanIDs(ids...)
-}
-
-// Mutation returns the TargetMutation object of the builder.
-func (_c *TargetCreate) Mutation() *TargetMutation {
+// Mutation returns the IPMutation object of the builder.
+func (_c *IPCreate) Mutation() *IPMutation {
 	return _c.mutation
 }
 
-// Save creates the Target in the database.
-func (_c *TargetCreate) Save(ctx context.Context) (*Target, error) {
+// Save creates the IP in the database.
+func (_c *IPCreate) Save(ctx context.Context) (*IP, error) {
 	_c.defaults()
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
-func (_c *TargetCreate) SaveX(ctx context.Context) *Target {
+func (_c *IPCreate) SaveX(ctx context.Context) *IP {
 	v, err := _c.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -123,50 +107,50 @@ func (_c *TargetCreate) SaveX(ctx context.Context) *Target {
 }
 
 // Exec executes the query.
-func (_c *TargetCreate) Exec(ctx context.Context) error {
+func (_c *IPCreate) Exec(ctx context.Context) error {
 	_, err := _c.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_c *TargetCreate) ExecX(ctx context.Context) {
+func (_c *IPCreate) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *TargetCreate) defaults() {
+func (_c *IPCreate) defaults() {
 	if _, ok := _c.mutation.CreateTime(); !ok {
-		v := target.DefaultCreateTime()
+		v := ip.DefaultCreateTime()
 		_c.mutation.SetCreateTime(v)
 	}
 	if _, ok := _c.mutation.UpdateTime(); !ok {
-		v := target.DefaultUpdateTime()
+		v := ip.DefaultUpdateTime()
 		_c.mutation.SetUpdateTime(v)
 	}
 }
 
 // check runs all checks and user-defined validators on the builder.
-func (_c *TargetCreate) check() error {
+func (_c *IPCreate) check() error {
 	if _, ok := _c.mutation.CreateTime(); !ok {
-		return &ValidationError{Name: "create_time", err: errors.New(`ent: missing required field "Target.create_time"`)}
+		return &ValidationError{Name: "create_time", err: errors.New(`ent: missing required field "IP.create_time"`)}
 	}
 	if _, ok := _c.mutation.UpdateTime(); !ok {
-		return &ValidationError{Name: "update_time", err: errors.New(`ent: missing required field "Target.update_time"`)}
+		return &ValidationError{Name: "update_time", err: errors.New(`ent: missing required field "IP.update_time"`)}
 	}
-	if _, ok := _c.mutation.Input(); !ok {
-		return &ValidationError{Name: "input", err: errors.New(`ent: missing required field "Target.input"`)}
+	if _, ok := _c.mutation.Address(); !ok {
+		return &ValidationError{Name: "address", err: errors.New(`ent: missing required field "IP.address"`)}
 	}
-	if v, ok := _c.mutation.Input(); ok {
-		if err := target.InputValidator(v); err != nil {
-			return &ValidationError{Name: "input", err: fmt.Errorf(`ent: validator failed for field "Target.input": %w`, err)}
+	if v, ok := _c.mutation.Address(); ok {
+		if err := ip.AddressValidator(v); err != nil {
+			return &ValidationError{Name: "address", err: fmt.Errorf(`ent: validator failed for field "IP.address": %w`, err)}
 		}
 	}
 	return nil
 }
 
-func (_c *TargetCreate) sqlSave(ctx context.Context) (*Target, error) {
+func (_c *IPCreate) sqlSave(ctx context.Context) (*IP, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
@@ -184,32 +168,32 @@ func (_c *TargetCreate) sqlSave(ctx context.Context) (*Target, error) {
 	return _node, nil
 }
 
-func (_c *TargetCreate) createSpec() (*Target, *sqlgraph.CreateSpec) {
+func (_c *IPCreate) createSpec() (*IP, *sqlgraph.CreateSpec) {
 	var (
-		_node = &Target{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(target.Table, sqlgraph.NewFieldSpec(target.FieldID, field.TypeInt))
+		_node = &IP{config: _c.config}
+		_spec = sqlgraph.NewCreateSpec(ip.Table, sqlgraph.NewFieldSpec(ip.FieldID, field.TypeInt))
 	)
 	if value, ok := _c.mutation.CreateTime(); ok {
-		_spec.SetField(target.FieldCreateTime, field.TypeTime, value)
+		_spec.SetField(ip.FieldCreateTime, field.TypeTime, value)
 		_node.CreateTime = value
 	}
 	if value, ok := _c.mutation.UpdateTime(); ok {
-		_spec.SetField(target.FieldUpdateTime, field.TypeTime, value)
+		_spec.SetField(ip.FieldUpdateTime, field.TypeTime, value)
 		_node.UpdateTime = value
 	}
-	if value, ok := _c.mutation.Input(); ok {
-		_spec.SetField(target.FieldInput, field.TypeString, value)
-		_node.Input = value
+	if value, ok := _c.mutation.Address(); ok {
+		_spec.SetField(ip.FieldAddress, field.TypeString, value)
+		_node.Address = value
 	}
-	if nodes := _c.mutation.IpsIDs(); len(nodes) > 0 {
+	if nodes := _c.mutation.TargetsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
-			Inverse: false,
-			Table:   target.IpsTable,
-			Columns: target.IpsPrimaryKey,
+			Inverse: true,
+			Table:   ip.TargetsTable,
+			Columns: ip.TargetsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(ip.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(target.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -217,31 +201,15 @@ func (_c *TargetCreate) createSpec() (*Target, *sqlgraph.CreateSpec) {
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.SslScansIDs(); len(nodes) > 0 {
+	if nodes := _c.mutation.ScansIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   target.SslScansTable,
-			Columns: []string{target.SslScansColumn},
+			Table:   ip.ScansTable,
+			Columns: []string{ip.ScansColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(sslscan.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges = append(_spec.Edges, edge)
-	}
-	if nodes := _c.mutation.CspScansIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   target.CspScansTable,
-			Columns: []string{target.CspScansColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(cspscan.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(portscan.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -252,27 +220,27 @@ func (_c *TargetCreate) createSpec() (*Target, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
-// TargetCreateBulk is the builder for creating many Target entities in bulk.
-type TargetCreateBulk struct {
+// IPCreateBulk is the builder for creating many IP entities in bulk.
+type IPCreateBulk struct {
 	config
 	err      error
-	builders []*TargetCreate
+	builders []*IPCreate
 }
 
-// Save creates the Target entities in the database.
-func (_c *TargetCreateBulk) Save(ctx context.Context) ([]*Target, error) {
+// Save creates the IP entities in the database.
+func (_c *IPCreateBulk) Save(ctx context.Context) ([]*IP, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
 	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
-	nodes := make([]*Target, len(_c.builders))
+	nodes := make([]*IP, len(_c.builders))
 	mutators := make([]Mutator, len(_c.builders))
 	for i := range _c.builders {
 		func(i int, root context.Context) {
 			builder := _c.builders[i]
 			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*TargetMutation)
+				mutation, ok := m.(*IPMutation)
 				if !ok {
 					return nil, fmt.Errorf("unexpected mutation type %T", m)
 				}
@@ -319,7 +287,7 @@ func (_c *TargetCreateBulk) Save(ctx context.Context) ([]*Target, error) {
 }
 
 // SaveX is like Save, but panics if an error occurs.
-func (_c *TargetCreateBulk) SaveX(ctx context.Context) []*Target {
+func (_c *IPCreateBulk) SaveX(ctx context.Context) []*IP {
 	v, err := _c.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -328,13 +296,13 @@ func (_c *TargetCreateBulk) SaveX(ctx context.Context) []*Target {
 }
 
 // Exec executes the query.
-func (_c *TargetCreateBulk) Exec(ctx context.Context) error {
+func (_c *IPCreateBulk) Exec(ctx context.Context) error {
 	_, err := _c.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_c *TargetCreateBulk) ExecX(ctx context.Context) {
+func (_c *IPCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
 		panic(err)
 	}

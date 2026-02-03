@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// CSPScan is the client for interacting with the CSPScan builders.
 	CSPScan *CSPScanClient
+	// IP is the client for interacting with the IP builders.
+	IP *IPClient
 	// Port is the client for interacting with the Port builders.
 	Port *PortClient
 	// PortScan is the client for interacting with the PortScan builders.
@@ -154,6 +156,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.CSPScan = NewCSPScanClient(tx.config)
+	tx.IP = NewIPClient(tx.config)
 	tx.Port = NewPortClient(tx.config)
 	tx.PortScan = NewPortScanClient(tx.config)
 	tx.SSLScan = NewSSLScanClient(tx.config)

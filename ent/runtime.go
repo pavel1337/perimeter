@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"perimeter/ent/ip"
 	"perimeter/ent/portscan"
 	"perimeter/ent/schema"
 	"perimeter/ent/target"
@@ -13,6 +14,25 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	ipMixin := schema.IP{}.Mixin()
+	ipMixinFields0 := ipMixin[0].Fields()
+	_ = ipMixinFields0
+	ipFields := schema.IP{}.Fields()
+	_ = ipFields
+	// ipDescCreateTime is the schema descriptor for create_time field.
+	ipDescCreateTime := ipMixinFields0[0].Descriptor()
+	// ip.DefaultCreateTime holds the default value on creation for the create_time field.
+	ip.DefaultCreateTime = ipDescCreateTime.Default.(func() time.Time)
+	// ipDescUpdateTime is the schema descriptor for update_time field.
+	ipDescUpdateTime := ipMixinFields0[1].Descriptor()
+	// ip.DefaultUpdateTime holds the default value on creation for the update_time field.
+	ip.DefaultUpdateTime = ipDescUpdateTime.Default.(func() time.Time)
+	// ip.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	ip.UpdateDefaultUpdateTime = ipDescUpdateTime.UpdateDefault.(func() time.Time)
+	// ipDescAddress is the schema descriptor for address field.
+	ipDescAddress := ipFields[0].Descriptor()
+	// ip.AddressValidator is a validator for the "address" field. It is called by the builders before save.
+	ip.AddressValidator = ipDescAddress.Validators[0].(func(string) error)
 	portscanFields := schema.PortScan{}.Fields()
 	_ = portscanFields
 	// portscanDescScannedAt is the schema descriptor for scanned_at field.

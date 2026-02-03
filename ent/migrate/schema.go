@@ -30,6 +30,19 @@ var (
 			},
 		},
 	}
+	// IpsColumns holds the columns for the "ips" table.
+	IpsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "create_time", Type: field.TypeTime},
+		{Name: "update_time", Type: field.TypeTime},
+		{Name: "address", Type: field.TypeString, Unique: true},
+	}
+	// IpsTable holds the schema information for the "ips" table.
+	IpsTable = &schema.Table{
+		Name:       "ips",
+		Columns:    IpsColumns,
+		PrimaryKey: []*schema.Column{IpsColumns[0]},
+	}
 	// PortsColumns holds the columns for the "ports" table.
 	PortsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -54,12 +67,21 @@ var (
 	PortScansColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "scanned_at", Type: field.TypeTime},
+		{Name: "ip_scans", Type: field.TypeInt},
 	}
 	// PortScansTable holds the schema information for the "port_scans" table.
 	PortScansTable = &schema.Table{
 		Name:       "port_scans",
 		Columns:    PortScansColumns,
 		PrimaryKey: []*schema.Column{PortScansColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "port_scans_ips_scans",
+				Columns:    []*schema.Column{PortScansColumns[2]},
+				RefColumns: []*schema.Column{IpsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
 	}
 	// SslScansColumns holds the columns for the "ssl_scans" table.
 	SslScansColumns = []*schema.Column{
@@ -101,27 +123,27 @@ var (
 		Columns:    TargetsColumns,
 		PrimaryKey: []*schema.Column{TargetsColumns[0]},
 	}
-	// TargetScansColumns holds the columns for the "target_scans" table.
-	TargetScansColumns = []*schema.Column{
+	// TargetIpsColumns holds the columns for the "target_ips" table.
+	TargetIpsColumns = []*schema.Column{
 		{Name: "target_id", Type: field.TypeInt},
-		{Name: "port_scan_id", Type: field.TypeInt},
+		{Name: "ip_id", Type: field.TypeInt},
 	}
-	// TargetScansTable holds the schema information for the "target_scans" table.
-	TargetScansTable = &schema.Table{
-		Name:       "target_scans",
-		Columns:    TargetScansColumns,
-		PrimaryKey: []*schema.Column{TargetScansColumns[0], TargetScansColumns[1]},
+	// TargetIpsTable holds the schema information for the "target_ips" table.
+	TargetIpsTable = &schema.Table{
+		Name:       "target_ips",
+		Columns:    TargetIpsColumns,
+		PrimaryKey: []*schema.Column{TargetIpsColumns[0], TargetIpsColumns[1]},
 		ForeignKeys: []*schema.ForeignKey{
 			{
-				Symbol:     "target_scans_target_id",
-				Columns:    []*schema.Column{TargetScansColumns[0]},
+				Symbol:     "target_ips_target_id",
+				Columns:    []*schema.Column{TargetIpsColumns[0]},
 				RefColumns: []*schema.Column{TargetsColumns[0]},
 				OnDelete:   schema.Cascade,
 			},
 			{
-				Symbol:     "target_scans_port_scan_id",
-				Columns:    []*schema.Column{TargetScansColumns[1]},
-				RefColumns: []*schema.Column{PortScansColumns[0]},
+				Symbol:     "target_ips_ip_id",
+				Columns:    []*schema.Column{TargetIpsColumns[1]},
+				RefColumns: []*schema.Column{IpsColumns[0]},
 				OnDelete:   schema.Cascade,
 			},
 		},
@@ -129,18 +151,20 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		CspScansTable,
+		IpsTable,
 		PortsTable,
 		PortScansTable,
 		SslScansTable,
 		TargetsTable,
-		TargetScansTable,
+		TargetIpsTable,
 	}
 )
 
 func init() {
 	CspScansTable.ForeignKeys[0].RefTable = TargetsTable
 	PortsTable.ForeignKeys[0].RefTable = PortScansTable
+	PortScansTable.ForeignKeys[0].RefTable = IpsTable
 	SslScansTable.ForeignKeys[0].RefTable = TargetsTable
-	TargetScansTable.ForeignKeys[0].RefTable = TargetsTable
-	TargetScansTable.ForeignKeys[1].RefTable = PortScansTable
+	TargetIpsTable.ForeignKeys[0].RefTable = TargetsTable
+	TargetIpsTable.ForeignKeys[1].RefTable = IpsTable
 }

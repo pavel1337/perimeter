@@ -9,6 +9,9 @@ import (
 // CSPScan is the predicate function for cspscan builders.
 type CSPScan func(*sql.Selector)
 
+// IP is the predicate function for ip builders.
+type IP func(*sql.Selector)
+
 // Port is the predicate function for port builders.
 type Port func(*sql.Selector)
 

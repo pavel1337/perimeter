@@ -100,21 +100,21 @@ func ScannedAtLTE(v time.Time) predicate.PortScan {
 	return predicate.PortScan(sql.FieldLTE(FieldScannedAt, v))
 }
 
-// HasTargets applies the HasEdge predicate on the "targets" edge.
-func HasTargets() predicate.PortScan {
+// HasIP applies the HasEdge predicate on the "ip" edge.
+func HasIP() predicate.PortScan {
 	return predicate.PortScan(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.M2M, true, TargetsTable, TargetsPrimaryKey...),
+			sqlgraph.Edge(sqlgraph.M2O, true, IPTable, IPColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
 }
 
-// HasTargetsWith applies the HasEdge predicate on the "targets" edge with a given conditions (other predicates).
-func HasTargetsWith(preds ...predicate.Target) predicate.PortScan {
+// HasIPWith applies the HasEdge predicate on the "ip" edge with a given conditions (other predicates).
+func HasIPWith(preds ...predicate.IP) predicate.PortScan {
 	return predicate.PortScan(func(s *sql.Selector) {
-		step := newTargetsStep()
+		step := newIPStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

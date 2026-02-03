@@ -8,6 +8,7 @@ import (
 
 	"perimeter/ent"
 	"perimeter/ent/cspscan"
+	"perimeter/ent/ip"
 	"perimeter/ent/portscan"
 	"perimeter/ent/sslscan"
 	"perimeter/ent/target"
@@ -18,7 +19,7 @@ import (
 type ScanType string
 
 const (
-	ScanTypePort ScanType = "port"
+	ScanTypePort ScanType = "port" // Now applies to IPs
 	ScanTypeSSL  ScanType = "ssl"
 	ScanTypeCSP  ScanType = "csp"
 )
@@ -33,9 +34,12 @@ type Storage interface {
 
 	// Scanning Logic
 	GetOldestOutdatedTarget(ctx context.Context, scanType ScanType, threshold time.Duration) (*ent.Target, error)
+	GetOldestOutdatedIP(ctx context.Context, threshold time.Duration) (*ent.IP, error)
+	GetUnresolvedTargets(ctx context.Context, limit int) ([]*ent.Target, error)
 
 	// Saving Results
-	SavePortScan(ctx context.Context, input string, openPorts []int) error
+	SaveIPs(ctx context.Context, targetInput string, ipAddresses []string) error
+	SavePortScan(ctx context.Context, ipAddress string, openPorts []int) error
 	SaveSSLScan(ctx context.Context, input string, result SSLResult) error
 	SaveCSPScan(ctx context.Context, input string, header string, findings []csp.Finding) error
 }
@@ -85,8 +89,10 @@ func (s *EntStorage) ImportTargets(ctx context.Context, lines []string) (int, er
 
 func (s *EntStorage) GetTargets(ctx context.Context) ([]*ent.Target, error) {
 	return s.client.Target.Query().
-		WithScans(func(q *ent.PortScanQuery) {
-			q.WithPorts()
+		WithIps(func(q *ent.IPQuery) {
+			q.WithScans(func(sq *ent.PortScanQuery) {
+				sq.WithPorts()
+			})
 		}).
 		WithSslScans().
 		WithCspScans().
@@ -96,25 +102,22 @@ func (s *EntStorage) GetTargets(ctx context.Context) ([]*ent.Target, error) {
 func (s *EntStorage) GetTarget(ctx context.Context, id int) (*ent.Target, error) {
 	return s.client.Target.Query().
 		Where(target.ID(id)).
-		WithScans(func(q *ent.PortScanQuery) {
-			q.WithPorts()
+		WithIps(func(q *ent.IPQuery) {
+			q.WithScans(func(sq *ent.PortScanQuery) {
+				sq.WithPorts()
+			})
 		}).
 		WithSslScans().
 		WithCspScans().
 		Only(ctx)
 }
 
+// GetOldestOutdatedTarget returns targets for SSL/CSP scans
 func (s *EntStorage) GetOldestOutdatedTarget(ctx context.Context, scanType ScanType, threshold time.Duration) (*ent.Target, error) {
 	cutoff := time.Now().Add(-threshold)
-
 	query := s.client.Target.Query()
 
 	switch scanType {
-	case ScanTypePort:
-		query.Where(target.Or(
-			target.Not(target.HasScans()),
-			target.Not(target.HasScansWith(portscan.ScannedAtGTE(cutoff))),
-		))
 	case ScanTypeSSL:
 		query.Where(target.Or(
 			target.Not(target.HasSslScans()),
@@ -126,42 +129,105 @@ func (s *EntStorage) GetOldestOutdatedTarget(ctx context.Context, scanType ScanT
 			target.Not(target.HasCspScansWith(cspscan.ScannedAtGTE(cutoff))),
 		))
 	default:
-		return nil, fmt.Errorf("unknown scan type")
+		return nil, fmt.Errorf("scan type %s not supported for Targets (use GetOldestOutdatedIP for ports)", scanType)
 	}
 
-	t, err := query.First(ctx)
+	t, err := query.Order(ent.Asc(target.FieldUpdateTime)).First(ctx)
 	if err != nil && !ent.IsNotFound(err) {
 		return nil, fmt.Errorf("error fetching target: %v", err)
 	}
-
 	return t, nil
 }
 
-func (s *EntStorage) SavePortScan(ctx context.Context, input string, openPorts []int) error {
-	t, err := s.client.Target.Query().Where(target.Input(input)).First(ctx)
+func (s *EntStorage) GetOldestOutdatedIP(ctx context.Context, threshold time.Duration) (*ent.IP, error) {
+	cutoff := time.Now().Add(-threshold)
+
+	i, err := s.client.IP.Query().
+		Where(ip.Or(
+			ip.Not(ip.HasScans()),
+			ip.Not(ip.HasScansWith(portscan.ScannedAtGTE(cutoff))),
+		)).
+		Order(ent.Asc(ip.FieldUpdateTime)).
+		First(ctx)
+
+	if err != nil && !ent.IsNotFound(err) {
+		return nil, err
+	}
+	return i, nil
+}
+
+func (s *EntStorage) GetUnresolvedTargets(ctx context.Context, limit int) ([]*ent.Target, error) {
+	// For simplicity: Targets with NO IPs.
+	// To support re-resolution, we'd need a timestamp on the logic or checks.
+	// Let's assume once resolved, it stays. Or we can just check if updated_at is old enough?
+	// But updated_at changes on other things.
+	// We will return targets that have NO IPs for now.
+	return s.client.Target.Query().
+		Where(target.Not(target.HasIps())).
+		Limit(limit).
+		All(ctx)
+}
+
+func (s *EntStorage) SaveIPs(ctx context.Context, targetInput string, ipAddresses []string) error {
+	t, err := s.client.Target.Query().Where(target.Input(targetInput)).First(ctx)
 	if err != nil {
 		return err
 	}
 
-	// For port scan, we might have multiple targets grouped.
-	// The interface takes "input" (singular).
-	// This implies the scanner loop determines the single target and scans it.
-	// In the original code, it grouped by IP.
-	// I should probably support grouping or just scan one by one.
-	// "worker must fetch the oldest scanned target, and scan it."
-	// This implies singular scanning.
-	// However, multiple targets might share IP. Scanning one IP covers all updates?
-	// If I scan hostname X -> IP Y. Hostname Z -> IP Y.
-	// Scanning IP Y covers both.
-	// But if I only scan X, do I update Z?
-	// The prompt says "fetch the oldest scanned target". It doesn't mention grouping optimization but the old code had it.
-	// If I strip grouping, it's safer but less efficient.
-	// I will stick to scanning the specific target requested for now.
-	// To keep "Grouping" logic, the scanner would need to resolve IPs and handle it.
-	// I'll keep it simple: One target -> One scan record.
+	// For each IP, find or create, then add to target.
+	// Bulk operations are tricky with "Find or Create", so loop is fine for now.
+	for _, ipAddr := range ipAddresses {
+		// Use Upsert approach or just Check Exist -> Create
+		// Ent Upsert support varies by driver (sqlite supports ON CONFLICT)
+		// Let's try simple check-create
+
+		// Create IP if not exists
+		// We CAN use the ID if we want, but finding by address is safer.
+		// Note: IP.Address is unique.
+
+		// Attempt to create. If fails (unique violation), query it.
+		// Or query first.
+
+		// 1. Query
+		i, err := s.client.IP.Query().Where(ip.Address(ipAddr)).First(ctx)
+		if ent.IsNotFound(err) {
+			// 2. Create
+			i, err = s.client.IP.Create().SetAddress(ipAddr).Save(ctx)
+			if err != nil {
+				// Race condition possible? Yes. But for this tool, probably accept failure or retry.
+				// If we get "constraint failed", we try to fetch again.
+				i, err = s.client.IP.Query().Where(ip.Address(ipAddr)).First(ctx)
+				if err != nil {
+					log.Printf("Failed to recover IP creation for %s: %v", ipAddr, err)
+					continue
+				}
+			}
+		} else if err != nil {
+			return err
+		}
+
+		// 3. Link to Target (AddIps handles deduplication on edge?)
+		// Ent Many-to-Many additions:
+		err = s.client.Target.UpdateOne(t).AddIps(i).Exec(ctx)
+		if err != nil {
+			log.Printf("Failed to link IP %s to target %s: %v", ipAddr, t.Input, err)
+		}
+	}
+
+	// Update timestamp of Target to indicate we processed it?
+	s.client.Target.UpdateOne(t).SetUpdateTime(time.Now()).Exec(ctx)
+
+	return nil
+}
+
+func (s *EntStorage) SavePortScan(ctx context.Context, ipAddress string, openPorts []int) error {
+	i, err := s.client.IP.Query().Where(ip.Address(ipAddress)).First(ctx)
+	if err != nil {
+		return err
+	}
 
 	scan, err := s.client.PortScan.Create().
-		AddTargets(t).
+		SetIP(i).
 		SetScannedAt(time.Now()).
 		Save(ctx)
 	if err != nil {
@@ -170,8 +236,8 @@ func (s *EntStorage) SavePortScan(ctx context.Context, input string, openPorts [
 
 	if len(openPorts) > 0 {
 		builders := make([]*ent.PortCreate, len(openPorts))
-		for i, p := range openPorts {
-			builders[i] = s.client.Port.Create().
+		for idx, p := range openPorts {
+			builders[idx] = s.client.Port.Create().
 				SetScan(scan).
 				SetNumber(p)
 		}

@@ -6,9 +6,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"perimeter/ent/ip"
 	"perimeter/ent/port"
 	"perimeter/ent/portscan"
-	"perimeter/ent/target"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -36,19 +36,15 @@ func (_c *PortScanCreate) SetNillableScannedAt(v *time.Time) *PortScanCreate {
 	return _c
 }
 
-// AddTargetIDs adds the "targets" edge to the Target entity by IDs.
-func (_c *PortScanCreate) AddTargetIDs(ids ...int) *PortScanCreate {
-	_c.mutation.AddTargetIDs(ids...)
+// SetIPID sets the "ip" edge to the IP entity by ID.
+func (_c *PortScanCreate) SetIPID(id int) *PortScanCreate {
+	_c.mutation.SetIPID(id)
 	return _c
 }
 
-// AddTargets adds the "targets" edges to the Target entity.
-func (_c *PortScanCreate) AddTargets(v ...*Target) *PortScanCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _c.AddTargetIDs(ids...)
+// SetIP sets the "ip" edge to the IP entity.
+func (_c *PortScanCreate) SetIP(v *IP) *PortScanCreate {
+	return _c.SetIPID(v.ID)
 }
 
 // AddPortIDs adds the "ports" edge to the Port entity by IDs.
@@ -112,8 +108,8 @@ func (_c *PortScanCreate) check() error {
 	if _, ok := _c.mutation.ScannedAt(); !ok {
 		return &ValidationError{Name: "scanned_at", err: errors.New(`ent: missing required field "PortScan.scanned_at"`)}
 	}
-	if len(_c.mutation.TargetsIDs()) == 0 {
-		return &ValidationError{Name: "targets", err: errors.New(`ent: missing required edge "PortScan.targets"`)}
+	if len(_c.mutation.IPIDs()) == 0 {
+		return &ValidationError{Name: "ip", err: errors.New(`ent: missing required edge "PortScan.ip"`)}
 	}
 	return nil
 }
@@ -145,20 +141,21 @@ func (_c *PortScanCreate) createSpec() (*PortScan, *sqlgraph.CreateSpec) {
 		_spec.SetField(portscan.FieldScannedAt, field.TypeTime, value)
 		_node.ScannedAt = value
 	}
-	if nodes := _c.mutation.TargetsIDs(); len(nodes) > 0 {
+	if nodes := _c.mutation.IPIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
+			Rel:     sqlgraph.M2O,
 			Inverse: true,
-			Table:   portscan.TargetsTable,
-			Columns: portscan.TargetsPrimaryKey,
+			Table:   portscan.IPTable,
+			Columns: []string{portscan.IPColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(target.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(ip.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
+		_node.ip_scans = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.PortsIDs(); len(nodes) > 0 {

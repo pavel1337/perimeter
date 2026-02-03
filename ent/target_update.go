@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"perimeter/ent/cspscan"
-	"perimeter/ent/portscan"
+	"perimeter/ent/ip"
 	"perimeter/ent/predicate"
 	"perimeter/ent/sslscan"
 	"perimeter/ent/target"
@@ -51,19 +51,19 @@ func (_u *TargetUpdate) SetNillableInput(v *string) *TargetUpdate {
 	return _u
 }
 
-// AddScanIDs adds the "scans" edge to the PortScan entity by IDs.
-func (_u *TargetUpdate) AddScanIDs(ids ...int) *TargetUpdate {
-	_u.mutation.AddScanIDs(ids...)
+// AddIPIDs adds the "ips" edge to the IP entity by IDs.
+func (_u *TargetUpdate) AddIPIDs(ids ...int) *TargetUpdate {
+	_u.mutation.AddIPIDs(ids...)
 	return _u
 }
 
-// AddScans adds the "scans" edges to the PortScan entity.
-func (_u *TargetUpdate) AddScans(v ...*PortScan) *TargetUpdate {
+// AddIps adds the "ips" edges to the IP entity.
+func (_u *TargetUpdate) AddIps(v ...*IP) *TargetUpdate {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.AddScanIDs(ids...)
+	return _u.AddIPIDs(ids...)
 }
 
 // AddSslScanIDs adds the "ssl_scans" edge to the SSLScan entity by IDs.
@@ -101,25 +101,25 @@ func (_u *TargetUpdate) Mutation() *TargetMutation {
 	return _u.mutation
 }
 
-// ClearScans clears all "scans" edges to the PortScan entity.
-func (_u *TargetUpdate) ClearScans() *TargetUpdate {
-	_u.mutation.ClearScans()
+// ClearIps clears all "ips" edges to the IP entity.
+func (_u *TargetUpdate) ClearIps() *TargetUpdate {
+	_u.mutation.ClearIps()
 	return _u
 }
 
-// RemoveScanIDs removes the "scans" edge to PortScan entities by IDs.
-func (_u *TargetUpdate) RemoveScanIDs(ids ...int) *TargetUpdate {
-	_u.mutation.RemoveScanIDs(ids...)
+// RemoveIPIDs removes the "ips" edge to IP entities by IDs.
+func (_u *TargetUpdate) RemoveIPIDs(ids ...int) *TargetUpdate {
+	_u.mutation.RemoveIPIDs(ids...)
 	return _u
 }
 
-// RemoveScans removes "scans" edges to PortScan entities.
-func (_u *TargetUpdate) RemoveScans(v ...*PortScan) *TargetUpdate {
+// RemoveIps removes "ips" edges to IP entities.
+func (_u *TargetUpdate) RemoveIps(v ...*IP) *TargetUpdate {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.RemoveScanIDs(ids...)
+	return _u.RemoveIPIDs(ids...)
 }
 
 // ClearSslScans clears all "ssl_scans" edges to the SSLScan entity.
@@ -228,28 +228,28 @@ func (_u *TargetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Input(); ok {
 		_spec.SetField(target.FieldInput, field.TypeString, value)
 	}
-	if _u.mutation.ScansCleared() {
+	if _u.mutation.IpsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
-			Table:   target.ScansTable,
-			Columns: target.ScansPrimaryKey,
+			Table:   target.IpsTable,
+			Columns: target.IpsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(portscan.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(ip.FieldID, field.TypeInt),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedScansIDs(); len(nodes) > 0 && !_u.mutation.ScansCleared() {
+	if nodes := _u.mutation.RemovedIpsIDs(); len(nodes) > 0 && !_u.mutation.IpsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
-			Table:   target.ScansTable,
-			Columns: target.ScansPrimaryKey,
+			Table:   target.IpsTable,
+			Columns: target.IpsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(portscan.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(ip.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -257,15 +257,15 @@ func (_u *TargetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.ScansIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.IpsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
-			Table:   target.ScansTable,
-			Columns: target.ScansPrimaryKey,
+			Table:   target.IpsTable,
+			Columns: target.IpsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(portscan.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(ip.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -403,19 +403,19 @@ func (_u *TargetUpdateOne) SetNillableInput(v *string) *TargetUpdateOne {
 	return _u
 }
 
-// AddScanIDs adds the "scans" edge to the PortScan entity by IDs.
-func (_u *TargetUpdateOne) AddScanIDs(ids ...int) *TargetUpdateOne {
-	_u.mutation.AddScanIDs(ids...)
+// AddIPIDs adds the "ips" edge to the IP entity by IDs.
+func (_u *TargetUpdateOne) AddIPIDs(ids ...int) *TargetUpdateOne {
+	_u.mutation.AddIPIDs(ids...)
 	return _u
 }
 
-// AddScans adds the "scans" edges to the PortScan entity.
-func (_u *TargetUpdateOne) AddScans(v ...*PortScan) *TargetUpdateOne {
+// AddIps adds the "ips" edges to the IP entity.
+func (_u *TargetUpdateOne) AddIps(v ...*IP) *TargetUpdateOne {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.AddScanIDs(ids...)
+	return _u.AddIPIDs(ids...)
 }
 
 // AddSslScanIDs adds the "ssl_scans" edge to the SSLScan entity by IDs.
@@ -453,25 +453,25 @@ func (_u *TargetUpdateOne) Mutation() *TargetMutation {
 	return _u.mutation
 }
 
-// ClearScans clears all "scans" edges to the PortScan entity.
-func (_u *TargetUpdateOne) ClearScans() *TargetUpdateOne {
-	_u.mutation.ClearScans()
+// ClearIps clears all "ips" edges to the IP entity.
+func (_u *TargetUpdateOne) ClearIps() *TargetUpdateOne {
+	_u.mutation.ClearIps()
 	return _u
 }
 
-// RemoveScanIDs removes the "scans" edge to PortScan entities by IDs.
-func (_u *TargetUpdateOne) RemoveScanIDs(ids ...int) *TargetUpdateOne {
-	_u.mutation.RemoveScanIDs(ids...)
+// RemoveIPIDs removes the "ips" edge to IP entities by IDs.
+func (_u *TargetUpdateOne) RemoveIPIDs(ids ...int) *TargetUpdateOne {
+	_u.mutation.RemoveIPIDs(ids...)
 	return _u
 }
 
-// RemoveScans removes "scans" edges to PortScan entities.
-func (_u *TargetUpdateOne) RemoveScans(v ...*PortScan) *TargetUpdateOne {
+// RemoveIps removes "ips" edges to IP entities.
+func (_u *TargetUpdateOne) RemoveIps(v ...*IP) *TargetUpdateOne {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.RemoveScanIDs(ids...)
+	return _u.RemoveIPIDs(ids...)
 }
 
 // ClearSslScans clears all "ssl_scans" edges to the SSLScan entity.
@@ -610,28 +610,28 @@ func (_u *TargetUpdateOne) sqlSave(ctx context.Context) (_node *Target, err erro
 	if value, ok := _u.mutation.Input(); ok {
 		_spec.SetField(target.FieldInput, field.TypeString, value)
 	}
-	if _u.mutation.ScansCleared() {
+	if _u.mutation.IpsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
-			Table:   target.ScansTable,
-			Columns: target.ScansPrimaryKey,
+			Table:   target.IpsTable,
+			Columns: target.IpsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(portscan.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(ip.FieldID, field.TypeInt),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedScansIDs(); len(nodes) > 0 && !_u.mutation.ScansCleared() {
+	if nodes := _u.mutation.RemovedIpsIDs(); len(nodes) > 0 && !_u.mutation.IpsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
-			Table:   target.ScansTable,
-			Columns: target.ScansPrimaryKey,
+			Table:   target.IpsTable,
+			Columns: target.IpsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(portscan.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(ip.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -639,15 +639,15 @@ func (_u *TargetUpdateOne) sqlSave(ctx context.Context) (_node *Target, err erro
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.ScansIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.IpsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
 			Inverse: false,
-			Table:   target.ScansTable,
-			Columns: target.ScansPrimaryKey,
+			Table:   target.IpsTable,
+			Columns: target.IpsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(portscan.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(ip.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
