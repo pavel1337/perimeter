@@ -179,7 +179,7 @@ func importTargets(ctx context.Context, client *ent.Client, path string) error {
 // ---------------------------------------------------------
 func runPortScanLoop(client *ent.Client) {
 	// Scanner Config: 500ms timeout, 100 concurrent threads
-	portScanner := ports.NewSimpleScanner(50, 100, 3)
+	portScanner := ports.NewSimpleScanner(100, 50, 3, 1, 1000)
 	ctx := context.Background()
 
 	for {
