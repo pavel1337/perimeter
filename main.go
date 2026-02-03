@@ -7,432 +7,145 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net"
-	"net/http"
 	"os"
-	"strconv"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/template/html/v2"
-	_ "github.com/mattn/go-sqlite3"
-
 	"perimeter/ent"
-	"perimeter/ent/portscan"
-	"perimeter/ent/target"
-	"perimeter/scanner/csp"
-	"perimeter/scanner/ports"
+	"perimeter/internal/scanner"
+	"perimeter/internal/server"
+	"perimeter/internal/storage"
 	"perimeter/scanner/ssl"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 //go:embed views/*
 var viewsfs embed.FS
 
+func getEnvOrDefaultStr(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func getEnvOrDefaultDuration(key string, defaultValue time.Duration) time.Duration {
+	if value := os.Getenv(key); value != "" {
+		if duration, err := time.ParseDuration(value); err == nil {
+			return duration
+		}
+	}
+	return defaultValue
+}
+
+var (
+	targetFile   = getEnvOrDefaultStr("TARGET_FILE", "")
+	httpPort     = getEnvOrDefaultStr("HTTP_PORT", "3000")
+	firstName    = getEnvOrDefaultStr("FIRST_NAME", "")
+	lastName     = getEnvOrDefaultStr("LAST_NAME", "")
+	email        = getEnvOrDefaultStr("EMAIL", "")
+	organization = getEnvOrDefaultStr("ORGANIZATION", "")
+	dbPath       = getEnvOrDefaultStr("DB_PATH", "perimeter.db")
+
+	portInterval = getEnvOrDefaultDuration("PORT_INTERVAL", 1*time.Hour)
+	sslInterval  = getEnvOrDefaultDuration("SSL_INTERVAL", 12*time.Hour)
+	cspInterval  = getEnvOrDefaultDuration("CSP_INTERVAL", 1*time.Hour)
+)
+
 func main() {
 	// 1. Parse CLI Flags
-	targetFile := flag.String("targets", "", "Path to text file containing targets (one per line)")
-	httpPort := flag.String("port", "3000", "HTTP listen port")
-	firstName := flag.String("firstName", "", "First name for SSL Labs")
-	lastName := flag.String("lastName", "", "Last name for SSL Labs")
-	email := flag.String("email", "", "Email for SSL Labs")
-	organization := flag.String("organization", "", "Organization for SSL Labs")
+	flag.StringVar(&targetFile, "targets", targetFile, "Path to text file containing targets (one per line)")
+	flag.StringVar(&httpPort, "port", httpPort, "HTTP listen port")
+	flag.StringVar(&firstName, "firstName", firstName, "First name for SSL Labs")
+	flag.StringVar(&lastName, "lastName", lastName, "Last name for SSL Labs")
+	flag.StringVar(&email, "email", email, "Email for SSL Labs")
+	flag.StringVar(&organization, "organization", organization, "Organization for SSL Labs")
+	flag.StringVar(&dbPath, "db", dbPath, "Path to SQLite database")
+
+	// Scanning intervals
+	flag.DurationVar(&portInterval, "portInterval", portInterval, "Interval for port scans")
+	flag.DurationVar(&sslInterval, "sslInterval", sslInterval, "Interval for SSL scans")
+	flag.DurationVar(&cspInterval, "cspInterval", cspInterval, "Interval for CSP scans")
+
 	flag.Parse()
 
-	if *targetFile == "" {
-		log.Fatal("Error: You must provide a target list. Usage: ./perimeter -targets=hosts.txt ...")
+	// SSL Labs Registration
+	if firstName != "" && lastName != "" && email != "" && organization != "" {
+		log.Println("Registering with SSL Labs...")
+		if err := ssl.Register(firstName, lastName, email, organization); err != nil {
+			log.Printf("Warning: Failed to register with SSL Labs: %v", err)
+			// Proceeding, as they might be already registered or we just want to run other scans
+		} else {
+			log.Println("Registration successful.")
+		}
+	} else if email != "" {
+		// Just email provided, assume registered
+	} else {
+		// Only fatal if we assume SSL scanning is strictly required
+		log.Println("Warning: SSL Labs details missing. SSL scanning might be limited or fail.")
 	}
 
-	// SSL Labs Registration is mandatory for this app now
-	if *firstName == "" || *lastName == "" || *email == "" || *organization == "" {
-		log.Fatal("Error: SSL Labs registration requires -firstName, -lastName, -email, and -organization flags.")
-	}
-
-	log.Println("Registering with SSL Labs...")
-	if err := ssl.Register(*firstName, *lastName, *email, *organization); err != nil {
-		log.Fatalf("Failed to register with SSL Labs: %v", err)
-	}
-	log.Println("Registration successful.")
-
-	// 2. Initialize Database (SQLite)
-	client, err := ent.Open("sqlite3", "file:perimeter.db?cache=shared&_fk=1")
+	// 2. Initialize Database & Storage
+	client, err := ent.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&_fk=1", dbPath))
 	if err != nil {
 		log.Fatalf("failed opening connection to sqlite: %v", err)
 	}
 	defer client.Close()
 
-	// Auto-Migration (Create Tables)
+	// Auto-Migration
 	if err := client.Schema.Create(context.Background()); err != nil {
 		log.Fatalf("failed creating schema resources: %v", err)
 	}
 
-	// 3. Import Targets from File
-	ctx := context.Background()
-	if err := importTargets(ctx, client, *targetFile); err != nil {
-		log.Fatalf("Failed to import targets: %v", err)
+	store := storage.NewEntStorage(client)
+
+	// 3. Import Targets if provided
+	if targetFile != "" {
+		ctx := context.Background()
+		lines, err := readLines(targetFile)
+		if err != nil {
+			log.Fatalf("Failed to read target file: %v", err)
+		}
+
+		count, err := store.ImportTargets(ctx, lines)
+		if err != nil {
+			log.Printf("Error importing targets: %v", err)
+		} else {
+			log.Printf("Imported/Checked %d targets from %s", count, targetFile)
+		}
+	} else {
+		// Only warning, maybe they rely on existing DB
+		log.Println("No target file provided, using existing database targets.")
 	}
 
-	// 4. Start the Scanner Loops (Background Workers)
-	// We pass the client so it can save results
-	go runPortScanLoop(client)
-	go runCSPScanLoop(client)
-	go runSSLScanLoop(client, *email)
+	// 4. Start Scanners
+	scanConfig := scanner.ScannerConfig{
+		PortScanInterval: portInterval,
+		SSLScanInterval:  sslInterval,
+		CSPScanInterval:  cspInterval,
+		SSLEmail:         email,
+	}
+
+	mgr := scanner.NewManager(store, scanConfig)
+	mgr.Start()
 
 	// 5. Start Web Server
-	engine := html.NewFileSystem(http.FS(viewsfs), ".html")
-	app := fiber.New(fiber.Config{
-		Views: engine,
-	})
-
-	app.Get("/", func(c *fiber.Ctx) error {
-		// Fetch all targets and their LATEST scan
-		targets, err := client.Target.Query().
-			WithScans(func(q *ent.PortScanQuery) {
-				q.WithPorts()
-			}).
-			WithSslScans().
-			WithCspScans().
-			All(c.Context())
-
-		if err != nil {
-			return c.Status(500).SendString(err.Error())
-		}
-
-		for _, t := range targets {
-			for _, s := range t.Edges.Scans {
-				fmt.Printf("Target: %s, Scan: %s, Ports: %v\n", t.Input, s.ScannedAt, s.Edges.Ports)
-			}
-		}
-
-		return c.Render("views/index", fiber.Map{
-			"Title":   "Perimeter Dashboard",
-			"Targets": targets,
-		}, "views/layouts/main")
-	})
-
-	app.Get("/targets/:id", func(c *fiber.Ctx) error {
-		idStr := c.Params("id")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			return c.Status(400).SendString("Invalid ID")
-		}
-
-		target, err := client.Target.Query().
-			Where(target.ID(id)).
-			WithScans(func(q *ent.PortScanQuery) {
-				q.WithPorts()
-				q.Order(ent.Desc(portscan.FieldScannedAt))
-				q.Limit(1)
-			}).
-			WithSslScans().
-			WithCspScans().
-			Only(c.Context())
-
-		if err != nil {
-			return c.Status(404).SendString("Target not found")
-		}
-
-		return c.Render("views/target", fiber.Map{
-			"Title":  "Target Details",
-			"Target": target,
-		}, "views/layouts/main")
-	})
-
-	log.Printf("Perimeter is running on http://localhost:%s", *httpPort)
-	log.Fatal(app.Listen(":" + *httpPort))
+	srv := server.New(store, viewsfs)
+	log.Printf("Perimeter is running on http://localhost:%s", httpPort)
+	log.Fatal(srv.Listen(":" + httpPort))
 }
 
-// ---------------------------------------------------------
-// Helper: File Import
-// ---------------------------------------------------------
-func importTargets(ctx context.Context, client *ent.Client, path string) error {
+func readLines(path string) ([]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer file.Close()
 
+	var lines []string
 	scanner := bufio.NewScanner(file)
-	count := 0
 	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" {
-			continue
-		}
-
-		// Idempotent Insert: Check if exists, if not create.
-		exists, _ := client.Target.Query().Where(target.InputEQ(line)).Exist(ctx)
-		if !exists {
-			_, err := client.Target.Create().SetInput(line).Save(ctx)
-			if err != nil {
-				log.Printf("Error adding %s: %v", line, err)
-			} else {
-				count++
-			}
-		}
+		lines = append(lines, scanner.Text())
 	}
-	log.Printf("Imported %d new targets from %s", count, path)
-	return scanner.Err()
-}
-
-// ---------------------------------------------------------
-// Helper: The Port Scanner Loop
-// ---------------------------------------------------------
-func runPortScanLoop(client *ent.Client) {
-	// Scanner Config: 500ms timeout, 100 concurrent threads
-	portScanner := ports.NewSimpleScanner(100, 50, 3, 1, 1000)
-	ctx := context.Background()
-
-	for {
-		log.Println("--- Starting Port Scan Cycle ---")
-
-		// 1. Get all targets with their latest scan
-		targets, err := client.Target.Query().
-			WithScans(func(q *ent.PortScanQuery) {
-				q.Order(ent.Desc(portscan.FieldScannedAt))
-				q.Limit(1)
-			}).
-			All(ctx)
-
-		if err != nil {
-			log.Printf("DB Error: %v", err)
-			time.Sleep(10 * time.Second)
-			continue
-		}
-
-		// 2. Group Targets by IP
-		// Map: IP (or Input if resolve fails) -> slice of Targets
-		targetGroups := make(map[string][]*ent.Target)
-
-		for _, t := range targets {
-			// Resolve IP
-			ips, err := net.LookupIP(t.Input)
-			key := t.Input // Default to input string if resolution fails
-			if err == nil && len(ips) > 0 {
-				key = ips[0].String() // Use first IP as grouping key
-			}
-			targetGroups[key] = append(targetGroups[key], t)
-		}
-
-		log.Printf("identified %d unique scan targets from %d total targets", len(targetGroups), len(targets))
-
-		// 3. Iterate Groups and Scan
-		for ipOrHost, group := range targetGroups {
-			// Check if we need to scan this group
-			// We scan if ANY target in the group is "stale" (no scan or old scan)
-			needsScan := false
-			for _, t := range group {
-				if len(t.Edges.Scans) == 0 {
-					needsScan = true
-					break
-				}
-				lastScan := t.Edges.Scans[0]
-				if time.Since(lastScan.ScannedAt) >= 1*time.Hour {
-					needsScan = true
-					break
-				}
-			}
-
-			if !needsScan {
-				continue
-			}
-
-			log.Printf("Scanning Ports for %s (covers %d targets)...", ipOrHost, len(group))
-
-			// Perform Scan on the resolved IP/Host
-			openPorts, err := portScanner.Scan(ipOrHost)
-			if err != nil {
-				log.Printf("Failed to scan %s: %v", ipOrHost, err)
-				continue
-			}
-
-			// Save History (Create Scan + Ports)
-			// We link this ONE scan to ALL targets in the group
-			scan, err := client.PortScan.Create().
-				AddTargets(group...). // Add all targets in this group
-				SetScannedAt(time.Now()).
-				Save(ctx)
-
-			if err != nil {
-				log.Printf("Failed to save scan record: %v", err)
-				continue
-			}
-
-			// Bulk insert open ports
-			if len(openPorts) > 0 {
-				builders := make([]*ent.PortCreate, len(openPorts))
-				for i, p := range openPorts {
-					builders[i] = client.Port.Create().
-						SetScan(scan).
-						SetNumber(p)
-				}
-				if _, err := client.Port.CreateBulk(builders...).Save(ctx); err != nil {
-					log.Printf("Failed to save ports: %v", err)
-				}
-			}
-		}
-
-		log.Println("--- Port Cycle Complete. Sleeping 1 hour. ---")
-		time.Sleep(1 * time.Hour)
-	}
-}
-
-// ---------------------------------------------------------
-// Helper: The SSL Scanner Loop
-// ---------------------------------------------------------
-func runSSLScanLoop(client *ent.Client, email string) {
-	sslScanner := ssl.NewSSLLabsScanner(email)
-	ctx := context.Background()
-
-	for {
-		log.Println("--- Starting SSL Scan Cycle ---")
-
-		// 1. Get all targets
-		targets, err := client.Target.Query().WithSslScans().All(ctx)
-		if err != nil {
-			log.Printf("DB Error: %v", err)
-			time.Sleep(10 * time.Second)
-			continue
-		}
-
-		for _, t := range targets {
-			// Filter: Only Hostnames
-			if !isHostname(t.Input) {
-				continue
-			}
-
-			// Check if target had recent scans
-			if len(t.Edges.SslScans) > 0 {
-				lastScan := t.Edges.SslScans[0]
-				if time.Since(lastScan.ScannedAt) < 12*time.Hour { // SSL Labs is slower/stricter, lets do 12h
-					continue
-				}
-			}
-
-			log.Printf("Scanning SSL for %s... (this may take a minute)", t.Input)
-
-			// 2. Perform Scan
-			result, err := sslScanner.Scan(t.Input)
-			if err != nil {
-				log.Printf("Failed to SSL scan %s: %v", t.Input, err)
-				continue
-			}
-
-			// 3. Save History
-			_, err = client.SSLScan.Create().
-				SetTarget(t).
-				SetScannedAt(time.Now()).
-				SetGrade(result.Grade).
-				SetStatus(result.Status).
-				SetCertIssuer(result.CertIssuer).
-				SetCertSubject(result.CertSubject).
-				SetCertExpiry(result.CertExpiry).
-				SetProtocols(result.Protocols).
-				SetVulnerabilities(result.Vulnerabilities).
-				Save(ctx)
-
-			if err != nil {
-				log.Printf("Failed to save SSL scan record: %v", err)
-			}
-		}
-
-		log.Println("--- SSL Cycle Complete. Sleeping 1 hour (checking loop). ---")
-		time.Sleep(1 * time.Hour)
-	}
-}
-
-// ---------------------------------------------------------
-// Helper: The CSP Scanner Loop
-// ---------------------------------------------------------
-func runCSPScanLoop(client *ent.Client) {
-	evaluator := csp.NewEvaluator()
-	ctx := context.Background()
-
-	for {
-		log.Println("--- Starting CSP Scan Cycle ---")
-		targets, err := client.Target.Query().WithCspScans().All(ctx)
-		if err != nil {
-			log.Printf("DB Error: %v", err)
-			time.Sleep(10 * time.Second)
-			continue
-		}
-
-		for _, t := range targets {
-			if !isHostname(t.Input) {
-				continue
-			}
-
-			// Debounce
-			if len(t.Edges.CspScans) > 0 {
-				lastScan := t.Edges.CspScans[0]
-				if time.Since(lastScan.ScannedAt) < 1*time.Hour {
-					continue
-				}
-			}
-
-			log.Printf("Scanning CSP for %s...", t.Input)
-			// Fetch CSP Header
-			// We try HTTPS first, then HTTP
-			// Timeout 5s
-			clientHttp := http.Client{
-				Timeout: 5 * time.Second,
-			}
-
-			var cspHeader string
-			resp, err := clientHttp.Head("https://" + t.Input)
-			if err != nil {
-				// Try HTTP
-				resp, err = clientHttp.Head("http://" + t.Input)
-			}
-
-			var findings []csp.Finding
-
-			if err != nil {
-				log.Printf("Failed to connect to %s: %v", t.Input, err)
-				// We still might want to save a record indicating failure, but for now we skip?
-				// Or we create a finding saying "Unreachable"?
-				// The prompt says "handle absence of csp, it must be marked as a security issue".
-				// If unreachable, we probably can't say much about CSP.
-				continue
-			} else {
-				defer resp.Body.Close()
-				cspHeader = resp.Header.Get("Content-Security-Policy")
-
-				if cspHeader == "" {
-					// Absence of CSP Finding
-					findings = append(findings, csp.Finding{
-						Type:        csp.TypeMissingDirectives, // Reuse generic missing directives type
-						Description: "No Content-Security-Policy header found.",
-						Severity:    csp.SeverityHigh,
-						Directive:   "Header",
-					})
-				} else {
-					// Evaluate
-					f, err := evaluator.Evaluate(cspHeader)
-					if err != nil {
-						log.Printf("Error evaluating CSP for %s: %v", t.Input, err)
-					}
-					findings = append(findings, f...)
-				}
-			}
-
-			// Save
-			_, err = client.CSPScan.Create().
-				SetTarget(t).
-				SetScannedAt(time.Now()).
-				SetCspHeader(cspHeader).
-				SetFindings(findings).
-				Save(ctx)
-
-			if err != nil {
-				log.Printf("Failed to save CSP scan: %v", err)
-			}
-		}
-
-		log.Println("--- CSP Cycle Complete. Sleeping 1 hour. ---")
-		time.Sleep(1 * time.Hour)
-	}
-}
-
-func isHostname(input string) bool {
-	return net.ParseIP(input) == nil
+	return lines, scanner.Err()
 }

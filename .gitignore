@@ -1,2 +1,4 @@
 *.db
 *.lst
+.env
+perimeter
