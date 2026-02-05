@@ -116,6 +116,7 @@ var (
 		{Name: "create_time", Type: field.TypeTime},
 		{Name: "update_time", Type: field.TypeTime},
 		{Name: "input", Type: field.TypeString, Unique: true},
+		{Name: "is_ip", Type: field.TypeBool, Default: false},
 	}
 	// TargetsTable holds the schema information for the "targets" table.
 	TargetsTable = &schema.Table{

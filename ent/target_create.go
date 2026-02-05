@@ -57,6 +57,20 @@ func (_c *TargetCreate) SetInput(v string) *TargetCreate {
 	return _c
 }
 
+// SetIsIP sets the "is_ip" field.
+func (_c *TargetCreate) SetIsIP(v bool) *TargetCreate {
+	_c.mutation.SetIsIP(v)
+	return _c
+}
+
+// SetNillableIsIP sets the "is_ip" field if the given value is not nil.
+func (_c *TargetCreate) SetNillableIsIP(v *bool) *TargetCreate {
+	if v != nil {
+		_c.SetIsIP(*v)
+	}
+	return _c
+}
+
 // AddIPIDs adds the "ips" edge to the IP entity by IDs.
 func (_c *TargetCreate) AddIPIDs(ids ...int) *TargetCreate {
 	_c.mutation.AddIPIDs(ids...)
@@ -145,6 +159,10 @@ func (_c *TargetCreate) defaults() {
 		v := target.DefaultUpdateTime()
 		_c.mutation.SetUpdateTime(v)
 	}
+	if _, ok := _c.mutation.IsIP(); !ok {
+		v := target.DefaultIsIP
+		_c.mutation.SetIsIP(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -162,6 +180,9 @@ func (_c *TargetCreate) check() error {
 		if err := target.InputValidator(v); err != nil {
 			return &ValidationError{Name: "input", err: fmt.Errorf(`ent: validator failed for field "Target.input": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.IsIP(); !ok {
+		return &ValidationError{Name: "is_ip", err: errors.New(`ent: missing required field "Target.is_ip"`)}
 	}
 	return nil
 }
@@ -200,6 +221,10 @@ func (_c *TargetCreate) createSpec() (*Target, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Input(); ok {
 		_spec.SetField(target.FieldInput, field.TypeString, value)
 		_node.Input = value
+	}
+	if value, ok := _c.mutation.IsIP(); ok {
+		_spec.SetField(target.FieldIsIP, field.TypeBool, value)
+		_node.IsIP = value
 	}
 	if nodes := _c.mutation.IpsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

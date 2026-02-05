@@ -17,6 +17,9 @@
       <td><strong><a href="/targets/{{.ID}}">{{.Input}}</a></strong></td>
 
       <td>
+        {{if .IsIP}}
+        <small>N/A</small>
+        {{else}}
         {{if .Edges.CspScans}}
         {{$latestCSP := index .Edges.CspScans 0}}
         {{if $latestCSP.Findings}}
@@ -28,27 +31,28 @@
         {{else}}
         <small>N/A</small>
         {{end}}
+        {{end}}
       </td>
 
       {{if .Edges.Ips}}
       <td>
         {{range .Edges.Ips}}
-          <div style="margin-bottom: 5px;">
-            <strong>{{.Address}}</strong>:
-            {{if .Edges.Scans}}
-              {{$latestScan := index .Edges.Scans 0}}
-              {{if $latestScan.Edges.Ports}}
-                <span style="color:red">
-                  {{range $latestScan.Edges.Ports}}[{{.Number}}] {{end}}
-                </span>
-              {{else}}
-                <span style="color:green">Safe</span>
-              {{end}}
-              <small>({{$latestScan.ScannedAt.Format "01/02 15:04"}})</small>
-            {{else}}
-              <em>Pending...</em>
-            {{end}}
-          </div>
+        <div style="margin-bottom: 5px;">
+          <strong>{{.Address}}</strong>:
+          {{if .Edges.Scans}}
+          {{$latestScan := index .Edges.Scans 0}}
+          {{if $latestScan.Edges.Ports}}
+          <span style="color:red">
+            {{range $latestScan.Edges.Ports}}[{{.Number}}] {{end}}
+          </span>
+          {{else}}
+          <span style="color:green">Safe</span>
+          {{end}}
+          <small>({{$latestScan.ScannedAt.Format "01/02 15:04"}})</small>
+          {{else}}
+          <em>Pending...</em>
+          {{end}}
+        </div>
         {{end}}
       </td>
       {{else}}
@@ -56,6 +60,9 @@
       {{end}}
 
       <td>
+        {{if .IsIP}}
+        <small>N/A</small>
+        {{else}}
         {{if .Edges.SslScans}}
         {{$latestSSL := index .Edges.SslScans 0}}
         <strong>{{$latestSSL.Grade}}</strong>
@@ -63,6 +70,7 @@
         <small>{{$latestSSL.Status}}</small>
         {{else}}
         <small>N/A</small>
+        {{end}}
         {{end}}
       </td>
     </tr>

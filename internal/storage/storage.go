@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"time"
 
 	"perimeter/ent"
@@ -74,14 +75,25 @@ func (s *EntStorage) ImportTargets(ctx context.Context, lines []string) (int, er
 		if line == "" {
 			continue
 		}
+		isIP := net.ParseIP(line) != nil
 		exists, _ := s.client.Target.Query().Where(target.InputEQ(line)).Exist(ctx)
-		if !exists {
-			_, err := s.client.Target.Create().SetInput(line).Save(ctx)
-			if err != nil {
-				log.Printf("Error adding %s: %v", line, err)
-			} else {
-				count++
-			}
+		var err error
+		if exists {
+			err = s.client.Target.Update().
+				Where(target.InputEQ(line)).
+				SetIsIP(isIP).
+				Exec(ctx)
+		} else {
+			_, err = s.client.Target.Create().
+				SetInput(line).
+				SetIsIP(isIP).
+				Save(ctx)
+		}
+
+		if err != nil {
+			log.Printf("Error importing %s: %v", line, err)
+		} else {
+			count++
 		}
 	}
 	return count, nil
@@ -115,7 +127,7 @@ func (s *EntStorage) GetTarget(ctx context.Context, id int) (*ent.Target, error)
 // GetOldestOutdatedTarget returns targets for SSL/CSP scans
 func (s *EntStorage) GetOldestOutdatedTarget(ctx context.Context, scanType ScanType, threshold time.Duration) (*ent.Target, error) {
 	cutoff := time.Now().Add(-threshold)
-	query := s.client.Target.Query()
+	query := s.client.Target.Query().Where(target.IsIP(false))
 
 	switch scanType {
 	case ScanTypeSSL:

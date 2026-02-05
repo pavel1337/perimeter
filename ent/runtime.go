@@ -58,4 +58,8 @@ func init() {
 	targetDescInput := targetFields[0].Descriptor()
 	// target.InputValidator is a validator for the "input" field. It is called by the builders before save.
 	target.InputValidator = targetDescInput.Validators[0].(func(string) error)
+	// targetDescIsIP is the schema descriptor for is_ip field.
+	targetDescIsIP := targetFields[1].Descriptor()
+	// target.DefaultIsIP holds the default value on creation for the is_ip field.
+	target.DefaultIsIP = targetDescIsIP.Default.(bool)
 }

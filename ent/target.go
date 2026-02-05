@@ -23,6 +23,8 @@ type Target struct {
 	UpdateTime time.Time `json:"update_time,omitempty"`
 	// Input holds the value of the "input" field.
 	Input string `json:"input,omitempty"`
+	// IsIP holds the value of the "is_ip" field.
+	IsIP bool `json:"is_ip,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the TargetQuery when eager-loading is set.
 	Edges        TargetEdges `json:"edges"`
@@ -74,6 +76,8 @@ func (*Target) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case target.FieldIsIP:
+			values[i] = new(sql.NullBool)
 		case target.FieldID:
 			values[i] = new(sql.NullInt64)
 		case target.FieldInput:
@@ -118,6 +122,12 @@ func (_m *Target) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field input", values[i])
 			} else if value.Valid {
 				_m.Input = value.String
+			}
+		case target.FieldIsIP:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_ip", values[i])
+			} else if value.Valid {
+				_m.IsIP = value.Bool
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -178,6 +188,9 @@ func (_m *Target) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("input=")
 	builder.WriteString(_m.Input)
+	builder.WriteString(", ")
+	builder.WriteString("is_ip=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsIP))
 	builder.WriteByte(')')
 	return builder.String()
 }

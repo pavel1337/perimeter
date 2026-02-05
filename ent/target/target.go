@@ -20,6 +20,8 @@ const (
 	FieldUpdateTime = "update_time"
 	// FieldInput holds the string denoting the input field in the database.
 	FieldInput = "input"
+	// FieldIsIP holds the string denoting the is_ip field in the database.
+	FieldIsIP = "is_ip"
 	// EdgeIps holds the string denoting the ips edge name in mutations.
 	EdgeIps = "ips"
 	// EdgeSslScans holds the string denoting the ssl_scans edge name in mutations.
@@ -55,6 +57,7 @@ var Columns = []string{
 	FieldCreateTime,
 	FieldUpdateTime,
 	FieldInput,
+	FieldIsIP,
 }
 
 var (
@@ -82,6 +85,8 @@ var (
 	UpdateDefaultUpdateTime func() time.Time
 	// InputValidator is a validator for the "input" field. It is called by the builders before save.
 	InputValidator func(string) error
+	// DefaultIsIP holds the default value on creation for the "is_ip" field.
+	DefaultIsIP bool
 )
 
 // OrderOption defines the ordering options for the Target queries.
@@ -105,6 +110,11 @@ func ByUpdateTime(opts ...sql.OrderTermOption) OrderOption {
 // ByInput orders the results by the input field.
 func ByInput(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldInput, opts...).ToFunc()
+}
+
+// ByIsIP orders the results by the is_ip field.
+func ByIsIP(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsIP, opts...).ToFunc()
 }
 
 // ByIpsCount orders the results by ips count.

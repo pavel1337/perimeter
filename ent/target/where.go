@@ -70,6 +70,11 @@ func Input(v string) predicate.Target {
 	return predicate.Target(sql.FieldEQ(FieldInput, v))
 }
 
+// IsIP applies equality check predicate on the "is_ip" field. It's identical to IsIPEQ.
+func IsIP(v bool) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldIsIP, v))
+}
+
 // CreateTimeEQ applies the EQ predicate on the "create_time" field.
 func CreateTimeEQ(v time.Time) predicate.Target {
 	return predicate.Target(sql.FieldEQ(FieldCreateTime, v))
@@ -213,6 +218,16 @@ func InputEqualFold(v string) predicate.Target {
 // InputContainsFold applies the ContainsFold predicate on the "input" field.
 func InputContainsFold(v string) predicate.Target {
 	return predicate.Target(sql.FieldContainsFold(FieldInput, v))
+}
+
+// IsIPEQ applies the EQ predicate on the "is_ip" field.
+func IsIPEQ(v bool) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldIsIP, v))
+}
+
+// IsIPNEQ applies the NEQ predicate on the "is_ip" field.
+func IsIPNEQ(v bool) predicate.Target {
+	return predicate.Target(sql.FieldNEQ(FieldIsIP, v))
 }
 
 // HasIps applies the HasEdge predicate on the "ips" edge.

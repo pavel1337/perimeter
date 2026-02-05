@@ -15,6 +15,7 @@ func (Target) Fields() []ent.Field {
 	return []ent.Field{
 		// The distinct IP or Domain: "192.168.1.1" or "example.com"
 		field.String("input").Unique().NotEmpty(),
+		field.Bool("is_ip").Default(false),
 	}
 }
 

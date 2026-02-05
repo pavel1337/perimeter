@@ -51,6 +51,20 @@ func (_u *TargetUpdate) SetNillableInput(v *string) *TargetUpdate {
 	return _u
 }
 
+// SetIsIP sets the "is_ip" field.
+func (_u *TargetUpdate) SetIsIP(v bool) *TargetUpdate {
+	_u.mutation.SetIsIP(v)
+	return _u
+}
+
+// SetNillableIsIP sets the "is_ip" field if the given value is not nil.
+func (_u *TargetUpdate) SetNillableIsIP(v *bool) *TargetUpdate {
+	if v != nil {
+		_u.SetIsIP(*v)
+	}
+	return _u
+}
+
 // AddIPIDs adds the "ips" edge to the IP entity by IDs.
 func (_u *TargetUpdate) AddIPIDs(ids ...int) *TargetUpdate {
 	_u.mutation.AddIPIDs(ids...)
@@ -228,6 +242,9 @@ func (_u *TargetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Input(); ok {
 		_spec.SetField(target.FieldInput, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.IsIP(); ok {
+		_spec.SetField(target.FieldIsIP, field.TypeBool, value)
+	}
 	if _u.mutation.IpsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
@@ -399,6 +416,20 @@ func (_u *TargetUpdateOne) SetInput(v string) *TargetUpdateOne {
 func (_u *TargetUpdateOne) SetNillableInput(v *string) *TargetUpdateOne {
 	if v != nil {
 		_u.SetInput(*v)
+	}
+	return _u
+}
+
+// SetIsIP sets the "is_ip" field.
+func (_u *TargetUpdateOne) SetIsIP(v bool) *TargetUpdateOne {
+	_u.mutation.SetIsIP(v)
+	return _u
+}
+
+// SetNillableIsIP sets the "is_ip" field if the given value is not nil.
+func (_u *TargetUpdateOne) SetNillableIsIP(v *bool) *TargetUpdateOne {
+	if v != nil {
+		_u.SetIsIP(*v)
 	}
 	return _u
 }
@@ -609,6 +640,9 @@ func (_u *TargetUpdateOne) sqlSave(ctx context.Context) (_node *Target, err erro
 	}
 	if value, ok := _u.mutation.Input(); ok {
 		_spec.SetField(target.FieldInput, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.IsIP(); ok {
+		_spec.SetField(target.FieldIsIP, field.TypeBool, value)
 	}
 	if _u.mutation.IpsCleared() {
 		edge := &sqlgraph.EdgeSpec{

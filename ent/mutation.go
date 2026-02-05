@@ -3007,6 +3007,7 @@ type TargetMutation struct {
 	create_time      *time.Time
 	update_time      *time.Time
 	input            *string
+	is_ip            *bool
 	clearedFields    map[string]struct{}
 	ips              map[int]struct{}
 	removedips       map[int]struct{}
@@ -3228,6 +3229,42 @@ func (m *TargetMutation) ResetInput() {
 	m.input = nil
 }
 
+// SetIsIP sets the "is_ip" field.
+func (m *TargetMutation) SetIsIP(b bool) {
+	m.is_ip = &b
+}
+
+// IsIP returns the value of the "is_ip" field in the mutation.
+func (m *TargetMutation) IsIP() (r bool, exists bool) {
+	v := m.is_ip
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsIP returns the old "is_ip" field's value of the Target entity.
+// If the Target object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TargetMutation) OldIsIP(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsIP is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsIP requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsIP: %w", err)
+	}
+	return oldValue.IsIP, nil
+}
+
+// ResetIsIP resets all changes to the "is_ip" field.
+func (m *TargetMutation) ResetIsIP() {
+	m.is_ip = nil
+}
+
 // AddIPIDs adds the "ips" edge to the IP entity by ids.
 func (m *TargetMutation) AddIPIDs(ids ...int) {
 	if m.ips == nil {
@@ -3424,7 +3461,7 @@ func (m *TargetMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TargetMutation) Fields() []string {
-	fields := make([]string, 0, 3)
+	fields := make([]string, 0, 4)
 	if m.create_time != nil {
 		fields = append(fields, target.FieldCreateTime)
 	}
@@ -3433,6 +3470,9 @@ func (m *TargetMutation) Fields() []string {
 	}
 	if m.input != nil {
 		fields = append(fields, target.FieldInput)
+	}
+	if m.is_ip != nil {
+		fields = append(fields, target.FieldIsIP)
 	}
 	return fields
 }
@@ -3448,6 +3488,8 @@ func (m *TargetMutation) Field(name string) (ent.Value, bool) {
 		return m.UpdateTime()
 	case target.FieldInput:
 		return m.Input()
+	case target.FieldIsIP:
+		return m.IsIP()
 	}
 	return nil, false
 }
@@ -3463,6 +3505,8 @@ func (m *TargetMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldUpdateTime(ctx)
 	case target.FieldInput:
 		return m.OldInput(ctx)
+	case target.FieldIsIP:
+		return m.OldIsIP(ctx)
 	}
 	return nil, fmt.Errorf("unknown Target field %s", name)
 }
@@ -3492,6 +3536,13 @@ func (m *TargetMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetInput(v)
+		return nil
+	case target.FieldIsIP:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsIP(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Target field %s", name)
@@ -3550,6 +3601,9 @@ func (m *TargetMutation) ResetField(name string) error {
 		return nil
 	case target.FieldInput:
 		m.ResetInput()
+		return nil
+	case target.FieldIsIP:
+		m.ResetIsIP()
 		return nil
 	}
 	return fmt.Errorf("unknown Target field %s", name)

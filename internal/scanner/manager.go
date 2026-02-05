@@ -161,12 +161,6 @@ func (m *Manager) runSSLScanLoop() {
 			continue
 		}
 
-		if !isHostname(t.Input) {
-			log.Printf("SSLScan: Skipping IP %s (not a hostname)", t.Input)
-			m.storage.SaveSSLScan(ctx, t.Input, storage.SSLResult{Status: "Skipped (IP Address)"})
-			continue
-		}
-
 		log.Printf("SSLScan: Scanning %s", t.Input)
 
 		res, err := scanner.Scan(t.Input)
@@ -215,12 +209,6 @@ func (m *Manager) runCSPScanLoop() {
 			continue
 		}
 
-		if !isHostname(t.Input) {
-			log.Printf("CSPScan: Skipping IP %s", t.Input)
-			m.storage.SaveCSPScan(ctx, t.Input, "N/A - IP Address", nil)
-			continue
-		}
-
 		log.Printf("CSPScan: Scanning %s", t.Input)
 
 		var cspHeader string
@@ -265,8 +253,4 @@ func (m *Manager) runCSPScanLoop() {
 			log.Printf("CSPScan: Saved for %s", t.Input)
 		}
 	}
-}
-
-func isHostname(input string) bool {
-	return net.ParseIP(input) == nil
 }
