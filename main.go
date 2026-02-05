@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"perimeter/ent"
@@ -38,6 +39,15 @@ func getEnvOrDefaultDuration(key string, defaultValue time.Duration) time.Durati
 	return defaultValue
 }
 
+func getEnvOrDefaultInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if i, err := strconv.Atoi(value); err == nil {
+			return i
+		}
+	}
+	return defaultValue
+}
+
 var (
 	targetFile   = getEnvOrDefaultStr("TARGET_FILE", "")
 	httpPort     = getEnvOrDefaultStr("HTTP_PORT", "3000")
@@ -46,6 +56,7 @@ var (
 	email        = getEnvOrDefaultStr("EMAIL", "")
 	organization = getEnvOrDefaultStr("ORGANIZATION", "")
 	dbPath       = getEnvOrDefaultStr("DB_PATH", "perimeter.db")
+	workerCount  = getEnvOrDefaultInt("WORKER_COUNT", 3)
 
 	portInterval = getEnvOrDefaultDuration("PORT_INTERVAL", 1*time.Hour)
 	sslInterval  = getEnvOrDefaultDuration("SSL_INTERVAL", 12*time.Hour)
@@ -61,6 +72,7 @@ func main() {
 	flag.StringVar(&email, "email", email, "Email for SSL Labs")
 	flag.StringVar(&organization, "organization", organization, "Organization for SSL Labs")
 	flag.StringVar(&dbPath, "db", dbPath, "Path to SQLite database")
+	flag.IntVar(&workerCount, "workers", workerCount, "Number of concurrent workers")
 
 	// Scanning intervals
 	flag.DurationVar(&portInterval, "portInterval", portInterval, "Interval for port scans")
@@ -124,6 +136,7 @@ func main() {
 		SSLScanInterval:  sslInterval,
 		CSPScanInterval:  cspInterval,
 		SSLEmail:         email,
+		WorkerCount:      workerCount,
 	}
 
 	mgr := scanner.NewManager(store, scanConfig)
