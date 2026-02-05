@@ -1,0 +1,25 @@
+{{template "views/partials/header" .}}
+
+<h1>Import Targets</h1>
+
+<form action="/import" method="POST">
+  <div style="margin-bottom: 20px;">
+    <label for="source">Source:</label>
+    <select name="source" id="source">
+      <option value="manual">Manual List</option>
+      <!-- Future: Gandi, Hetzner, etc -->
+    </select>
+  </div>
+
+  <div id="manual-input-container">
+    <label for="manual_input" style="display:block; margin-bottom: 5px;">Targets (one per line):</label>
+    <textarea name="manual_input" id="manual_input" rows="10" cols="50"
+      placeholder="example.com&#10;192.168.1.1"></textarea>
+  </div>
+
+  <div style="margin-top: 20px;">
+    <button type="submit">Import</button>
+  </div>
+</form>
+
+{{template "views/partials/footer" .}}

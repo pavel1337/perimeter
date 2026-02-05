@@ -9,6 +9,7 @@
       <th>CSP Scan</th>
       <th>Open Ports</th>
       <th>SSL Grade</th>
+      <th>Actions</th>
     </tr>
   </thead>
   <tbody>
@@ -72,6 +73,12 @@
         <small>N/A</small>
         {{end}}
         {{end}}
+      </td>
+      <td>
+        <form method="POST" action="/targets/{{.ID}}/delete"
+          onsubmit="return confirm('Are you sure you want to delete this target?');" style="display:inline;">
+          <button type="submit" style="color: red; cursor: pointer;">Delete</button>
+        </form>
       </td>
     </tr>
     {{else}}

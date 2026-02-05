@@ -32,6 +32,7 @@ type Storage interface {
 	ImportTargets(ctx context.Context, lines []string) (int, error)
 	GetTargets(ctx context.Context) ([]*ent.Target, error)
 	GetTarget(ctx context.Context, id int) (*ent.Target, error)
+	DeleteTarget(ctx context.Context, id int) error
 
 	// Scanning Logic
 	GetOldestOutdatedTarget(ctx context.Context, scanType ScanType, threshold time.Duration) (*ent.Target, error)
@@ -122,6 +123,40 @@ func (s *EntStorage) GetTarget(ctx context.Context, id int) (*ent.Target, error)
 		WithSslScans().
 		WithCspScans().
 		Only(ctx)
+}
+
+func (s *EntStorage) DeleteTarget(ctx context.Context, id int) error {
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	// cascade delete scans
+	_, err = tx.SSLScan.Delete().Where(sslscan.HasTargetWith(target.ID(id))).Exec(ctx)
+	if err != nil {
+		return rollback(tx, err)
+	}
+	_, err = tx.CSPScan.Delete().Where(cspscan.HasTargetWith(target.ID(id))).Exec(ctx)
+	if err != nil {
+		return rollback(tx, err)
+	}
+
+	// cleanup IPs that are orphaned if we want?
+	// For now let's just delete the target. M2M edges to IPs will be removed automatically.
+	// But IPs themselves remain, which is probably desired as they might be shared or re-discovered.
+
+	err = tx.Target.DeleteOneID(id).Exec(ctx)
+	if err != nil {
+		return rollback(tx, err)
+	}
+
+	return tx.Commit()
+}
+
+func rollback(tx *ent.Tx, err error) error {
+	if rerr := tx.Rollback(); rerr != nil {
+		err = fmt.Errorf("%w: %v", err, rerr)
+	}
+	return err
 }
 
 // GetOldestOutdatedTarget returns targets for SSL/CSP scans
