@@ -183,6 +183,7 @@ func main() {
 		CSPScanInterval:  cspInterval,
 		SSLEmail:         email,
 		WorkerCount:      workerCount,
+		UseDBQueue:       true,
 	}
 
 	mgr := scanner.NewManager(store, scanConfig)

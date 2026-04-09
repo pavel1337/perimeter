@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"perimeter/ent/job"
 	"perimeter/internal/storage"
 	"perimeter/scanner/csp"
 	"perimeter/scanner/ports"
@@ -18,33 +19,45 @@ type ScannerConfig struct {
 	PortScanInterval   time.Duration
 	SSLScanInterval    time.Duration
 	CSPScanInterval    time.Duration
-	ResolutionInterval time.Duration // New interval for checking resolutions
+	ResolutionInterval time.Duration
 	SSLEmail           string
 	WorkerCount        int
+	UseDBQueue         bool
+	JobTimeout         time.Duration
 }
 
 type Manager struct {
-	storage storage.Storage
-	config  ScannerConfig
-	queue   Queue
+	storage  *storage.EntStorage
+	config   ScannerConfig
+	queue    Queue
 
-	// inFlight tracks jobs currently doing work to avoid re-queueing same thing if queue is backed up
+	// inFlight is only used with InMemoryQueue
 	inFlight   map[string]struct{}
 	inFlightMu sync.Mutex
 }
 
-func NewManager(s storage.Storage, cfg ScannerConfig) *Manager {
+func NewManager(s *storage.EntStorage, cfg ScannerConfig) *Manager {
 	if cfg.ResolutionInterval == 0 {
-		cfg.ResolutionInterval = 1 * time.Minute // Default
+		cfg.ResolutionInterval = 1 * time.Minute
 	}
 	if cfg.WorkerCount < 0 {
 		cfg.WorkerCount = 0
+	}
+	if cfg.JobTimeout == 0 {
+		cfg.JobTimeout = 10 * time.Minute
+	}
+
+	var q Queue
+	if cfg.UseDBQueue {
+		q = NewDBQueue(s, cfg.JobTimeout, 2*time.Second)
+	} else {
+		q = NewInMemoryQueue(1000)
 	}
 
 	return &Manager{
 		storage:  s,
 		config:   cfg,
-		queue:    NewInMemoryQueue(1000), // Buffer size 1000
+		queue:    q,
 		inFlight: make(map[string]struct{}),
 	}
 }
@@ -56,6 +69,11 @@ func (m *Manager) Start() {
 	go m.runSSLScanProducer()
 	go m.runCSPScanProducer()
 
+	// Stale job recovery (only for DB queue)
+	if m.config.UseDBQueue {
+		go m.runStaleJobRecovery()
+	}
+
 	// Start Workers
 	log.Printf("Starting %d workers", m.config.WorkerCount)
 	for i := range m.config.WorkerCount {
@@ -63,31 +81,84 @@ func (m *Manager) Start() {
 	}
 }
 
-func (m *Manager) addInFlight(key string) bool {
+func (m *Manager) canEnqueue(ctx context.Context, jobType string, key string) bool {
+	if m.config.UseDBQueue {
+		var jt job.Type
+		switch jobType {
+		case string(JobTypeResolution):
+			jt = job.TypeResolve
+		case string(JobTypePortScan):
+			jt = job.TypePortScan
+		case string(JobTypeSSLScan):
+			jt = job.TypeSslScan
+		case string(JobTypeCSPScan):
+			jt = job.TypeCspScan
+		}
+
+		// Determine which payload key to check
+		payloadKey := "input"
+		if jobType == string(JobTypePortScan) {
+			payloadKey = "address"
+		}
+
+		exists, err := m.storage.HasPendingJob(ctx, jt, payloadKey, key)
+		if err != nil {
+			log.Printf("Producer: Error checking pending job: %v", err)
+			return false
+		}
+		return !exists
+	}
+
+	// In-memory queue: use inFlight map
 	m.inFlightMu.Lock()
 	defer m.inFlightMu.Unlock()
-	if _, ok := m.inFlight[key]; ok {
+	if _, ok := m.inFlight[jobType+":"+key]; ok {
 		return false
 	}
-	m.inFlight[key] = struct{}{}
+	m.inFlight[jobType+":"+key] = struct{}{}
 	return true
 }
 
 func (m *Manager) removeInFlight(key string) {
+	if m.config.UseDBQueue {
+		return // DB queue handles this via job status
+	}
 	m.inFlightMu.Lock()
 	defer m.inFlightMu.Unlock()
 	delete(m.inFlight, key)
+}
+
+func (m *Manager) completeJob(ctx context.Context, j Job) {
+	if m.config.UseDBQueue && j.ID > 0 {
+		m.storage.CompleteJob(ctx, j.ID, nil)
+	}
+}
+
+func (m *Manager) failJob(ctx context.Context, j Job, errMsg string) {
+	if m.config.UseDBQueue && j.ID > 0 {
+		m.storage.FailJob(ctx, j.ID, errMsg)
+	}
+}
+
+func (m *Manager) runStaleJobRecovery() {
+	for {
+		time.Sleep(30 * time.Second)
+		ctx := context.Background()
+		n, err := m.storage.RecoverStaleJobs(ctx)
+		if err != nil {
+			log.Printf("Stale recovery: error: %v", err)
+		} else if n > 0 {
+			log.Printf("Stale recovery: reset %d jobs", n)
+		}
+	}
 }
 
 func (m *Manager) runWorker(id int) {
 	log.Printf("Worker %d started", id)
 	ctx := context.Background()
 
-	// Initialize Scanners locally for now (or share if thread-safe)
-	// SimpleScanner is struct with values, thread-safe if configuration is read-only.
 	portScanner := ports.NewSimpleScanner(100, 50, 3, 1, 1000)
 
-	// SSLLabsScanner usually creates a new request per scan, so it should be fine.
 	var sslScanner *ssl.SSLLabsScanner
 	if m.config.SSLEmail != "" {
 		sslScanner = ssl.NewSSLLabsScanner(m.config.SSLEmail)
@@ -97,27 +168,28 @@ func (m *Manager) runWorker(id int) {
 	clientHttp := http.Client{Timeout: 5 * time.Second}
 
 	for {
-		job, err := m.queue.Dequeue(ctx)
+		j, err := m.queue.Dequeue(ctx)
 		if err != nil {
 			log.Printf("Worker %d: Queue error: %v", id, err)
 			return
 		}
 
-		key := string(job.Type) + ":" + job.Input
-		if job.Type == JobTypePortScan {
-			key = string(job.Type) + ":" + job.Address
+		key := string(j.Type) + ":" + j.Input
+		if j.Type == JobTypePortScan {
+			key = string(j.Type) + ":" + j.Address
 		}
-		switch job.Type {
+
+		switch j.Type {
 		case JobTypeResolution:
-			m.processResolution(ctx, job)
+			m.processResolution(ctx, j)
 		case JobTypePortScan:
-			m.processPortScan(ctx, job, portScanner)
+			m.processPortScan(ctx, j, portScanner)
 		case JobTypeSSLScan:
 			if sslScanner != nil {
-				m.processSSLScan(ctx, job, sslScanner)
+				m.processSSLScan(ctx, j, sslScanner)
 			}
 		case JobTypeCSPScan:
-			m.processCSPScan(ctx, job, clientHttp, cspEvaluator)
+			m.processCSPScan(ctx, j, clientHttp, cspEvaluator)
 		}
 
 		m.removeInFlight(key)
@@ -143,8 +215,7 @@ func (m *Manager) runResolutionProducer() {
 		}
 
 		for _, t := range targets {
-			key := string(JobTypeResolution) + ":" + t.Input
-			if m.addInFlight(key) {
+			if m.canEnqueue(ctx, string(JobTypeResolution), t.Input) {
 				m.queue.Enqueue(ctx, Job{Type: JobTypeResolution, Input: t.Input})
 			}
 		}
@@ -167,15 +238,10 @@ func (m *Manager) runIPScanProducer() {
 			continue
 		}
 
-		key := string(JobTypePortScan) + ":" + ipEntity.Address
-		if m.addInFlight(key) {
-			m.queue.Enqueue(ctx, Job{Type: JobTypePortScan, Address: ipEntity.Address})
-		} else {
-			// If already in flight, sleep a bit to allow others to be picked if simple query loop
-			// Since GetOldest returns the same one, we need to respect that.
-			// Actually, if it's in flight, the fetching loop will keep picking it up until it's processed and timestamp updated.
-			// So we need a way to 'skip' it or sleep if we can't add to flight.
+		if !m.canEnqueue(ctx, string(JobTypePortScan), ipEntity.Address) {
 			time.Sleep(1 * time.Second)
+		} else {
+			m.queue.Enqueue(ctx, Job{Type: JobTypePortScan, Address: ipEntity.Address})
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -199,11 +265,10 @@ func (m *Manager) runSSLScanProducer() {
 			continue
 		}
 
-		key := string(JobTypeSSLScan) + ":" + t.Input
-		if m.addInFlight(key) {
-			m.queue.Enqueue(ctx, Job{Type: JobTypeSSLScan, Input: t.Input})
-		} else {
+		if !m.canEnqueue(ctx, string(JobTypeSSLScan), t.Input) {
 			time.Sleep(1 * time.Second)
+		} else {
+			m.queue.Enqueue(ctx, Job{Type: JobTypeSSLScan, Input: t.Input})
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -224,11 +289,10 @@ func (m *Manager) runCSPScanProducer() {
 			continue
 		}
 
-		key := string(JobTypeCSPScan) + ":" + t.Input
-		if m.addInFlight(key) {
-			m.queue.Enqueue(ctx, Job{Type: JobTypeCSPScan, Input: t.Input})
-		} else {
+		if !m.canEnqueue(ctx, string(JobTypeCSPScan), t.Input) {
 			time.Sleep(1 * time.Second)
+		} else {
+			m.queue.Enqueue(ctx, Job{Type: JobTypeCSPScan, Input: t.Input})
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -236,55 +300,61 @@ func (m *Manager) runCSPScanProducer() {
 
 // --- Processors ---
 
-func (m *Manager) processResolution(ctx context.Context, job Job) {
-	log.Printf("Worker: Resolving %s", job.Input)
-	ips, err := net.LookupIP(job.Input)
+func (m *Manager) processResolution(ctx context.Context, j Job) {
+	log.Printf("Worker: Resolving %s", j.Input)
+	ips, err := net.LookupIP(j.Input)
 	if err != nil {
-		log.Printf("Worker: Failed to resolve %s: %v", job.Input, err)
-		m.storage.TouchTarget(ctx, job.Input)
+		log.Printf("Worker: Failed to resolve %s: %v", j.Input, err)
+		m.storage.TouchTarget(ctx, j.Input)
+		m.failJob(ctx, j, err.Error())
 		return
 	}
 
 	var ipStrings []string
-	for _, ip := range ips {
-		ipStrings = append(ipStrings, ip.String())
+	for _, ipAddr := range ips {
+		ipStrings = append(ipStrings, ipAddr.String())
 	}
 
-	err = m.storage.SaveIPs(ctx, job.Input, ipStrings)
+	err = m.storage.SaveIPs(ctx, j.Input, ipStrings)
 	if err != nil {
-		log.Printf("Worker: Failed to save IPs for %s: %v", job.Input, err)
+		log.Printf("Worker: Failed to save IPs for %s: %v", j.Input, err)
+		m.failJob(ctx, j, err.Error())
 	} else {
-		log.Printf("Worker: Resolved %s to %v", job.Input, ipStrings)
+		log.Printf("Worker: Resolved %s to %v", j.Input, ipStrings)
+		m.completeJob(ctx, j)
 	}
 }
 
-func (m *Manager) processPortScan(ctx context.Context, job Job, scanner *ports.SimpleScanner) {
-	log.Printf("Worker: Scanning IP %s", job.Address)
-	openPorts, err := scanner.Scan(job.Address)
+func (m *Manager) processPortScan(ctx context.Context, j Job, scanner *ports.SimpleScanner) {
+	log.Printf("Worker: Scanning IP %s", j.Address)
+	openPorts, err := scanner.Scan(j.Address)
 	if err != nil {
-		log.Printf("Worker: Failed to scan %s: %v", job.Address, err)
+		log.Printf("Worker: Failed to scan %s: %v", j.Address, err)
+		m.failJob(ctx, j, err.Error())
 		return
 	}
 
-	err = m.storage.SavePortScan(ctx, job.Address, openPorts)
+	err = m.storage.SavePortScan(ctx, j.Address, openPorts)
 	if err != nil {
-		log.Printf("Worker: Failed to save results for %s: %v", job.Address, err)
+		log.Printf("Worker: Failed to save results for %s: %v", j.Address, err)
+		m.failJob(ctx, j, err.Error())
 	} else {
-		log.Printf("Worker: Saved %d ports for %s", len(openPorts), job.Address)
+		log.Printf("Worker: Saved %d ports for %s", len(openPorts), j.Address)
+		m.completeJob(ctx, j)
 	}
 }
 
-func (m *Manager) processSSLScan(ctx context.Context, job Job, scanner *ssl.SSLLabsScanner) {
-	log.Printf("Worker: SSL Scanning %s", job.Input)
-	res, err := scanner.Scan(job.Input)
+func (m *Manager) processSSLScan(ctx context.Context, j Job, scanner *ssl.SSLLabsScanner) {
+	log.Printf("Worker: SSL Scanning %s", j.Input)
+	res, err := scanner.Scan(j.Input)
 	if err != nil {
-		log.Printf("Worker: SSL Scan failed for %s: %v", job.Input, err)
-		// Save error result to prevent infinite retries
+		log.Printf("Worker: SSL Scan failed for %s: %v", j.Input, err)
 		saveRes := storage.SSLResult{
 			Grade:  "F",
 			Status: "Error: " + err.Error(),
 		}
-		m.storage.SaveSSLScan(ctx, job.Input, saveRes)
+		m.storage.SaveSSLScan(ctx, j.Input, saveRes)
+		m.failJob(ctx, j, err.Error())
 		return
 	}
 
@@ -298,30 +368,33 @@ func (m *Manager) processSSLScan(ctx context.Context, job Job, scanner *ssl.SSLL
 		Vulnerabilities: res.Vulnerabilities,
 	}
 
-	err = m.storage.SaveSSLScan(ctx, job.Input, saveRes)
+	err = m.storage.SaveSSLScan(ctx, j.Input, saveRes)
 	if err != nil {
-		log.Printf("Worker: Failed to save SSL for %s: %v", job.Input, err)
+		log.Printf("Worker: Failed to save SSL for %s: %v", j.Input, err)
+		m.failJob(ctx, j, err.Error())
 	} else {
-		log.Printf("Worker: Saved SSL for %s", job.Input)
+		log.Printf("Worker: Saved SSL for %s", j.Input)
+		m.completeJob(ctx, j)
 	}
 }
 
-func (m *Manager) processCSPScan(ctx context.Context, job Job, client http.Client, evaluator csp.Evaluator) {
-	log.Printf("Worker: CSP Scanning %s", job.Input)
+func (m *Manager) processCSPScan(ctx context.Context, j Job, client http.Client, evaluator csp.Evaluator) {
+	log.Printf("Worker: CSP Scanning %s", j.Input)
 	var cspHeader string
-	resp, err := client.Head("https://" + job.Input)
+	resp, err := client.Head("https://" + j.Input)
 	if err != nil {
-		resp, err = client.Head("http://" + job.Input)
+		resp, err = client.Head("http://" + j.Input)
 	}
 
 	var findings []csp.Finding
 
 	if err != nil {
-		log.Printf("Worker: CSP Failed to connect to %s: %v", job.Input, err)
-		m.storage.SaveCSPScan(ctx, job.Input, "", []csp.Finding{{
+		log.Printf("Worker: CSP Failed to connect to %s: %v", j.Input, err)
+		m.storage.SaveCSPScan(ctx, j.Input, "", []csp.Finding{{
 			Description: "Target Unreachable",
 			Severity:    csp.SeverityInfo,
 		}})
+		m.failJob(ctx, j, err.Error())
 		return
 	}
 
@@ -338,15 +411,17 @@ func (m *Manager) processCSPScan(ctx context.Context, job Job, client http.Clien
 	} else {
 		f, err := evaluator.Evaluate(cspHeader)
 		if err != nil {
-			log.Printf("Worker: Error evaluating CSP for %s: %v", job.Input, err)
+			log.Printf("Worker: Error evaluating CSP for %s: %v", j.Input, err)
 		}
 		findings = append(findings, f...)
 	}
 
-	err = m.storage.SaveCSPScan(ctx, job.Input, cspHeader, findings)
+	err = m.storage.SaveCSPScan(ctx, j.Input, cspHeader, findings)
 	if err != nil {
-		log.Printf("Worker: Failed to save CSP for %s: %v", job.Input, err)
+		log.Printf("Worker: Failed to save CSP for %s: %v", j.Input, err)
+		m.failJob(ctx, j, err.Error())
 	} else {
-		log.Printf("Worker: Saved CSP for %s", job.Input)
+		log.Printf("Worker: Saved CSP for %s", j.Input)
+		m.completeJob(ctx, j)
 	}
 }

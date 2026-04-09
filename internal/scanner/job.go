@@ -14,6 +14,7 @@ const (
 )
 
 type Job struct {
+	ID      int     // Database job ID (0 for in-memory queue)
 	Type    JobType
 	Input   string // For Targets
 	Address string // For IPs (PortScan)
