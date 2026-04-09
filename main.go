@@ -17,6 +17,7 @@ import (
 	"perimeter/internal/storage"
 	"perimeter/scanner/ssl"
 
+	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -56,6 +57,8 @@ var (
 	email        = getEnvOrDefaultStr("EMAIL", "")
 	organization = getEnvOrDefaultStr("ORGANIZATION", "")
 	dbPath       = getEnvOrDefaultStr("DB_PATH", "perimeter.db")
+	dbDriver     = getEnvOrDefaultStr("DB_DRIVER", "sqlite3")
+	dbDSN        = getEnvOrDefaultStr("DB_DSN", "")
 	workerCount  = getEnvOrDefaultInt("WORKER_COUNT", 3)
 
 	portInterval = getEnvOrDefaultDuration("PORT_INTERVAL", 1*time.Hour)
@@ -72,6 +75,8 @@ func main() {
 	flag.StringVar(&email, "email", email, "Email for SSL Labs")
 	flag.StringVar(&organization, "organization", organization, "Organization for SSL Labs")
 	flag.StringVar(&dbPath, "db", dbPath, "Path to SQLite database")
+	flag.StringVar(&dbDriver, "dbDriver", dbDriver, "Database driver: sqlite3 or postgres")
+	flag.StringVar(&dbDSN, "dbDSN", dbDSN, "PostgreSQL DSN (required when dbDriver=postgres)")
 	flag.IntVar(&workerCount, "workers", workerCount, "Number of concurrent workers")
 
 	// Scanning intervals
@@ -98,10 +103,25 @@ func main() {
 	}
 
 	// 2. Initialize Database & Storage
-	client, err := ent.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&_fk=1", dbPath))
-	if err != nil {
-		log.Fatalf("failed opening connection to sqlite: %v", err)
+	var (
+		client *ent.Client
+		err    error
+	)
+	switch dbDriver {
+	case "sqlite3":
+		client, err = ent.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&_fk=1", dbPath))
+	case "postgres":
+		if dbDSN == "" {
+			log.Fatal("DB_DSN is required when DB_DRIVER=postgres")
+		}
+		client, err = ent.Open("postgres", dbDSN)
+	default:
+		log.Fatalf("unsupported DB_DRIVER: %s (use sqlite3 or postgres)", dbDriver)
 	}
+	if err != nil {
+		log.Fatalf("failed opening database connection: %v", err)
+	}
+	log.Printf("Database: %s", dbDriver)
 	defer client.Close()
 
 	// Auto-Migration

@@ -37,7 +37,8 @@ type Storage interface {
 	// Scanning Logic
 	GetOldestOutdatedTarget(ctx context.Context, scanType ScanType, threshold time.Duration) (*ent.Target, error)
 	GetOldestOutdatedIP(ctx context.Context, threshold time.Duration) (*ent.IP, error)
-	GetUnresolvedTargets(ctx context.Context, limit int) ([]*ent.Target, error)
+	GetUnresolvedTargets(ctx context.Context, limit int, threshold time.Duration) ([]*ent.Target, error)
+	TouchTarget(ctx context.Context, input string) error
 
 	// Saving Results
 	SaveIPs(ctx context.Context, targetInput string, ipAddresses []string) error
@@ -203,16 +204,21 @@ func (s *EntStorage) GetOldestOutdatedIP(ctx context.Context, threshold time.Dur
 	return i, nil
 }
 
-func (s *EntStorage) GetUnresolvedTargets(ctx context.Context, limit int) ([]*ent.Target, error) {
-	// For simplicity: Targets with NO IPs.
-	// To support re-resolution, we'd need a timestamp on the logic or checks.
-	// Let's assume once resolved, it stays. Or we can just check if updated_at is old enough?
-	// But updated_at changes on other things.
-	// We will return targets that have NO IPs for now.
+func (s *EntStorage) GetUnresolvedTargets(ctx context.Context, limit int, threshold time.Duration) ([]*ent.Target, error) {
+	cutoff := time.Now().Add(-threshold)
+	// Return targets with NO IPs and haven't been touched since cutoff.
 	return s.client.Target.Query().
 		Where(target.Not(target.HasIps())).
+		Where(target.UpdateTimeLT(cutoff)).
 		Limit(limit).
 		All(ctx)
+}
+
+func (s *EntStorage) TouchTarget(ctx context.Context, input string) error {
+	return s.client.Target.Update().
+		Where(target.Input(input)).
+		SetUpdateTime(time.Now()).
+		Exec(ctx)
 }
 
 func (s *EntStorage) SaveIPs(ctx context.Context, targetInput string, ipAddresses []string) error {

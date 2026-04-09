@@ -130,7 +130,7 @@ func (m *Manager) runResolutionProducer() {
 	log.Println("Starting Resolution Producer")
 	ctx := context.Background()
 	for {
-		targets, err := m.storage.GetUnresolvedTargets(ctx, 10)
+		targets, err := m.storage.GetUnresolvedTargets(ctx, 10, m.config.ResolutionInterval)
 		if err != nil {
 			log.Printf("Producer: Error fetching targets: %v", err)
 			time.Sleep(10 * time.Second)
@@ -241,6 +241,7 @@ func (m *Manager) processResolution(ctx context.Context, job Job) {
 	ips, err := net.LookupIP(job.Input)
 	if err != nil {
 		log.Printf("Worker: Failed to resolve %s: %v", job.Input, err)
+		m.storage.TouchTarget(ctx, job.Input)
 		return
 	}
 
@@ -278,6 +279,12 @@ func (m *Manager) processSSLScan(ctx context.Context, job Job, scanner *ssl.SSLL
 	res, err := scanner.Scan(job.Input)
 	if err != nil {
 		log.Printf("Worker: SSL Scan failed for %s: %v", job.Input, err)
+		// Save error result to prevent infinite retries
+		saveRes := storage.SSLResult{
+			Grade:  "F",
+			Status: "Error: " + err.Error(),
+		}
+		m.storage.SaveSSLScan(ctx, job.Input, saveRes)
 		return
 	}
 
