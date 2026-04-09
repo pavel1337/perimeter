@@ -43,6 +43,69 @@ var (
 		Columns:    IpsColumns,
 		PrimaryKey: []*schema.Column{IpsColumns[0]},
 	}
+	// ImporterConfigsColumns holds the columns for the "importer_configs" table.
+	ImporterConfigsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "create_time", Type: field.TypeTime},
+		{Name: "update_time", Type: field.TypeTime},
+		{Name: "provider", Type: field.TypeEnum, Enums: []string{"manual", "dns_bruteforce"}},
+		{Name: "credentials", Type: field.TypeBytes},
+		{Name: "sync_interval_seconds", Type: field.TypeInt64, Default: 3600},
+		{Name: "last_sync_at", Type: field.TypeTime, Nullable: true},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+	}
+	// ImporterConfigsTable holds the schema information for the "importer_configs" table.
+	ImporterConfigsTable = &schema.Table{
+		Name:       "importer_configs",
+		Columns:    ImporterConfigsColumns,
+		PrimaryKey: []*schema.Column{ImporterConfigsColumns[0]},
+	}
+	// InvitesColumns holds the columns for the "invites" table.
+	InvitesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "create_time", Type: field.TypeTime},
+		{Name: "update_time", Type: field.TypeTime},
+		{Name: "email", Type: field.TypeString},
+		{Name: "token_hash", Type: field.TypeString, Unique: true},
+		{Name: "role", Type: field.TypeEnum, Enums: []string{"admin", "member"}, Default: "member"},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "accepted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "user_invites", Type: field.TypeInt},
+	}
+	// InvitesTable holds the schema information for the "invites" table.
+	InvitesTable = &schema.Table{
+		Name:       "invites",
+		Columns:    InvitesColumns,
+		PrimaryKey: []*schema.Column{InvitesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "invites_users_invites",
+				Columns:    []*schema.Column{InvitesColumns[8]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
+	// JobsColumns holds the columns for the "jobs" table.
+	JobsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "create_time", Type: field.TypeTime},
+		{Name: "update_time", Type: field.TypeTime},
+		{Name: "type", Type: field.TypeEnum, Enums: []string{"resolve", "port_scan", "ssl_scan", "csp_scan", "import"}},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "in_progress", "completed", "failed"}, Default: "pending"},
+		{Name: "payload", Type: field.TypeJSON},
+		{Name: "result", Type: field.TypeJSON, Nullable: true},
+		{Name: "error", Type: field.TypeString, Nullable: true},
+		{Name: "started_at", Type: field.TypeTime, Nullable: true},
+		{Name: "completed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "timeout_at", Type: field.TypeTime, Nullable: true},
+	}
+	// JobsTable holds the schema information for the "jobs" table.
+	JobsTable = &schema.Table{
+		Name:       "jobs",
+		Columns:    JobsColumns,
+		PrimaryKey: []*schema.Column{JobsColumns[0]},
+	}
 	// PortsColumns holds the columns for the "ports" table.
 	PortsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -110,6 +173,29 @@ var (
 			},
 		},
 	}
+	// SessionsColumns holds the columns for the "sessions" table.
+	SessionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "create_time", Type: field.TypeTime},
+		{Name: "update_time", Type: field.TypeTime},
+		{Name: "token_hash", Type: field.TypeString, Unique: true},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "user_sessions", Type: field.TypeInt},
+	}
+	// SessionsTable holds the schema information for the "sessions" table.
+	SessionsTable = &schema.Table{
+		Name:       "sessions",
+		Columns:    SessionsColumns,
+		PrimaryKey: []*schema.Column{SessionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "sessions_users_sessions",
+				Columns:    []*schema.Column{SessionsColumns[5]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
 	// TargetsColumns holds the columns for the "targets" table.
 	TargetsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -117,12 +203,37 @@ var (
 		{Name: "update_time", Type: field.TypeTime},
 		{Name: "input", Type: field.TypeString, Unique: true},
 		{Name: "is_ip", Type: field.TypeBool, Default: false},
+		{Name: "user_targets", Type: field.TypeInt, Nullable: true},
 	}
 	// TargetsTable holds the schema information for the "targets" table.
 	TargetsTable = &schema.Table{
 		Name:       "targets",
 		Columns:    TargetsColumns,
 		PrimaryKey: []*schema.Column{TargetsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "targets_users_targets",
+				Columns:    []*schema.Column{TargetsColumns[5]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+	}
+	// UsersColumns holds the columns for the "users" table.
+	UsersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "create_time", Type: field.TypeTime},
+		{Name: "update_time", Type: field.TypeTime},
+		{Name: "email", Type: field.TypeString, Unique: true},
+		{Name: "name", Type: field.TypeString, Default: ""},
+		{Name: "role", Type: field.TypeEnum, Enums: []string{"admin", "member"}, Default: "member"},
+		{Name: "last_login_at", Type: field.TypeTime, Nullable: true},
+	}
+	// UsersTable holds the schema information for the "users" table.
+	UsersTable = &schema.Table{
+		Name:       "users",
+		Columns:    UsersColumns,
+		PrimaryKey: []*schema.Column{UsersColumns[0]},
 	}
 	// TargetIpsColumns holds the columns for the "target_ips" table.
 	TargetIpsColumns = []*schema.Column{
@@ -153,19 +264,27 @@ var (
 	Tables = []*schema.Table{
 		CspScansTable,
 		IpsTable,
+		ImporterConfigsTable,
+		InvitesTable,
+		JobsTable,
 		PortsTable,
 		PortScansTable,
 		SslScansTable,
+		SessionsTable,
 		TargetsTable,
+		UsersTable,
 		TargetIpsTable,
 	}
 )
 
 func init() {
 	CspScansTable.ForeignKeys[0].RefTable = TargetsTable
+	InvitesTable.ForeignKeys[0].RefTable = UsersTable
 	PortsTable.ForeignKeys[0].RefTable = PortScansTable
 	PortScansTable.ForeignKeys[0].RefTable = IpsTable
 	SslScansTable.ForeignKeys[0].RefTable = TargetsTable
+	SessionsTable.ForeignKeys[0].RefTable = UsersTable
+	TargetsTable.ForeignKeys[0].RefTable = UsersTable
 	TargetIpsTable.ForeignKeys[0].RefTable = TargetsTable
 	TargetIpsTable.ForeignKeys[1].RefTable = IpsTable
 }

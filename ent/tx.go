@@ -16,14 +16,24 @@ type Tx struct {
 	CSPScan *CSPScanClient
 	// IP is the client for interacting with the IP builders.
 	IP *IPClient
+	// ImporterConfig is the client for interacting with the ImporterConfig builders.
+	ImporterConfig *ImporterConfigClient
+	// Invite is the client for interacting with the Invite builders.
+	Invite *InviteClient
+	// Job is the client for interacting with the Job builders.
+	Job *JobClient
 	// Port is the client for interacting with the Port builders.
 	Port *PortClient
 	// PortScan is the client for interacting with the PortScan builders.
 	PortScan *PortScanClient
 	// SSLScan is the client for interacting with the SSLScan builders.
 	SSLScan *SSLScanClient
+	// Session is the client for interacting with the Session builders.
+	Session *SessionClient
 	// Target is the client for interacting with the Target builders.
 	Target *TargetClient
+	// User is the client for interacting with the User builders.
+	User *UserClient
 
 	// lazily loaded.
 	client     *Client
@@ -157,10 +167,15 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.CSPScan = NewCSPScanClient(tx.config)
 	tx.IP = NewIPClient(tx.config)
+	tx.ImporterConfig = NewImporterConfigClient(tx.config)
+	tx.Invite = NewInviteClient(tx.config)
+	tx.Job = NewJobClient(tx.config)
 	tx.Port = NewPortClient(tx.config)
 	tx.PortScan = NewPortScanClient(tx.config)
 	tx.SSLScan = NewSSLScanClient(tx.config)
+	tx.Session = NewSessionClient(tx.config)
 	tx.Target = NewTargetClient(tx.config)
+	tx.User = NewUserClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

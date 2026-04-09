@@ -10,6 +10,7 @@ import (
 	"perimeter/ent/ip"
 	"perimeter/ent/sslscan"
 	"perimeter/ent/target"
+	"perimeter/ent/user"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -114,6 +115,25 @@ func (_c *TargetCreate) AddCspScans(v ...*CSPScan) *TargetCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddCspScanIDs(ids...)
+}
+
+// SetOwnerID sets the "owner" edge to the User entity by ID.
+func (_c *TargetCreate) SetOwnerID(id int) *TargetCreate {
+	_c.mutation.SetOwnerID(id)
+	return _c
+}
+
+// SetNillableOwnerID sets the "owner" edge to the User entity by ID if the given value is not nil.
+func (_c *TargetCreate) SetNillableOwnerID(id *int) *TargetCreate {
+	if id != nil {
+		_c = _c.SetOwnerID(*id)
+	}
+	return _c
+}
+
+// SetOwner sets the "owner" edge to the User entity.
+func (_c *TargetCreate) SetOwner(v *User) *TargetCreate {
+	return _c.SetOwnerID(v.ID)
 }
 
 // Mutation returns the TargetMutation object of the builder.
@@ -272,6 +292,23 @@ func (_c *TargetCreate) createSpec() (*Target, *sqlgraph.CreateSpec) {
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.OwnerIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   target.OwnerTable,
+			Columns: []string{target.OwnerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.user_targets = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

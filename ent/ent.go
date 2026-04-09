@@ -7,11 +7,16 @@ import (
 	"errors"
 	"fmt"
 	"perimeter/ent/cspscan"
+	"perimeter/ent/importerconfig"
+	"perimeter/ent/invite"
 	"perimeter/ent/ip"
+	"perimeter/ent/job"
 	"perimeter/ent/port"
 	"perimeter/ent/portscan"
+	"perimeter/ent/session"
 	"perimeter/ent/sslscan"
 	"perimeter/ent/target"
+	"perimeter/ent/user"
 	"reflect"
 	"sync"
 
@@ -78,12 +83,17 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			cspscan.Table:  cspscan.ValidColumn,
-			ip.Table:       ip.ValidColumn,
-			port.Table:     port.ValidColumn,
-			portscan.Table: portscan.ValidColumn,
-			sslscan.Table:  sslscan.ValidColumn,
-			target.Table:   target.ValidColumn,
+			cspscan.Table:        cspscan.ValidColumn,
+			ip.Table:             ip.ValidColumn,
+			importerconfig.Table: importerconfig.ValidColumn,
+			invite.Table:         invite.ValidColumn,
+			job.Table:            job.ValidColumn,
+			port.Table:           port.ValidColumn,
+			portscan.Table:       portscan.ValidColumn,
+			sslscan.Table:        sslscan.ValidColumn,
+			session.Table:        session.ValidColumn,
+			target.Table:         target.ValidColumn,
+			user.Table:           user.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

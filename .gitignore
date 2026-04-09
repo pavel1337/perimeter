@@ -2,3 +2,6 @@
 *.lst
 .env
 perimeter
+docs/superpowers
+.superpowers
+*.md

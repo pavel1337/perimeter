@@ -27,6 +27,11 @@ func (Target) Edges() []ent.Edge {
 		// A target has a history of other scans
 		edge.To("ssl_scans", SSLScan.Type),
 		edge.To("csp_scans", CSPScan.Type),
+
+		// Who added this target
+		edge.From("owner", User.Type).
+			Ref("targets").
+			Unique(),
 	}
 }
 

@@ -12,6 +12,15 @@ type CSPScan func(*sql.Selector)
 // IP is the predicate function for ip builders.
 type IP func(*sql.Selector)
 
+// ImporterConfig is the predicate function for importerconfig builders.
+type ImporterConfig func(*sql.Selector)
+
+// Invite is the predicate function for invite builders.
+type Invite func(*sql.Selector)
+
+// Job is the predicate function for job builders.
+type Job func(*sql.Selector)
+
 // Port is the predicate function for port builders.
 type Port func(*sql.Selector)
 
@@ -21,5 +30,11 @@ type PortScan func(*sql.Selector)
 // SSLScan is the predicate function for sslscan builders.
 type SSLScan func(*sql.Selector)
 
+// Session is the predicate function for session builders.
+type Session func(*sql.Selector)
+
 // Target is the predicate function for target builders.
 type Target func(*sql.Selector)
+
+// User is the predicate function for user builders.
+type User func(*sql.Selector)

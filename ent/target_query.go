@@ -12,6 +12,7 @@ import (
 	"perimeter/ent/predicate"
 	"perimeter/ent/sslscan"
 	"perimeter/ent/target"
+	"perimeter/ent/user"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
@@ -29,6 +30,8 @@ type TargetQuery struct {
 	withIps      *IPQuery
 	withSslScans *SSLScanQuery
 	withCspScans *CSPScanQuery
+	withOwner    *UserQuery
+	withFKs      bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -124,6 +127,28 @@ func (_q *TargetQuery) QueryCspScans() *CSPScanQuery {
 			sqlgraph.From(target.Table, target.FieldID, selector),
 			sqlgraph.To(cspscan.Table, cspscan.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, target.CspScansTable, target.CspScansColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryOwner chains the current query on the "owner" edge.
+func (_q *TargetQuery) QueryOwner() *UserQuery {
+	query := (&UserClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(target.Table, target.FieldID, selector),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, target.OwnerTable, target.OwnerColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -326,6 +351,7 @@ func (_q *TargetQuery) Clone() *TargetQuery {
 		withIps:      _q.withIps.Clone(),
 		withSslScans: _q.withSslScans.Clone(),
 		withCspScans: _q.withCspScans.Clone(),
+		withOwner:    _q.withOwner.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -362,6 +388,17 @@ func (_q *TargetQuery) WithCspScans(opts ...func(*CSPScanQuery)) *TargetQuery {
 		opt(query)
 	}
 	_q.withCspScans = query
+	return _q
+}
+
+// WithOwner tells the query-builder to eager-load the nodes that are connected to
+// the "owner" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TargetQuery) WithOwner(opts ...func(*UserQuery)) *TargetQuery {
+	query := (&UserClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withOwner = query
 	return _q
 }
 
@@ -442,13 +479,21 @@ func (_q *TargetQuery) prepareQuery(ctx context.Context) error {
 func (_q *TargetQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Target, error) {
 	var (
 		nodes       = []*Target{}
+		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
-		loadedTypes = [3]bool{
+		loadedTypes = [4]bool{
 			_q.withIps != nil,
 			_q.withSslScans != nil,
 			_q.withCspScans != nil,
+			_q.withOwner != nil,
 		}
 	)
+	if _q.withOwner != nil {
+		withFKs = true
+	}
+	if withFKs {
+		_spec.Node.Columns = append(_spec.Node.Columns, target.ForeignKeys...)
+	}
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*Target).scanValues(nil, columns)
 	}
@@ -485,6 +530,12 @@ func (_q *TargetQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Targe
 		if err := _q.loadCspScans(ctx, query, nodes,
 			func(n *Target) { n.Edges.CspScans = []*CSPScan{} },
 			func(n *Target, e *CSPScan) { n.Edges.CspScans = append(n.Edges.CspScans, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withOwner; query != nil {
+		if err := _q.loadOwner(ctx, query, nodes, nil,
+			func(n *Target, e *User) { n.Edges.Owner = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -611,6 +662,38 @@ func (_q *TargetQuery) loadCspScans(ctx context.Context, query *CSPScanQuery, no
 			return fmt.Errorf(`unexpected referenced foreign-key "target_csp_scans" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
+	}
+	return nil
+}
+func (_q *TargetQuery) loadOwner(ctx context.Context, query *UserQuery, nodes []*Target, init func(*Target), assign func(*Target, *User)) error {
+	ids := make([]int, 0, len(nodes))
+	nodeids := make(map[int][]*Target)
+	for i := range nodes {
+		if nodes[i].user_targets == nil {
+			continue
+		}
+		fk := *nodes[i].user_targets
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(user.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "user_targets" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
 	}
 	return nil
 }

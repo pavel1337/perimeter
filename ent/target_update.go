@@ -11,6 +11,7 @@ import (
 	"perimeter/ent/predicate"
 	"perimeter/ent/sslscan"
 	"perimeter/ent/target"
+	"perimeter/ent/user"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -110,6 +111,25 @@ func (_u *TargetUpdate) AddCspScans(v ...*CSPScan) *TargetUpdate {
 	return _u.AddCspScanIDs(ids...)
 }
 
+// SetOwnerID sets the "owner" edge to the User entity by ID.
+func (_u *TargetUpdate) SetOwnerID(id int) *TargetUpdate {
+	_u.mutation.SetOwnerID(id)
+	return _u
+}
+
+// SetNillableOwnerID sets the "owner" edge to the User entity by ID if the given value is not nil.
+func (_u *TargetUpdate) SetNillableOwnerID(id *int) *TargetUpdate {
+	if id != nil {
+		_u = _u.SetOwnerID(*id)
+	}
+	return _u
+}
+
+// SetOwner sets the "owner" edge to the User entity.
+func (_u *TargetUpdate) SetOwner(v *User) *TargetUpdate {
+	return _u.SetOwnerID(v.ID)
+}
+
 // Mutation returns the TargetMutation object of the builder.
 func (_u *TargetUpdate) Mutation() *TargetMutation {
 	return _u.mutation
@@ -176,6 +196,12 @@ func (_u *TargetUpdate) RemoveCspScans(v ...*CSPScan) *TargetUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveCspScanIDs(ids...)
+}
+
+// ClearOwner clears the "owner" edge to the User entity.
+func (_u *TargetUpdate) ClearOwner() *TargetUpdate {
+	_u.mutation.ClearOwner()
+	return _u
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -380,6 +406,35 @@ func (_u *TargetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.OwnerCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   target.OwnerTable,
+			Columns: []string{target.OwnerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.OwnerIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   target.OwnerTable,
+			Columns: []string{target.OwnerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{target.Label}
@@ -479,6 +534,25 @@ func (_u *TargetUpdateOne) AddCspScans(v ...*CSPScan) *TargetUpdateOne {
 	return _u.AddCspScanIDs(ids...)
 }
 
+// SetOwnerID sets the "owner" edge to the User entity by ID.
+func (_u *TargetUpdateOne) SetOwnerID(id int) *TargetUpdateOne {
+	_u.mutation.SetOwnerID(id)
+	return _u
+}
+
+// SetNillableOwnerID sets the "owner" edge to the User entity by ID if the given value is not nil.
+func (_u *TargetUpdateOne) SetNillableOwnerID(id *int) *TargetUpdateOne {
+	if id != nil {
+		_u = _u.SetOwnerID(*id)
+	}
+	return _u
+}
+
+// SetOwner sets the "owner" edge to the User entity.
+func (_u *TargetUpdateOne) SetOwner(v *User) *TargetUpdateOne {
+	return _u.SetOwnerID(v.ID)
+}
+
 // Mutation returns the TargetMutation object of the builder.
 func (_u *TargetUpdateOne) Mutation() *TargetMutation {
 	return _u.mutation
@@ -545,6 +619,12 @@ func (_u *TargetUpdateOne) RemoveCspScans(v ...*CSPScan) *TargetUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveCspScanIDs(ids...)
+}
+
+// ClearOwner clears the "owner" edge to the User entity.
+func (_u *TargetUpdateOne) ClearOwner() *TargetUpdateOne {
+	_u.mutation.ClearOwner()
+	return _u
 }
 
 // Where appends a list predicates to the TargetUpdate builder.
@@ -772,6 +852,35 @@ func (_u *TargetUpdateOne) sqlSave(ctx context.Context) (_node *Target, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(cspscan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.OwnerCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   target.OwnerTable,
+			Columns: []string{target.OwnerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.OwnerIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   target.OwnerTable,
+			Columns: []string{target.OwnerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
