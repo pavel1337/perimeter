@@ -1,6 +1,27 @@
 {{template "views/partials/header" .}}
 
-<h1>Targets</h1>
+<h1>Dashboard</h1>
+
+<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
+  <div style="background: #fff; border: 1px solid #e5e5e5; border-radius: 6px; padding: 16px;">
+    <div class="text-muted" style="margin-bottom: 4px;">Targets</div>
+    <div style="font-size: 24px; font-weight: 600;">{{.TotalTargets}}</div>
+  </div>
+  <div style="background: #fff; border: 1px solid #e5e5e5; border-radius: 6px; padding: 16px;">
+    <div class="text-muted" style="margin-bottom: 4px;">Open Ports</div>
+    <div style="font-size: 24px; font-weight: 600; {{if gt .TotalOpenPorts 0}}color: #dc2626;{{end}}">{{.TotalOpenPorts}}</div>
+  </div>
+  <div style="background: #fff; border: 1px solid #e5e5e5; border-radius: 6px; padding: 16px;">
+    <div class="text-muted" style="margin-bottom: 4px;">Expiring Certs</div>
+    <div style="font-size: 24px; font-weight: 600; {{if gt .ExpiringCerts 0}}color: #dc2626;{{end}}">{{.ExpiringCerts}}</div>
+  </div>
+  <div style="background: #fff; border: 1px solid #e5e5e5; border-radius: 6px; padding: 16px;">
+    <div class="text-muted" style="margin-bottom: 4px;">CSP Issues</div>
+    <div style="font-size: 24px; font-weight: 600; {{if gt .CSPIssues 0}}color: #ea580c;{{end}}">{{.CSPIssues}}</div>
+  </div>
+</div>
+
+<h2>Targets</h2>
 
 <table>
   <thead>

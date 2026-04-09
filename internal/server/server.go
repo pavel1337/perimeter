@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"net/http"
 	"strconv"
+	"time"
 
 	"perimeter/ent"
 	"perimeter/ent/importerconfig"
@@ -260,9 +261,43 @@ func (s *Server) handleIndex(c *fiber.Ctx) error {
 		return c.Status(500).SendString(err.Error())
 	}
 
+	// Compute dashboard stats
+	totalTargets := len(targets)
+	totalOpenPorts := 0
+	expiringCerts := 0
+	cspIssues := 0
+
+	for _, t := range targets {
+		// Count open ports across all IPs
+		for _, ip := range t.Edges.Ips {
+			if len(ip.Edges.Scans) > 0 {
+				latestScan := ip.Edges.Scans[0]
+				totalOpenPorts += len(latestScan.Edges.Ports)
+			}
+		}
+		// Count expiring SSL certs (<30 days)
+		if len(t.Edges.SslScans) > 0 {
+			latest := t.Edges.SslScans[0]
+			if !latest.CertExpiry.IsZero() && time.Until(latest.CertExpiry) < 30*24*time.Hour {
+				expiringCerts++
+			}
+		}
+		// Count targets with CSP issues
+		if len(t.Edges.CspScans) > 0 {
+			latest := t.Edges.CspScans[0]
+			if len(latest.Findings) > 0 {
+				cspIssues++
+			}
+		}
+	}
+
 	return c.Render("views/index", s.templateData(c, fiber.Map{
-		"Title":   "Perimeter Dashboard",
-		"Targets": targets,
+		"Title":         "Perimeter Dashboard",
+		"Targets":       targets,
+		"TotalTargets":  totalTargets,
+		"TotalOpenPorts": totalOpenPorts,
+		"ExpiringCerts": expiringCerts,
+		"CSPIssues":     cspIssues,
 	}), "views/layouts/main")
 }
 
