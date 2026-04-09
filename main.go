@@ -13,6 +13,7 @@ import (
 
 	"perimeter/ent"
 	"perimeter/internal/auth"
+	"perimeter/internal/importer"
 	"perimeter/internal/scanner"
 	"perimeter/internal/server"
 	"perimeter/internal/storage"
@@ -189,8 +190,14 @@ func main() {
 	mgr := scanner.NewManager(store, scanConfig)
 	mgr.Start()
 
-	// 6. Start Web Server
-	srv := server.New(store, authenticator, viewsfs)
+	// 6. Start Importer Sync Loop
+	importerRegistry := importer.NewRegistry()
+	importerRegistry.Register("dns_bruteforce", importer.NewDNSBruteforceFactory())
+	syncLoop := importer.NewSyncLoop(client, importerRegistry, store)
+	syncLoop.Start()
+
+	// 7. Start Web Server
+	srv := server.New(store, authenticator, client, importerRegistry, viewsfs)
 	log.Printf("Perimeter is running on http://localhost:%s", httpPort)
 	log.Fatal(srv.Listen(":" + httpPort))
 }

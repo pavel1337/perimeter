@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"perimeter/ent"
+	"perimeter/ent/importerconfig"
 	"perimeter/ent/user"
 	"perimeter/internal/auth"
 	"perimeter/internal/importer"
@@ -17,12 +18,14 @@ import (
 )
 
 type Server struct {
-	app     *fiber.App
-	storage storage.Storage
-	auth    *auth.Auth
+	app      *fiber.App
+	storage  storage.Storage
+	auth     *auth.Auth
+	client   *ent.Client
+	registry *importer.Registry
 }
 
-func New(s storage.Storage, a *auth.Auth, viewsFS fs.FS) *Server {
+func New(s storage.Storage, a *auth.Auth, client *ent.Client, registry *importer.Registry, viewsFS fs.FS) *Server {
 	engine := html.NewFileSystem(http.FS(viewsFS), ".html")
 
 	app := fiber.New(fiber.Config{
@@ -30,9 +33,11 @@ func New(s storage.Storage, a *auth.Auth, viewsFS fs.FS) *Server {
 	})
 
 	srv := &Server{
-		app:     app,
-		storage: s,
-		auth:    a,
+		app:      app,
+		storage:  s,
+		auth:     a,
+		client:   client,
+		registry: registry,
 	}
 
 	srv.setupRoutes()
@@ -70,6 +75,11 @@ func (s *Server) setupRoutes() {
 	admin := authed.Group("", auth.RequireRole(user.RoleAdmin))
 	admin.Get("/settings", s.handleSettings)
 	admin.Post("/invite", s.handleInvite)
+	admin.Get("/users", s.handleUsers)
+	admin.Post("/users/:id/delete", s.handleDeleteUser)
+	admin.Post("/importers", s.handleCreateImporter)
+	admin.Post("/importers/:id/delete", s.handleDeleteImporter)
+	admin.Post("/importers/:id/toggle", s.handleToggleImporter)
 }
 
 // templateData returns a fiber.Map with common template data (user, role).
@@ -320,12 +330,27 @@ func (s *Server) handleImportSubmit(c *fiber.Ctx) error {
 	return c.Redirect("/")
 }
 
-// --- Admin handlers (placeholders for step 5 & 10) ---
+// --- Admin handlers ---
+
+func (s *Server) settingsData(c *fiber.Ctx, extra fiber.Map) fiber.Map {
+	users, _ := s.client.User.Query().All(c.Context())
+	importers, _ := s.client.ImporterConfig.Query().All(c.Context())
+	providers := s.registry.List()
+
+	data := s.templateData(c, fiber.Map{
+		"Title":     "Settings",
+		"Users":     users,
+		"Importers": importers,
+		"Providers": providers,
+	})
+	for k, v := range extra {
+		data[k] = v
+	}
+	return data
+}
 
 func (s *Server) handleSettings(c *fiber.Ctx) error {
-	return c.Render("views/settings", s.templateData(c, fiber.Map{
-		"Title": "Settings",
-	}), "views/layouts/main")
+	return c.Render("views/settings", s.settingsData(c, nil), "views/layouts/main")
 }
 
 func (s *Server) handleInvite(c *fiber.Ctx) error {
@@ -340,17 +365,97 @@ func (s *Server) handleInvite(c *fiber.Ctx) error {
 
 	token, err := s.auth.CreateInvite(c.Context(), u, email, inviteRole)
 	if err != nil {
-		return c.Render("views/settings", s.templateData(c, fiber.Map{
-			"Title": "Settings",
+		return c.Render("views/settings", s.settingsData(c, fiber.Map{
 			"Error": "Failed to create invite: " + err.Error(),
 		}), "views/layouts/main")
 	}
 
 	inviteLink := fmt.Sprintf("%s/register/%s", c.BaseURL(), token)
 
-	return c.Render("views/settings", s.templateData(c, fiber.Map{
-		"Title":      "Settings",
-		"InviteLink": inviteLink,
+	return c.Render("views/settings", s.settingsData(c, fiber.Map{
+		"InviteLink":  inviteLink,
 		"InviteEmail": email,
 	}), "views/layouts/main")
+}
+
+func (s *Server) handleUsers(c *fiber.Ctx) error {
+	return c.Redirect("/settings")
+}
+
+func (s *Server) handleDeleteUser(c *fiber.Ctx) error {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(400).SendString("Invalid ID")
+	}
+
+	// Don't allow deleting yourself
+	currentUser := auth.GetUser(c)
+	if currentUser.ID == id {
+		return c.Render("views/settings", s.settingsData(c, fiber.Map{
+			"Error": "Cannot delete your own account",
+		}), "views/layouts/main")
+	}
+
+	if err := s.client.User.DeleteOneID(id).Exec(c.Context()); err != nil {
+		return c.Render("views/settings", s.settingsData(c, fiber.Map{
+			"Error": "Failed to delete user: " + err.Error(),
+		}), "views/layouts/main")
+	}
+
+	return c.Redirect("/settings")
+}
+
+func (s *Server) handleCreateImporter(c *fiber.Ctx) error {
+	provider := c.FormValue("provider")
+	credentials := c.FormValue("credentials")
+	intervalStr := c.FormValue("sync_interval")
+
+	interval, err := strconv.ParseInt(intervalStr, 10, 64)
+	if err != nil || interval < 60 {
+		interval = 3600 // Default 1 hour
+	}
+
+	_, err = s.client.ImporterConfig.Create().
+		SetProvider(importerconfig.Provider(provider)).
+		SetCredentials([]byte(credentials)).
+		SetSyncIntervalSeconds(interval).
+		SetEnabled(true).
+		Save(c.Context())
+	if err != nil {
+		return c.Render("views/settings", s.settingsData(c, fiber.Map{
+			"Error": "Failed to create importer: " + err.Error(),
+		}), "views/layouts/main")
+	}
+
+	return c.Redirect("/settings")
+}
+
+func (s *Server) handleDeleteImporter(c *fiber.Ctx) error {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(400).SendString("Invalid ID")
+	}
+
+	if err := s.client.ImporterConfig.DeleteOneID(id).Exec(c.Context()); err != nil {
+		return c.Render("views/settings", s.settingsData(c, fiber.Map{
+			"Error": "Failed to delete importer: " + err.Error(),
+		}), "views/layouts/main")
+	}
+
+	return c.Redirect("/settings")
+}
+
+func (s *Server) handleToggleImporter(c *fiber.Ctx) error {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(400).SendString("Invalid ID")
+	}
+
+	cfg, err := s.client.ImporterConfig.Get(c.Context(), id)
+	if err != nil {
+		return c.Status(404).SendString("Importer not found")
+	}
+
+	s.client.ImporterConfig.UpdateOne(cfg).SetEnabled(!cfg.Enabled).Exec(c.Context())
+	return c.Redirect("/settings")
 }

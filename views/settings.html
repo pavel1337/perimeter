@@ -16,8 +16,9 @@
 </div>
 {{end}}
 
+<!-- Invite User -->
 <h2>Invite User</h2>
-<form action="/invite" method="POST" style="margin-bottom: 20px;">
+<form action="/invite" method="POST" style="margin-bottom: 30px;">
   <div style="margin-bottom: 10px;">
     <label for="email" style="display:block; margin-bottom: 5px;">Email:</label>
     <input type="email" name="email" id="email" required style="width: 300px;">
@@ -30,6 +31,95 @@
     </select>
   </div>
   <button type="submit">Create Invite</button>
+</form>
+
+<!-- Users -->
+<h2>Users</h2>
+<table border="1" cellpadding="8" cellspacing="0" style="margin-bottom: 30px;">
+  <thead>
+    <tr>
+      <th>Email</th>
+      <th>Name</th>
+      <th>Role</th>
+      <th>Last Login</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .Users}}
+    <tr>
+      <td>{{.Email}}</td>
+      <td>{{.Name}}</td>
+      <td>{{.Role}}</td>
+      <td>{{if .LastLoginAt}}{{.LastLoginAt.Format "2006-01-02 15:04"}}{{else}}Never{{end}}</td>
+      <td>
+        <form method="POST" action="/users/{{.ID}}/delete"
+          onsubmit="return confirm('Delete user {{.Email}}?');" style="display:inline;">
+          <button type="submit" style="color: red; cursor: pointer;">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {{else}}
+    <tr><td colspan="5">No users</td></tr>
+    {{end}}
+  </tbody>
+</table>
+
+<!-- Importers -->
+<h2>Importers</h2>
+<table border="1" cellpadding="8" cellspacing="0" style="margin-bottom: 20px;">
+  <thead>
+    <tr>
+      <th>Provider</th>
+      <th>Enabled</th>
+      <th>Interval</th>
+      <th>Last Sync</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .Importers}}
+    <tr>
+      <td>{{.Provider}}</td>
+      <td>{{if .Enabled}}<span style="color:green;">Yes</span>{{else}}<span style="color:red;">No</span>{{end}}</td>
+      <td>{{.SyncIntervalSeconds}}s</td>
+      <td>{{if .LastSyncAt}}{{.LastSyncAt.Format "2006-01-02 15:04"}}{{else}}Never{{end}}</td>
+      <td>
+        <form method="POST" action="/importers/{{.ID}}/toggle" style="display:inline;">
+          <button type="submit" style="cursor: pointer;">{{if .Enabled}}Disable{{else}}Enable{{end}}</button>
+        </form>
+        <form method="POST" action="/importers/{{.ID}}/delete"
+          onsubmit="return confirm('Delete this importer?');" style="display:inline;">
+          <button type="submit" style="color: red; cursor: pointer;">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {{else}}
+    <tr><td colspan="5">No importers configured</td></tr>
+    {{end}}
+  </tbody>
+</table>
+
+<h3>Add Importer</h3>
+<form action="/importers" method="POST" style="margin-bottom: 20px;">
+  <div style="margin-bottom: 10px;">
+    <label for="provider" style="display:block; margin-bottom: 5px;">Provider:</label>
+    <select name="provider" id="provider">
+      {{range .Providers}}
+      <option value="{{.}}">{{.}}</option>
+      {{end}}
+    </select>
+  </div>
+  <div style="margin-bottom: 10px;">
+    <label for="credentials" style="display:block; margin-bottom: 5px;">Config (JSON):</label>
+    <textarea name="credentials" id="credentials" rows="4" cols="50"
+      placeholder='{"domain": "example.com"}'></textarea>
+  </div>
+  <div style="margin-bottom: 10px;">
+    <label for="sync_interval" style="display:block; margin-bottom: 5px;">Sync Interval (seconds):</label>
+    <input type="number" name="sync_interval" id="sync_interval" value="3600" min="60" style="width: 150px;">
+  </div>
+  <button type="submit">Add Importer</button>
 </form>
 
 {{template "views/partials/footer" .}}
