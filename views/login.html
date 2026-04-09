@@ -1,0 +1,22 @@
+<h1>Login</h1>
+
+{{if .Error}}
+<p style="color: red; margin-bottom: 15px;">{{.Error}}</p>
+{{end}}
+
+<form action="/login" method="POST" style="margin-bottom: 20px;">
+  <div style="margin-bottom: 10px;">
+    <label for="email" style="display:block; margin-bottom: 5px;">Email:</label>
+    <input type="email" name="email" id="email" required style="width: 300px;">
+  </div>
+  <div style="margin-bottom: 10px;">
+    <label for="password" style="display:block; margin-bottom: 5px;">Password:</label>
+    <input type="password" name="password" id="password" required style="width: 300px;">
+  </div>
+  <button type="submit">Login</button>
+</form>
+
+{{if .OIDCEnabled}}
+<hr style="margin: 20px 0;">
+<a href="/auth/oidc">Login with SSO</a>
+{{end}}

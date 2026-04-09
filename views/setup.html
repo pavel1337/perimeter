@@ -1,0 +1,22 @@
+<h1>Setup — Create Admin Account</h1>
+<p>This is the first time running Perimeter. Create an admin account to get started.</p>
+
+{{if .Error}}
+<p style="color: red; margin-bottom: 15px;">{{.Error}}</p>
+{{end}}
+
+<form action="/setup" method="POST">
+  <div style="margin-bottom: 10px;">
+    <label for="name" style="display:block; margin-bottom: 5px;">Name:</label>
+    <input type="text" name="name" id="name" required style="width: 300px;">
+  </div>
+  <div style="margin-bottom: 10px;">
+    <label for="email" style="display:block; margin-bottom: 5px;">Email:</label>
+    <input type="email" name="email" id="email" required style="width: 300px;">
+  </div>
+  <div style="margin-bottom: 10px;">
+    <label for="password" style="display:block; margin-bottom: 5px;">Password:</label>
+    <input type="password" name="password" id="password" required minlength="8" style="width: 300px;">
+  </div>
+  <button type="submit">Create Admin</button>
+</form>

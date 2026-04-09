@@ -85,6 +85,15 @@ func (a *Auth) OIDCEnabled() bool {
 	return a.config.OIDCEnabled()
 }
 
+// HasUsers returns whether any users exist in the database.
+func (a *Auth) HasUsers(ctx context.Context) (bool, error) {
+	count, err := a.client.User.Query().Count(ctx)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 // --- Email + Password ---
 
 // Register creates the first admin user or an invited user with email+password.
@@ -278,6 +287,42 @@ func (a *Auth) OIDCResolveUser(ctx context.Context, claims *OIDCClaims) (*ent.Us
 	return u, nil
 }
 
+// --- Invites ---
+
+// CreateInvite creates a new invite and returns the raw token.
+func (a *Auth) CreateInvite(ctx context.Context, inviter *ent.User, email string, role user.Role) (string, error) {
+	token, err := generateToken()
+	if err != nil {
+		return "", err
+	}
+
+	hash := hashToken(token)
+	_, err = a.client.Invite.Create().
+		SetEmail(email).
+		SetTokenHash(hash).
+		SetRole(invite.Role(role)).
+		SetExpiresAt(time.Now().Add(72 * time.Hour)).
+		SetInvitedBy(inviter).
+		Save(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to create invite: %w", err)
+	}
+
+	return token, nil
+}
+
+// ValidateInviteToken looks up a pending invite by raw token.
+func (a *Auth) ValidateInviteToken(ctx context.Context, token string) (*ent.Invite, error) {
+	hash := hashToken(token)
+	return a.client.Invite.Query().
+		Where(
+			invite.TokenHashEQ(hash),
+			invite.AcceptedAtIsNil(),
+			invite.ExpiresAtGT(time.Now()),
+		).
+		Only(ctx)
+}
+
 // --- Sessions ---
 
 // CreateSession creates a new session for a user and returns the raw token.
@@ -325,6 +370,11 @@ func (a *Auth) DeleteSession(ctx context.Context, token string) error {
 		Where(session.TokenHashEQ(hash)).
 		Exec(ctx)
 	return err
+}
+
+// GenerateState creates a random state string for OIDC flows.
+func GenerateState() (string, error) {
+	return generateToken()
 }
 
 func generateToken() (string, error) {

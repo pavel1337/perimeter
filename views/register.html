@@ -1,0 +1,23 @@
+<h1>Register</h1>
+
+{{if .Error}}
+<p style="color: red; margin-bottom: 15px;">{{.Error}}</p>
+{{end}}
+
+<form action="/register" method="POST">
+  <div style="margin-bottom: 10px;">
+    <label for="name" style="display:block; margin-bottom: 5px;">Name:</label>
+    <input type="text" name="name" id="name" required style="width: 300px;">
+  </div>
+  <div style="margin-bottom: 10px;">
+    <label for="email" style="display:block; margin-bottom: 5px;">Email:</label>
+    <input type="email" name="email" id="email" required style="width: 300px;"
+      {{if .InviteEmail}}value="{{.InviteEmail}}" readonly{{end}}>
+  </div>
+  <div style="margin-bottom: 10px;">
+    <label for="password" style="display:block; margin-bottom: 5px;">Password:</label>
+    <input type="password" name="password" id="password" required minlength="8" style="width: 300px;">
+  </div>
+  <input type="hidden" name="token" value="{{.InviteToken}}">
+  <button type="submit">Register</button>
+</form>

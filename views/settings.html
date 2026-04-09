@@ -1,0 +1,35 @@
+{{template "views/partials/header" .}}
+
+<h1>Settings</h1>
+
+{{if .Error}}
+<p style="color: red; margin-bottom: 15px;">{{.Error}}</p>
+{{end}}
+
+{{if .InviteLink}}
+<div style="background-color: #e8f5e9; border: 1px solid #4caf50; padding: 15px; margin-bottom: 20px;">
+  <p><strong>Invite created for {{.InviteEmail}}</strong></p>
+  <p>Share this link with them:</p>
+  <input type="text" value="{{.InviteLink}}" readonly style="width: 100%; padding: 5px; font-family: monospace;"
+    onclick="this.select();">
+  <p style="margin-top: 5px;"><small>This link expires in 72 hours.</small></p>
+</div>
+{{end}}
+
+<h2>Invite User</h2>
+<form action="/invite" method="POST" style="margin-bottom: 20px;">
+  <div style="margin-bottom: 10px;">
+    <label for="email" style="display:block; margin-bottom: 5px;">Email:</label>
+    <input type="email" name="email" id="email" required style="width: 300px;">
+  </div>
+  <div style="margin-bottom: 10px;">
+    <label for="role" style="display:block; margin-bottom: 5px;">Role:</label>
+    <select name="role" id="role">
+      <option value="member">Member</option>
+      <option value="admin">Admin</option>
+    </select>
+  </div>
+  <button type="submit">Create Invite</button>
+</form>
+
+{{template "views/partials/footer" .}}

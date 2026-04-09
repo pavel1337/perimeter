@@ -1,11 +1,14 @@
 package server
 
 import (
+	"fmt"
 	"io/fs"
 	"net/http"
 	"strconv"
 
 	"perimeter/ent"
+	"perimeter/ent/user"
+	"perimeter/internal/auth"
 	"perimeter/internal/importer"
 	"perimeter/internal/storage"
 
@@ -16,14 +19,12 @@ import (
 type Server struct {
 	app     *fiber.App
 	storage storage.Storage
+	auth    *auth.Auth
 }
 
-func New(s storage.Storage, viewsFS fs.FS) *Server {
-	// Initialize View Engine
-	// If viewsFS is embedded, we use http.FS to adapt it
+func New(s storage.Storage, a *auth.Auth, viewsFS fs.FS) *Server {
 	engine := html.NewFileSystem(http.FS(viewsFS), ".html")
 
-	// Create Fiber App
 	app := fiber.New(fiber.Config{
 		Views: engine,
 	})
@@ -31,6 +32,7 @@ func New(s storage.Storage, viewsFS fs.FS) *Server {
 	srv := &Server{
 		app:     app,
 		storage: s,
+		auth:    a,
 	}
 
 	srv.setupRoutes()
@@ -42,12 +44,198 @@ func (s *Server) Listen(addr string) error {
 }
 
 func (s *Server) setupRoutes() {
-	s.app.Get("/", s.handleIndex)
-	s.app.Get("/targets/:id", s.handleTargetDetails)
-	s.app.Get("/import", s.handleImport)
-	s.app.Post("/import", s.handleImportSubmit)
-	s.app.Post("/targets/:id/delete", s.handleDeleteTarget)
+	// Public routes
+	s.app.Get("/setup", s.handleSetupPage)
+	s.app.Post("/setup", s.handleSetup)
+	s.app.Get("/login", s.handleLoginPage)
+	s.app.Post("/login", s.handleLogin)
+	s.app.Get("/register/:token", s.handleRegisterPage)
+	s.app.Post("/register", s.handleRegister)
+	s.app.Post("/logout", s.handleLogout)
+
+	if s.auth.OIDCEnabled() {
+		s.app.Get("/auth/oidc", s.handleOIDCLogin)
+		s.app.Get("/auth/callback", s.handleOIDCCallback)
+	}
+
+	// Authenticated routes
+	authed := s.app.Group("", auth.RequireAuth(s.auth))
+	authed.Get("/", s.handleIndex)
+	authed.Get("/targets/:id", s.handleTargetDetails)
+	authed.Get("/import", s.handleImport)
+	authed.Post("/import", s.handleImportSubmit)
+	authed.Post("/targets/:id/delete", s.handleDeleteTarget)
+
+	// Admin routes
+	admin := authed.Group("", auth.RequireRole(user.RoleAdmin))
+	admin.Get("/settings", s.handleSettings)
+	admin.Post("/invite", s.handleInvite)
 }
+
+// templateData returns a fiber.Map with common template data (user, role).
+func (s *Server) templateData(c *fiber.Ctx, extra fiber.Map) fiber.Map {
+	data := fiber.Map{}
+	if u := auth.GetUser(c); u != nil {
+		data["User"] = u
+		data["IsAdmin"] = u.Role == user.RoleAdmin
+	}
+	for k, v := range extra {
+		data[k] = v
+	}
+	return data
+}
+
+// --- Auth handlers ---
+
+func (s *Server) handleSetupPage(c *fiber.Ctx) error {
+	hasUsers, _ := s.auth.HasUsers(c.Context())
+	if hasUsers {
+		return c.Redirect("/login")
+	}
+	return c.Render("views/setup", fiber.Map{}, "views/layouts/main")
+}
+
+func (s *Server) handleSetup(c *fiber.Ctx) error {
+	hasUsers, _ := s.auth.HasUsers(c.Context())
+	if hasUsers {
+		return c.Redirect("/login")
+	}
+
+	name := c.FormValue("name")
+	email := c.FormValue("email")
+	password := c.FormValue("password")
+
+	u, err := s.auth.Register(c.Context(), email, name, password)
+	if err != nil {
+		return c.Render("views/setup", fiber.Map{
+			"Error": "Failed to create admin: " + err.Error(),
+		}, "views/layouts/main")
+	}
+
+	return s.createSessionAndRedirect(c, u)
+}
+
+func (s *Server) handleLoginPage(c *fiber.Ctx) error {
+	hasUsers, _ := s.auth.HasUsers(c.Context())
+	if !hasUsers {
+		return c.Redirect("/setup")
+	}
+	return c.Render("views/login", fiber.Map{
+		"OIDCEnabled": s.auth.OIDCEnabled(),
+	}, "views/layouts/main")
+}
+
+func (s *Server) handleLogin(c *fiber.Ctx) error {
+	email := c.FormValue("email")
+	password := c.FormValue("password")
+
+	u, err := s.auth.Login(c.Context(), email, password)
+	if err != nil {
+		return c.Render("views/login", fiber.Map{
+			"Error":       "Invalid email or password",
+			"OIDCEnabled": s.auth.OIDCEnabled(),
+		}, "views/layouts/main")
+	}
+
+	return s.createSessionAndRedirect(c, u)
+}
+
+func (s *Server) handleRegisterPage(c *fiber.Ctx) error {
+	token := c.Params("token")
+	// Validate invite token and get email
+	inv, err := s.auth.ValidateInviteToken(c.Context(), token)
+	if err != nil {
+		return c.Status(400).SendString("Invalid or expired invite link")
+	}
+
+	return c.Render("views/register", fiber.Map{
+		"InviteEmail": inv.Email,
+		"InviteToken": token,
+	}, "views/layouts/main")
+}
+
+func (s *Server) handleRegister(c *fiber.Ctx) error {
+	name := c.FormValue("name")
+	email := c.FormValue("email")
+	password := c.FormValue("password")
+
+	u, err := s.auth.Register(c.Context(), email, name, password)
+	if err != nil {
+		errMsg := "Registration failed"
+		if err == auth.ErrNotAllowed {
+			errMsg = "Registration is invite-only"
+		} else if err == auth.ErrEmailTaken {
+			errMsg = "Email already registered"
+		}
+		return c.Render("views/register", fiber.Map{
+			"Error": errMsg,
+		}, "views/layouts/main")
+	}
+
+	return s.createSessionAndRedirect(c, u)
+}
+
+func (s *Server) handleLogout(c *fiber.Ctx) error {
+	token := c.Cookies(auth.SessionCookie)
+	if token != "" {
+		s.auth.DeleteSession(c.Context(), token)
+	}
+	c.ClearCookie(auth.SessionCookie)
+	return c.Redirect("/login")
+}
+
+func (s *Server) handleOIDCLogin(c *fiber.Ctx) error {
+	state, _ := auth.GenerateState()
+	c.Cookie(&fiber.Cookie{
+		Name:     "oidc_state",
+		Value:    state,
+		HTTPOnly: true,
+		MaxAge:   300,
+	})
+	return c.Redirect(s.auth.OIDCAuthURL(state))
+}
+
+func (s *Server) handleOIDCCallback(c *fiber.Ctx) error {
+	state := c.Cookies("oidc_state")
+	if state == "" || state != c.Query("state") {
+		return c.Status(400).SendString("Invalid state")
+	}
+	c.ClearCookie("oidc_state")
+
+	claims, err := s.auth.OIDCExchange(c.Context(), c.Query("code"))
+	if err != nil {
+		return c.Status(400).SendString("Authentication failed")
+	}
+
+	u, err := s.auth.OIDCResolveUser(c.Context(), claims)
+	if err != nil {
+		return c.Status(500).SendString("Internal error")
+	}
+	if u == nil {
+		return c.Status(403).SendString("Access denied — no account or invite found for this email")
+	}
+
+	return s.createSessionAndRedirect(c, u)
+}
+
+func (s *Server) createSessionAndRedirect(c *fiber.Ctx, u *ent.User) error {
+	token, err := s.auth.CreateSession(c.Context(), u)
+	if err != nil {
+		return c.Status(500).SendString("Failed to create session")
+	}
+
+	c.Cookie(&fiber.Cookie{
+		Name:     auth.SessionCookie,
+		Value:    token,
+		HTTPOnly: true,
+		Path:     "/",
+		MaxAge:   30 * 24 * 60 * 60, // 30 days
+	})
+
+	return c.Redirect("/")
+}
+
+// --- Existing handlers (now with user context) ---
 
 func (s *Server) handleIndex(c *fiber.Ctx) error {
 	targets, err := s.storage.GetTargets(c.Context())
@@ -55,10 +243,10 @@ func (s *Server) handleIndex(c *fiber.Ctx) error {
 		return c.Status(500).SendString(err.Error())
 	}
 
-	return c.Render("views/index", fiber.Map{
+	return c.Render("views/index", s.templateData(c, fiber.Map{
 		"Title":   "Perimeter Dashboard",
 		"Targets": targets,
-	}, "views/layouts/main")
+	}), "views/layouts/main")
 }
 
 func (s *Server) handleTargetDetails(c *fiber.Ctx) error {
@@ -76,10 +264,10 @@ func (s *Server) handleTargetDetails(c *fiber.Ctx) error {
 		return c.Status(500).SendString(err.Error())
 	}
 
-	return c.Render("views/target", fiber.Map{
+	return c.Render("views/target", s.templateData(c, fiber.Map{
 		"Title":  "Target Details",
 		"Target": target,
-	}, "views/layouts/main")
+	}), "views/layouts/main")
 }
 
 func (s *Server) handleDeleteTarget(c *fiber.Ctx) error {
@@ -101,9 +289,9 @@ func (s *Server) handleDeleteTarget(c *fiber.Ctx) error {
 }
 
 func (s *Server) handleImport(c *fiber.Ctx) error {
-	return c.Render("views/import", fiber.Map{
+	return c.Render("views/import", s.templateData(c, fiber.Map{
 		"Title": "Import Targets",
-	}, "views/layouts/main")
+	}), "views/layouts/main")
 }
 
 func (s *Server) handleImportSubmit(c *fiber.Ctx) error {
@@ -130,4 +318,39 @@ func (s *Server) handleImportSubmit(c *fiber.Ctx) error {
 	}
 
 	return c.Redirect("/")
+}
+
+// --- Admin handlers (placeholders for step 5 & 10) ---
+
+func (s *Server) handleSettings(c *fiber.Ctx) error {
+	return c.Render("views/settings", s.templateData(c, fiber.Map{
+		"Title": "Settings",
+	}), "views/layouts/main")
+}
+
+func (s *Server) handleInvite(c *fiber.Ctx) error {
+	u := auth.GetUser(c)
+	email := c.FormValue("email")
+	role := c.FormValue("role")
+
+	inviteRole := user.RoleMember
+	if role == "admin" {
+		inviteRole = user.RoleAdmin
+	}
+
+	token, err := s.auth.CreateInvite(c.Context(), u, email, inviteRole)
+	if err != nil {
+		return c.Render("views/settings", s.templateData(c, fiber.Map{
+			"Title": "Settings",
+			"Error": "Failed to create invite: " + err.Error(),
+		}), "views/layouts/main")
+	}
+
+	inviteLink := fmt.Sprintf("%s/register/%s", c.BaseURL(), token)
+
+	return c.Render("views/settings", s.templateData(c, fiber.Map{
+		"Title":      "Settings",
+		"InviteLink": inviteLink,
+		"InviteEmail": email,
+	}), "views/layouts/main")
 }

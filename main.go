@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"perimeter/ent"
+	"perimeter/internal/auth"
 	"perimeter/internal/scanner"
 	"perimeter/internal/server"
 	"perimeter/internal/storage"
@@ -64,6 +65,13 @@ var (
 	portInterval = getEnvOrDefaultDuration("PORT_INTERVAL", 1*time.Hour)
 	sslInterval  = getEnvOrDefaultDuration("SSL_INTERVAL", 12*time.Hour)
 	cspInterval  = getEnvOrDefaultDuration("CSP_INTERVAL", 1*time.Hour)
+
+	sessionMaxAge  = getEnvOrDefaultDuration("SESSION_MAX_AGE", 720*time.Hour)
+	oidcIssuer     = getEnvOrDefaultStr("OIDC_ISSUER", "")
+	oidcClientID   = getEnvOrDefaultStr("OIDC_CLIENT_ID", "")
+	oidcClientSecret = getEnvOrDefaultStr("OIDC_CLIENT_SECRET", "")
+	oidcRedirectURL  = getEnvOrDefaultStr("OIDC_REDIRECT_URL", "")
+	requireConfirm   = getEnvOrDefaultStr("REQUIRE_CONFIRM", "false")
 )
 
 func main() {
@@ -150,7 +158,25 @@ func main() {
 		log.Println("No target file provided, using existing database targets.")
 	}
 
-	// 4. Start Scanners
+	// 4. Initialize Auth
+	authCfg := auth.Config{
+		SessionMaxAge:    sessionMaxAge,
+		OIDCIssuer:       oidcIssuer,
+		OIDCClientID:     oidcClientID,
+		OIDCClientSecret: oidcClientSecret,
+		OIDCRedirectURL:  oidcRedirectURL,
+		RequireConfirm:   requireConfirm == "true",
+	}
+
+	authenticator, err := auth.New(context.Background(), authCfg, client)
+	if err != nil {
+		log.Fatalf("failed to initialize auth: %v", err)
+	}
+	if authCfg.OIDCEnabled() {
+		log.Println("OIDC authentication enabled")
+	}
+
+	// 5. Start Scanners
 	scanConfig := scanner.ScannerConfig{
 		PortScanInterval: portInterval,
 		SSLScanInterval:  sslInterval,
@@ -162,8 +188,8 @@ func main() {
 	mgr := scanner.NewManager(store, scanConfig)
 	mgr.Start()
 
-	// 5. Start Web Server
-	srv := server.New(store, viewsfs)
+	// 6. Start Web Server
+	srv := server.New(store, authenticator, viewsfs)
 	log.Printf("Perimeter is running on http://localhost:%s", httpPort)
 	log.Fatal(srv.Listen(":" + httpPort))
 }
