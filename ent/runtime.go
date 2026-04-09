@@ -7,6 +7,7 @@ import (
 	"perimeter/ent/invite"
 	"perimeter/ent/ip"
 	"perimeter/ent/job"
+	"perimeter/ent/notifierconfig"
 	"perimeter/ent/portscan"
 	"perimeter/ent/schema"
 	"perimeter/ent/session"
@@ -99,6 +100,25 @@ func init() {
 	job.DefaultUpdateTime = jobDescUpdateTime.Default.(func() time.Time)
 	// job.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
 	job.UpdateDefaultUpdateTime = jobDescUpdateTime.UpdateDefault.(func() time.Time)
+	notifierconfigMixin := schema.NotifierConfig{}.Mixin()
+	notifierconfigMixinFields0 := notifierconfigMixin[0].Fields()
+	_ = notifierconfigMixinFields0
+	notifierconfigFields := schema.NotifierConfig{}.Fields()
+	_ = notifierconfigFields
+	// notifierconfigDescCreateTime is the schema descriptor for create_time field.
+	notifierconfigDescCreateTime := notifierconfigMixinFields0[0].Descriptor()
+	// notifierconfig.DefaultCreateTime holds the default value on creation for the create_time field.
+	notifierconfig.DefaultCreateTime = notifierconfigDescCreateTime.Default.(func() time.Time)
+	// notifierconfigDescUpdateTime is the schema descriptor for update_time field.
+	notifierconfigDescUpdateTime := notifierconfigMixinFields0[1].Descriptor()
+	// notifierconfig.DefaultUpdateTime holds the default value on creation for the update_time field.
+	notifierconfig.DefaultUpdateTime = notifierconfigDescUpdateTime.Default.(func() time.Time)
+	// notifierconfig.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	notifierconfig.UpdateDefaultUpdateTime = notifierconfigDescUpdateTime.UpdateDefault.(func() time.Time)
+	// notifierconfigDescEnabled is the schema descriptor for enabled field.
+	notifierconfigDescEnabled := notifierconfigFields[2].Descriptor()
+	// notifierconfig.DefaultEnabled holds the default value on creation for the enabled field.
+	notifierconfig.DefaultEnabled = notifierconfigDescEnabled.Default.(bool)
 	portscanFields := schema.PortScan{}.Fields()
 	_ = portscanFields
 	// portscanDescScannedAt is the schema descriptor for scanned_at field.

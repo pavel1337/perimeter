@@ -11,6 +11,7 @@ import (
 	"perimeter/ent/invite"
 	"perimeter/ent/ip"
 	"perimeter/ent/job"
+	"perimeter/ent/notifierconfig"
 	"perimeter/ent/port"
 	"perimeter/ent/portscan"
 	"perimeter/ent/session"
@@ -88,6 +89,7 @@ func checkColumn(t, c string) error {
 			importerconfig.Table: importerconfig.ValidColumn,
 			invite.Table:         invite.ValidColumn,
 			job.Table:            job.ValidColumn,
+			notifierconfig.Table: notifierconfig.ValidColumn,
 			port.Table:           port.ValidColumn,
 			portscan.Table:       portscan.ValidColumn,
 			sslscan.Table:        sslscan.ValidColumn,

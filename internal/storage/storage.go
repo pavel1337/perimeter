@@ -334,3 +334,50 @@ func (s *EntStorage) SaveCSPScan(ctx context.Context, input string, header strin
 		Save(ctx)
 	return err
 }
+
+// GetPreviousPortCounts returns the set of open ports from the most recent scan for an IP.
+func (s *EntStorage) GetPreviousPortCounts(ctx context.Context, ipAddress string) ([]int, error) {
+	i, err := s.client.IP.Query().Where(ip.Address(ipAddress)).First(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	scan, err := s.client.PortScan.Query().
+		Where(portscan.HasIPWith(ip.IDEQ(i.ID))).
+		Order(ent.Desc(portscan.FieldScannedAt)).
+		WithPorts().
+		First(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var ports []int
+	for _, p := range scan.Edges.Ports {
+		ports = append(ports, p.Number)
+	}
+	return ports, nil
+}
+
+// GetPreviousSSLGrade returns the grade from the most recent SSL scan for a target.
+func (s *EntStorage) GetPreviousSSLGrade(ctx context.Context, input string) (string, error) {
+	t, err := s.client.Target.Query().Where(target.Input(input)).First(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	scan, err := s.client.SSLScan.Query().
+		Where(sslscan.HasTargetWith(target.IDEQ(t.ID))).
+		Order(ent.Desc(sslscan.FieldScannedAt)).
+		First(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return "", nil
+		}
+		return "", err
+	}
+
+	return scan.Grade, nil
+}

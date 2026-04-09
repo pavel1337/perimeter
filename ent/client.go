@@ -16,6 +16,7 @@ import (
 	"perimeter/ent/invite"
 	"perimeter/ent/ip"
 	"perimeter/ent/job"
+	"perimeter/ent/notifierconfig"
 	"perimeter/ent/port"
 	"perimeter/ent/portscan"
 	"perimeter/ent/session"
@@ -44,6 +45,8 @@ type Client struct {
 	Invite *InviteClient
 	// Job is the client for interacting with the Job builders.
 	Job *JobClient
+	// NotifierConfig is the client for interacting with the NotifierConfig builders.
+	NotifierConfig *NotifierConfigClient
 	// Port is the client for interacting with the Port builders.
 	Port *PortClient
 	// PortScan is the client for interacting with the PortScan builders.
@@ -72,6 +75,7 @@ func (c *Client) init() {
 	c.ImporterConfig = NewImporterConfigClient(c.config)
 	c.Invite = NewInviteClient(c.config)
 	c.Job = NewJobClient(c.config)
+	c.NotifierConfig = NewNotifierConfigClient(c.config)
 	c.Port = NewPortClient(c.config)
 	c.PortScan = NewPortScanClient(c.config)
 	c.SSLScan = NewSSLScanClient(c.config)
@@ -175,6 +179,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ImporterConfig: NewImporterConfigClient(cfg),
 		Invite:         NewInviteClient(cfg),
 		Job:            NewJobClient(cfg),
+		NotifierConfig: NewNotifierConfigClient(cfg),
 		Port:           NewPortClient(cfg),
 		PortScan:       NewPortScanClient(cfg),
 		SSLScan:        NewSSLScanClient(cfg),
@@ -205,6 +210,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ImporterConfig: NewImporterConfigClient(cfg),
 		Invite:         NewInviteClient(cfg),
 		Job:            NewJobClient(cfg),
+		NotifierConfig: NewNotifierConfigClient(cfg),
 		Port:           NewPortClient(cfg),
 		PortScan:       NewPortScanClient(cfg),
 		SSLScan:        NewSSLScanClient(cfg),
@@ -240,8 +246,8 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.CSPScan, c.IP, c.ImporterConfig, c.Invite, c.Job, c.Port, c.PortScan,
-		c.SSLScan, c.Session, c.Target, c.User,
+		c.CSPScan, c.IP, c.ImporterConfig, c.Invite, c.Job, c.NotifierConfig, c.Port,
+		c.PortScan, c.SSLScan, c.Session, c.Target, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -251,8 +257,8 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.CSPScan, c.IP, c.ImporterConfig, c.Invite, c.Job, c.Port, c.PortScan,
-		c.SSLScan, c.Session, c.Target, c.User,
+		c.CSPScan, c.IP, c.ImporterConfig, c.Invite, c.Job, c.NotifierConfig, c.Port,
+		c.PortScan, c.SSLScan, c.Session, c.Target, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -271,6 +277,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Invite.mutate(ctx, m)
 	case *JobMutation:
 		return c.Job.mutate(ctx, m)
+	case *NotifierConfigMutation:
+		return c.NotifierConfig.mutate(ctx, m)
 	case *PortMutation:
 		return c.Port.mutate(ctx, m)
 	case *PortScanMutation:
@@ -1014,6 +1022,139 @@ func (c *JobClient) mutate(ctx context.Context, m *JobMutation) (Value, error) {
 		return (&JobDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Job mutation op: %q", m.Op())
+	}
+}
+
+// NotifierConfigClient is a client for the NotifierConfig schema.
+type NotifierConfigClient struct {
+	config
+}
+
+// NewNotifierConfigClient returns a client for the NotifierConfig from the given config.
+func NewNotifierConfigClient(c config) *NotifierConfigClient {
+	return &NotifierConfigClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `notifierconfig.Hooks(f(g(h())))`.
+func (c *NotifierConfigClient) Use(hooks ...Hook) {
+	c.hooks.NotifierConfig = append(c.hooks.NotifierConfig, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `notifierconfig.Intercept(f(g(h())))`.
+func (c *NotifierConfigClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NotifierConfig = append(c.inters.NotifierConfig, interceptors...)
+}
+
+// Create returns a builder for creating a NotifierConfig entity.
+func (c *NotifierConfigClient) Create() *NotifierConfigCreate {
+	mutation := newNotifierConfigMutation(c.config, OpCreate)
+	return &NotifierConfigCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NotifierConfig entities.
+func (c *NotifierConfigClient) CreateBulk(builders ...*NotifierConfigCreate) *NotifierConfigCreateBulk {
+	return &NotifierConfigCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NotifierConfigClient) MapCreateBulk(slice any, setFunc func(*NotifierConfigCreate, int)) *NotifierConfigCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NotifierConfigCreateBulk{err: fmt.Errorf("calling to NotifierConfigClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NotifierConfigCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NotifierConfigCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NotifierConfig.
+func (c *NotifierConfigClient) Update() *NotifierConfigUpdate {
+	mutation := newNotifierConfigMutation(c.config, OpUpdate)
+	return &NotifierConfigUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NotifierConfigClient) UpdateOne(_m *NotifierConfig) *NotifierConfigUpdateOne {
+	mutation := newNotifierConfigMutation(c.config, OpUpdateOne, withNotifierConfig(_m))
+	return &NotifierConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NotifierConfigClient) UpdateOneID(id int) *NotifierConfigUpdateOne {
+	mutation := newNotifierConfigMutation(c.config, OpUpdateOne, withNotifierConfigID(id))
+	return &NotifierConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NotifierConfig.
+func (c *NotifierConfigClient) Delete() *NotifierConfigDelete {
+	mutation := newNotifierConfigMutation(c.config, OpDelete)
+	return &NotifierConfigDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NotifierConfigClient) DeleteOne(_m *NotifierConfig) *NotifierConfigDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NotifierConfigClient) DeleteOneID(id int) *NotifierConfigDeleteOne {
+	builder := c.Delete().Where(notifierconfig.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NotifierConfigDeleteOne{builder}
+}
+
+// Query returns a query builder for NotifierConfig.
+func (c *NotifierConfigClient) Query() *NotifierConfigQuery {
+	return &NotifierConfigQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNotifierConfig},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NotifierConfig entity by its id.
+func (c *NotifierConfigClient) Get(ctx context.Context, id int) (*NotifierConfig, error) {
+	return c.Query().Where(notifierconfig.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NotifierConfigClient) GetX(ctx context.Context, id int) *NotifierConfig {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *NotifierConfigClient) Hooks() []Hook {
+	return c.hooks.NotifierConfig
+}
+
+// Interceptors returns the client interceptors.
+func (c *NotifierConfigClient) Interceptors() []Interceptor {
+	return c.inters.NotifierConfig
+}
+
+func (c *NotifierConfigClient) mutate(ctx context.Context, m *NotifierConfigMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NotifierConfigCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NotifierConfigUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NotifierConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NotifierConfigDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NotifierConfig mutation op: %q", m.Op())
 	}
 }
 
@@ -2010,11 +2151,11 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		CSPScan, IP, ImporterConfig, Invite, Job, Port, PortScan, SSLScan, Session,
-		Target, User []ent.Hook
+		CSPScan, IP, ImporterConfig, Invite, Job, NotifierConfig, Port, PortScan,
+		SSLScan, Session, Target, User []ent.Hook
 	}
 	inters struct {
-		CSPScan, IP, ImporterConfig, Invite, Job, Port, PortScan, SSLScan, Session,
-		Target, User []ent.Interceptor
+		CSPScan, IP, ImporterConfig, Invite, Job, NotifierConfig, Port, PortScan,
+		SSLScan, Session, Target, User []ent.Interceptor
 	}
 )

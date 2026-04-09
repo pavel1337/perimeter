@@ -8,9 +8,11 @@ import (
 
 	"perimeter/ent"
 	"perimeter/ent/importerconfig"
+	"perimeter/ent/notifierconfig"
 	"perimeter/ent/user"
 	"perimeter/internal/auth"
 	"perimeter/internal/importer"
+	"perimeter/internal/notifier"
 	"perimeter/internal/storage"
 
 	"github.com/gofiber/fiber/v2"
@@ -18,14 +20,15 @@ import (
 )
 
 type Server struct {
-	app      *fiber.App
-	storage  storage.Storage
-	auth     *auth.Auth
-	client   *ent.Client
-	registry *importer.Registry
+	app              *fiber.App
+	storage          storage.Storage
+	auth             *auth.Auth
+	client           *ent.Client
+	registry         *importer.Registry
+	notifierRegistry *notifier.Registry
 }
 
-func New(s storage.Storage, a *auth.Auth, client *ent.Client, registry *importer.Registry, viewsFS fs.FS) *Server {
+func New(s storage.Storage, a *auth.Auth, client *ent.Client, registry *importer.Registry, notifierReg *notifier.Registry, viewsFS fs.FS) *Server {
 	engine := html.NewFileSystem(http.FS(viewsFS), ".html")
 
 	app := fiber.New(fiber.Config{
@@ -33,11 +36,12 @@ func New(s storage.Storage, a *auth.Auth, client *ent.Client, registry *importer
 	})
 
 	srv := &Server{
-		app:      app,
-		storage:  s,
-		auth:     a,
-		client:   client,
-		registry: registry,
+		app:              app,
+		storage:          s,
+		auth:             a,
+		client:           client,
+		registry:         registry,
+		notifierRegistry: notifierReg,
 	}
 
 	srv.setupRoutes()
@@ -80,6 +84,9 @@ func (s *Server) setupRoutes() {
 	admin.Post("/importers", s.handleCreateImporter)
 	admin.Post("/importers/:id/delete", s.handleDeleteImporter)
 	admin.Post("/importers/:id/toggle", s.handleToggleImporter)
+	admin.Post("/notifiers", s.handleCreateNotifier)
+	admin.Post("/notifiers/:id/delete", s.handleDeleteNotifier)
+	admin.Post("/notifiers/:id/toggle", s.handleToggleNotifier)
 }
 
 // templateData returns a fiber.Map with common template data (user, role).
@@ -335,13 +342,17 @@ func (s *Server) handleImportSubmit(c *fiber.Ctx) error {
 func (s *Server) settingsData(c *fiber.Ctx, extra fiber.Map) fiber.Map {
 	users, _ := s.client.User.Query().All(c.Context())
 	importers, _ := s.client.ImporterConfig.Query().All(c.Context())
+	notifiers, _ := s.client.NotifierConfig.Query().All(c.Context())
 	providers := s.registry.List()
+	notifierProviders := s.notifierRegistry.List()
 
 	data := s.templateData(c, fiber.Map{
-		"Title":     "Settings",
-		"Users":     users,
-		"Importers": importers,
-		"Providers": providers,
+		"Title":             "Settings",
+		"Users":             users,
+		"Importers":         importers,
+		"Notifiers":         notifiers,
+		"Providers":         providers,
+		"NotifierProviders": notifierProviders,
 	})
 	for k, v := range extra {
 		data[k] = v
@@ -457,5 +468,55 @@ func (s *Server) handleToggleImporter(c *fiber.Ctx) error {
 	}
 
 	s.client.ImporterConfig.UpdateOne(cfg).SetEnabled(!cfg.Enabled).Exec(c.Context())
+	return c.Redirect("/settings")
+}
+
+// --- Notifier handlers ---
+
+func (s *Server) handleCreateNotifier(c *fiber.Ctx) error {
+	provider := c.FormValue("provider")
+	config := c.FormValue("config")
+
+	_, err := s.client.NotifierConfig.Create().
+		SetProvider(notifierconfig.Provider(provider)).
+		SetConfig([]byte(config)).
+		SetEnabled(true).
+		Save(c.Context())
+	if err != nil {
+		return c.Render("views/settings", s.settingsData(c, fiber.Map{
+			"Error": "Failed to create notifier: " + err.Error(),
+		}), "views/layouts/main")
+	}
+
+	return c.Redirect("/settings")
+}
+
+func (s *Server) handleDeleteNotifier(c *fiber.Ctx) error {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(400).SendString("Invalid ID")
+	}
+
+	if err := s.client.NotifierConfig.DeleteOneID(id).Exec(c.Context()); err != nil {
+		return c.Render("views/settings", s.settingsData(c, fiber.Map{
+			"Error": "Failed to delete notifier: " + err.Error(),
+		}), "views/layouts/main")
+	}
+
+	return c.Redirect("/settings")
+}
+
+func (s *Server) handleToggleNotifier(c *fiber.Ctx) error {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(400).SendString("Invalid ID")
+	}
+
+	cfg, err := s.client.NotifierConfig.Get(c.Context(), id)
+	if err != nil {
+		return c.Status(404).SendString("Notifier not found")
+	}
+
+	s.client.NotifierConfig.UpdateOne(cfg).SetEnabled(!cfg.Enabled).Exec(c.Context())
 	return c.Redirect("/settings")
 }

@@ -68,6 +68,18 @@ func (f JobFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.JobMutation", m)
 }
 
+// The NotifierConfigFunc type is an adapter to allow the use of ordinary
+// function as NotifierConfig mutator.
+type NotifierConfigFunc func(context.Context, *ent.NotifierConfigMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NotifierConfigFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NotifierConfigMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NotifierConfigMutation", m)
+}
+
 // The PortFunc type is an adapter to allow the use of ordinary
 // function as Port mutator.
 type PortFunc func(context.Context, *ent.PortMutation) (ent.Value, error)

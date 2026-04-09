@@ -21,6 +21,9 @@ type Invite func(*sql.Selector)
 // Job is the predicate function for job builders.
 type Job func(*sql.Selector)
 
+// NotifierConfig is the predicate function for notifierconfig builders.
+type NotifierConfig func(*sql.Selector)
+
 // Port is the predicate function for port builders.
 type Port func(*sql.Selector)
 

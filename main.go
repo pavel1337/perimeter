@@ -14,6 +14,7 @@ import (
 	"perimeter/ent"
 	"perimeter/internal/auth"
 	"perimeter/internal/importer"
+	"perimeter/internal/notifier"
 	"perimeter/internal/scanner"
 	"perimeter/internal/server"
 	"perimeter/internal/storage"
@@ -177,7 +178,12 @@ func main() {
 		log.Println("OIDC authentication enabled")
 	}
 
-	// 5. Start Scanners
+	// 5. Start Notifier
+	notifierRegistry := notifier.NewRegistry()
+	notifierRegistry.Register("webhook", notifier.NewWebhookFactory())
+	dispatcher := notifier.NewDispatcher(client, notifierRegistry)
+
+	// 6. Start Scanners
 	scanConfig := scanner.ScannerConfig{
 		PortScanInterval: portInterval,
 		SSLScanInterval:  sslInterval,
@@ -187,17 +193,17 @@ func main() {
 		UseDBQueue:       true,
 	}
 
-	mgr := scanner.NewManager(store, scanConfig)
+	mgr := scanner.NewManager(store, scanConfig, dispatcher)
 	mgr.Start()
 
-	// 6. Start Importer Sync Loop
+	// 7. Start Importer Sync Loop
 	importerRegistry := importer.NewRegistry()
 	importerRegistry.Register("dns_bruteforce", importer.NewDNSBruteforceFactory())
 	syncLoop := importer.NewSyncLoop(client, importerRegistry, store)
 	syncLoop.Start()
 
-	// 7. Start Web Server
-	srv := server.New(store, authenticator, client, importerRegistry, viewsfs)
+	// 8. Start Web Server
+	srv := server.New(store, authenticator, client, importerRegistry, notifierRegistry, viewsfs)
 	log.Printf("Perimeter is running on http://localhost:%s", httpPort)
 	log.Fatal(srv.Listen(":" + httpPort))
 }

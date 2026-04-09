@@ -2,13 +2,16 @@ package scanner
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"perimeter/ent/job"
+	"perimeter/internal/notifier"
 	"perimeter/internal/storage"
 	"perimeter/scanner/csp"
 	"perimeter/scanner/ports"
@@ -27,16 +30,17 @@ type ScannerConfig struct {
 }
 
 type Manager struct {
-	storage  *storage.EntStorage
-	config   ScannerConfig
-	queue    Queue
+	storage    *storage.EntStorage
+	config     ScannerConfig
+	queue      Queue
+	dispatcher *notifier.Dispatcher
 
 	// inFlight is only used with InMemoryQueue
 	inFlight   map[string]struct{}
 	inFlightMu sync.Mutex
 }
 
-func NewManager(s *storage.EntStorage, cfg ScannerConfig) *Manager {
+func NewManager(s *storage.EntStorage, cfg ScannerConfig, dispatcher *notifier.Dispatcher) *Manager {
 	if cfg.ResolutionInterval == 0 {
 		cfg.ResolutionInterval = 1 * time.Minute
 	}
@@ -55,10 +59,11 @@ func NewManager(s *storage.EntStorage, cfg ScannerConfig) *Manager {
 	}
 
 	return &Manager{
-		storage:  s,
-		config:   cfg,
-		queue:    q,
-		inFlight: make(map[string]struct{}),
+		storage:    s,
+		config:     cfg,
+		queue:      q,
+		dispatcher: dispatcher,
+		inFlight:   make(map[string]struct{}),
 	}
 }
 
@@ -327,6 +332,14 @@ func (m *Manager) processResolution(ctx context.Context, j Job) {
 
 func (m *Manager) processPortScan(ctx context.Context, j Job, scanner *ports.SimpleScanner) {
 	log.Printf("Worker: Scanning IP %s", j.Address)
+
+	// Get previous ports before scanning
+	prevPorts, _ := m.storage.GetPreviousPortCounts(ctx, j.Address)
+	prevSet := make(map[int]bool, len(prevPorts))
+	for _, p := range prevPorts {
+		prevSet[p] = true
+	}
+
 	openPorts, err := scanner.Scan(j.Address)
 	if err != nil {
 		log.Printf("Worker: Failed to scan %s: %v", j.Address, err)
@@ -338,14 +351,39 @@ func (m *Manager) processPortScan(ctx context.Context, j Job, scanner *ports.Sim
 	if err != nil {
 		log.Printf("Worker: Failed to save results for %s: %v", j.Address, err)
 		m.failJob(ctx, j, err.Error())
-	} else {
-		log.Printf("Worker: Saved %d ports for %s", len(openPorts), j.Address)
-		m.completeJob(ctx, j)
+		return
+	}
+
+	log.Printf("Worker: Saved %d ports for %s", len(openPorts), j.Address)
+	m.completeJob(ctx, j)
+
+	// Check for new open ports
+	var newPorts []int
+	for _, p := range openPorts {
+		if !prevSet[p] {
+			newPorts = append(newPorts, p)
+		}
+	}
+	if len(newPorts) > 0 {
+		portStrs := make([]string, len(newPorts))
+		for i, p := range newPorts {
+			portStrs[i] = fmt.Sprintf("%d", p)
+		}
+		m.dispatcher.Dispatch(ctx, notifier.Event{
+			Type:    notifier.EventNewOpenPorts,
+			Target:  j.Address,
+			Message: fmt.Sprintf("New open ports detected on %s: %s", j.Address, strings.Join(portStrs, ", ")),
+			Details: map[string]any{"new_ports": newPorts, "all_ports": openPorts},
+			Timestamp: time.Now(),
+		})
 	}
 }
 
 func (m *Manager) processSSLScan(ctx context.Context, j Job, scanner *ssl.SSLLabsScanner) {
 	log.Printf("Worker: SSL Scanning %s", j.Input)
+
+	prevGrade, _ := m.storage.GetPreviousSSLGrade(ctx, j.Input)
+
 	res, err := scanner.Scan(j.Input)
 	if err != nil {
 		log.Printf("Worker: SSL Scan failed for %s: %v", j.Input, err)
@@ -372,9 +410,32 @@ func (m *Manager) processSSLScan(ctx context.Context, j Job, scanner *ssl.SSLLab
 	if err != nil {
 		log.Printf("Worker: Failed to save SSL for %s: %v", j.Input, err)
 		m.failJob(ctx, j, err.Error())
-	} else {
-		log.Printf("Worker: Saved SSL for %s", j.Input)
-		m.completeJob(ctx, j)
+		return
+	}
+
+	log.Printf("Worker: Saved SSL for %s", j.Input)
+	m.completeJob(ctx, j)
+
+	// Check for grade drop
+	if prevGrade != "" && res.Grade > prevGrade {
+		m.dispatcher.Dispatch(ctx, notifier.Event{
+			Type:    notifier.EventSSLGradeDrop,
+			Target:  j.Input,
+			Message: fmt.Sprintf("SSL grade dropped for %s: %s → %s", j.Input, prevGrade, res.Grade),
+			Details: map[string]any{"previous_grade": prevGrade, "new_grade": res.Grade},
+			Timestamp: time.Now(),
+		})
+	}
+
+	// Check for expiring cert (<30 days)
+	if !res.CertExpiry.IsZero() && time.Until(res.CertExpiry) < 30*24*time.Hour {
+		m.dispatcher.Dispatch(ctx, notifier.Event{
+			Type:    notifier.EventCertExpiring,
+			Target:  j.Input,
+			Message: fmt.Sprintf("Certificate for %s expires on %s", j.Input, res.CertExpiry.Format("2006-01-02")),
+			Details: map[string]any{"cert_expiry": res.CertExpiry, "cert_subject": res.CertSubject},
+			Timestamp: time.Now(),
+		})
 	}
 }
 
@@ -420,8 +481,26 @@ func (m *Manager) processCSPScan(ctx context.Context, j Job, client http.Client,
 	if err != nil {
 		log.Printf("Worker: Failed to save CSP for %s: %v", j.Input, err)
 		m.failJob(ctx, j, err.Error())
-	} else {
-		log.Printf("Worker: Saved CSP for %s", j.Input)
-		m.completeJob(ctx, j)
+		return
+	}
+
+	log.Printf("Worker: Saved CSP for %s", j.Input)
+	m.completeJob(ctx, j)
+
+	// Notify on high-severity CSP findings
+	var highFindings []string
+	for _, f := range findings {
+		if f.Severity <= csp.SeverityMedium {
+			highFindings = append(highFindings, f.Description)
+		}
+	}
+	if len(highFindings) > 0 {
+		m.dispatcher.Dispatch(ctx, notifier.Event{
+			Type:    notifier.EventCSPIssues,
+			Target:  j.Input,
+			Message: fmt.Sprintf("CSP issues found on %s: %s", j.Input, strings.Join(highFindings, "; ")),
+			Details: map[string]any{"findings_count": len(highFindings)},
+			Timestamp: time.Now(),
+		})
 	}
 }

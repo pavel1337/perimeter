@@ -127,4 +127,56 @@
   <button type="submit" class="btn-primary">Add Importer</button>
 </form>
 
+<!-- Notifiers -->
+<h2>Notifiers</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Provider</th>
+      <th>Status</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .Notifiers}}
+    <tr>
+      <td class="mono">{{.Provider}}</td>
+      <td>
+        {{if .Enabled}}<span class="badge badge-green">enabled</span>
+        {{else}}<span class="badge badge-gray">disabled</span>{{end}}
+      </td>
+      <td>
+        <form method="POST" action="/notifiers/{{.ID}}/toggle" style="display:inline;">
+          <button type="submit">{{if .Enabled}}Disable{{else}}Enable{{end}}</button>
+        </form>
+        <form method="POST" action="/notifiers/{{.ID}}/delete"
+          onsubmit="return confirm('Delete this notifier?');" style="display:inline;">
+          <button type="submit" class="btn-danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {{else}}
+    <tr><td colspan="3" class="text-muted">No notifiers configured.</td></tr>
+    {{end}}
+  </tbody>
+</table>
+
+<h3>Add Notifier</h3>
+<form action="/notifiers" method="POST">
+  <div class="form-group">
+    <label for="notifier_provider">Provider</label>
+    <select name="provider" id="notifier_provider">
+      {{range .NotifierProviders}}
+      <option value="{{.}}">{{.}}</option>
+      {{end}}
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="notifier_config">Config (JSON)</label>
+    <textarea name="config" id="notifier_config" rows="3" style="width: 100%; max-width: 500px;"
+      placeholder='{"url": "https://example.com/webhook"}'></textarea>
+  </div>
+  <button type="submit" class="btn-primary">Add Notifier</button>
+</form>
+
 {{template "views/partials/footer" .}}

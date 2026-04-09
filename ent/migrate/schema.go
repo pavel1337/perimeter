@@ -106,6 +106,21 @@ var (
 		Columns:    JobsColumns,
 		PrimaryKey: []*schema.Column{JobsColumns[0]},
 	}
+	// NotifierConfigsColumns holds the columns for the "notifier_configs" table.
+	NotifierConfigsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "create_time", Type: field.TypeTime},
+		{Name: "update_time", Type: field.TypeTime},
+		{Name: "provider", Type: field.TypeEnum, Enums: []string{"webhook"}},
+		{Name: "config", Type: field.TypeBytes},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+	}
+	// NotifierConfigsTable holds the schema information for the "notifier_configs" table.
+	NotifierConfigsTable = &schema.Table{
+		Name:       "notifier_configs",
+		Columns:    NotifierConfigsColumns,
+		PrimaryKey: []*schema.Column{NotifierConfigsColumns[0]},
+	}
 	// PortsColumns holds the columns for the "ports" table.
 	PortsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -269,6 +284,7 @@ var (
 		ImporterConfigsTable,
 		InvitesTable,
 		JobsTable,
+		NotifierConfigsTable,
 		PortsTable,
 		PortScansTable,
 		SslScansTable,

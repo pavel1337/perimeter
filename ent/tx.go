@@ -22,6 +22,8 @@ type Tx struct {
 	Invite *InviteClient
 	// Job is the client for interacting with the Job builders.
 	Job *JobClient
+	// NotifierConfig is the client for interacting with the NotifierConfig builders.
+	NotifierConfig *NotifierConfigClient
 	// Port is the client for interacting with the Port builders.
 	Port *PortClient
 	// PortScan is the client for interacting with the PortScan builders.
@@ -170,6 +172,7 @@ func (tx *Tx) init() {
 	tx.ImporterConfig = NewImporterConfigClient(tx.config)
 	tx.Invite = NewInviteClient(tx.config)
 	tx.Job = NewJobClient(tx.config)
+	tx.NotifierConfig = NewNotifierConfigClient(tx.config)
 	tx.Port = NewPortClient(tx.config)
 	tx.PortScan = NewPortScanClient(tx.config)
 	tx.SSLScan = NewSSLScanClient(tx.config)
