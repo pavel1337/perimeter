@@ -23,6 +23,10 @@ const (
 	FieldEmail = "email"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
+	// FieldPasswordHash holds the string denoting the password_hash field in the database.
+	FieldPasswordHash = "password_hash"
+	// FieldConfirmed holds the string denoting the confirmed field in the database.
+	FieldConfirmed = "confirmed"
 	// FieldRole holds the string denoting the role field in the database.
 	FieldRole = "role"
 	// FieldLastLoginAt holds the string denoting the last_login_at field in the database.
@@ -65,6 +69,8 @@ var Columns = []string{
 	FieldUpdateTime,
 	FieldEmail,
 	FieldName,
+	FieldPasswordHash,
+	FieldConfirmed,
 	FieldRole,
 	FieldLastLoginAt,
 }
@@ -90,6 +96,8 @@ var (
 	EmailValidator func(string) error
 	// DefaultName holds the default value on creation for the "name" field.
 	DefaultName string
+	// DefaultConfirmed holds the default value on creation for the "confirmed" field.
+	DefaultConfirmed bool
 )
 
 // Role defines the type for the "role" enum field.
@@ -144,6 +152,16 @@ func ByEmail(opts ...sql.OrderTermOption) OrderOption {
 // ByName orders the results by the name field.
 func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
+}
+
+// ByPasswordHash orders the results by the password_hash field.
+func ByPasswordHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPasswordHash, opts...).ToFunc()
+}
+
+// ByConfirmed orders the results by the confirmed field.
+func ByConfirmed(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldConfirmed, opts...).ToFunc()
 }
 
 // ByRole orders the results by the role field.

@@ -170,4 +170,8 @@ func init() {
 	userDescName := userFields[1].Descriptor()
 	// user.DefaultName holds the default value on creation for the name field.
 	user.DefaultName = userDescName.Default.(string)
+	// userDescConfirmed is the schema descriptor for confirmed field.
+	userDescConfirmed := userFields[3].Descriptor()
+	// user.DefaultConfirmed holds the default value on creation for the confirmed field.
+	user.DefaultConfirmed = userDescConfirmed.Default.(bool)
 }

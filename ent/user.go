@@ -25,6 +25,10 @@ type User struct {
 	Email string `json:"email,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
+	// PasswordHash holds the value of the "password_hash" field.
+	PasswordHash *string `json:"password_hash,omitempty"`
+	// Confirmed holds the value of the "confirmed" field.
+	Confirmed bool `json:"confirmed,omitempty"`
 	// Role holds the value of the "role" field.
 	Role user.Role `json:"role,omitempty"`
 	// LastLoginAt holds the value of the "last_login_at" field.
@@ -80,9 +84,11 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case user.FieldConfirmed:
+			values[i] = new(sql.NullBool)
 		case user.FieldID:
 			values[i] = new(sql.NullInt64)
-		case user.FieldEmail, user.FieldName, user.FieldRole:
+		case user.FieldEmail, user.FieldName, user.FieldPasswordHash, user.FieldRole:
 			values[i] = new(sql.NullString)
 		case user.FieldCreateTime, user.FieldUpdateTime, user.FieldLastLoginAt:
 			values[i] = new(sql.NullTime)
@@ -130,6 +136,19 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
 				_m.Name = value.String
+			}
+		case user.FieldPasswordHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field password_hash", values[i])
+			} else if value.Valid {
+				_m.PasswordHash = new(string)
+				*_m.PasswordHash = value.String
+			}
+		case user.FieldConfirmed:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field confirmed", values[i])
+			} else if value.Valid {
+				_m.Confirmed = value.Bool
 			}
 		case user.FieldRole:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -206,6 +225,14 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
+	builder.WriteString(", ")
+	if v := _m.PasswordHash; v != nil {
+		builder.WriteString("password_hash=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("confirmed=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Confirmed))
 	builder.WriteString(", ")
 	builder.WriteString("role=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Role))

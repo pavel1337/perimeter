@@ -15,6 +15,8 @@ func (User) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("email").Unique().NotEmpty(),
 		field.String("name").Default(""),
+		field.String("password_hash").Optional().Nillable(),
+		field.Bool("confirmed").Default(false),
 		field.Enum("role").Values("admin", "member").Default("member"),
 		field.Time("last_login_at").Optional().Nillable(),
 	}

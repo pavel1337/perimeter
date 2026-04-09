@@ -71,6 +71,34 @@ func (_c *UserCreate) SetNillableName(v *string) *UserCreate {
 	return _c
 }
 
+// SetPasswordHash sets the "password_hash" field.
+func (_c *UserCreate) SetPasswordHash(v string) *UserCreate {
+	_c.mutation.SetPasswordHash(v)
+	return _c
+}
+
+// SetNillablePasswordHash sets the "password_hash" field if the given value is not nil.
+func (_c *UserCreate) SetNillablePasswordHash(v *string) *UserCreate {
+	if v != nil {
+		_c.SetPasswordHash(*v)
+	}
+	return _c
+}
+
+// SetConfirmed sets the "confirmed" field.
+func (_c *UserCreate) SetConfirmed(v bool) *UserCreate {
+	_c.mutation.SetConfirmed(v)
+	return _c
+}
+
+// SetNillableConfirmed sets the "confirmed" field if the given value is not nil.
+func (_c *UserCreate) SetNillableConfirmed(v *bool) *UserCreate {
+	if v != nil {
+		_c.SetConfirmed(*v)
+	}
+	return _c
+}
+
 // SetRole sets the "role" field.
 func (_c *UserCreate) SetRole(v user.Role) *UserCreate {
 	_c.mutation.SetRole(v)
@@ -191,6 +219,10 @@ func (_c *UserCreate) defaults() {
 		v := user.DefaultName
 		_c.mutation.SetName(v)
 	}
+	if _, ok := _c.mutation.Confirmed(); !ok {
+		v := user.DefaultConfirmed
+		_c.mutation.SetConfirmed(v)
+	}
 	if _, ok := _c.mutation.Role(); !ok {
 		v := user.DefaultRole
 		_c.mutation.SetRole(v)
@@ -215,6 +247,9 @@ func (_c *UserCreate) check() error {
 	}
 	if _, ok := _c.mutation.Name(); !ok {
 		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "User.name"`)}
+	}
+	if _, ok := _c.mutation.Confirmed(); !ok {
+		return &ValidationError{Name: "confirmed", err: errors.New(`ent: missing required field "User.confirmed"`)}
 	}
 	if _, ok := _c.mutation.Role(); !ok {
 		return &ValidationError{Name: "role", err: errors.New(`ent: missing required field "User.role"`)}
@@ -265,6 +300,14 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(user.FieldName, field.TypeString, value)
 		_node.Name = value
+	}
+	if value, ok := _c.mutation.PasswordHash(); ok {
+		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
+		_node.PasswordHash = &value
+	}
+	if value, ok := _c.mutation.Confirmed(); ok {
+		_spec.SetField(user.FieldConfirmed, field.TypeBool, value)
+		_node.Confirmed = value
 	}
 	if value, ok := _c.mutation.Role(); ok {
 		_spec.SetField(user.FieldRole, field.TypeEnum, value)

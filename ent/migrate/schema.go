@@ -226,6 +226,8 @@ var (
 		{Name: "update_time", Type: field.TypeTime},
 		{Name: "email", Type: field.TypeString, Unique: true},
 		{Name: "name", Type: field.TypeString, Default: ""},
+		{Name: "password_hash", Type: field.TypeString, Nullable: true},
+		{Name: "confirmed", Type: field.TypeBool, Default: false},
 		{Name: "role", Type: field.TypeEnum, Enums: []string{"admin", "member"}, Default: "member"},
 		{Name: "last_login_at", Type: field.TypeTime, Nullable: true},
 	}
