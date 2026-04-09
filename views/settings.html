@@ -3,46 +3,45 @@
 <h1>Settings</h1>
 
 {{if .Error}}
-<p style="color: red; margin-bottom: 15px;">{{.Error}}</p>
+<div class="alert alert-error">{{.Error}}</div>
 {{end}}
 
 {{if .InviteLink}}
-<div style="background-color: #e8f5e9; border: 1px solid #4caf50; padding: 15px; margin-bottom: 20px;">
-  <p><strong>Invite created for {{.InviteEmail}}</strong></p>
-  <p>Share this link with them:</p>
-  <input type="text" value="{{.InviteLink}}" readonly style="width: 100%; padding: 5px; font-family: monospace;"
-    onclick="this.select();">
-  <p style="margin-top: 5px;"><small>This link expires in 72 hours.</small></p>
+<div class="alert alert-success">
+  <strong>Invite created for {{.InviteEmail}}</strong><br>
+  <input type="text" value="{{.InviteLink}}" readonly class="mono"
+    style="width: 100%; margin-top: 8px;" onclick="this.select();">
+  <div class="text-muted" style="margin-top: 4px;">Expires in 72 hours.</div>
 </div>
 {{end}}
 
-<!-- Invite User -->
+<!-- Invite -->
 <h2>Invite User</h2>
-<form action="/invite" method="POST" style="margin-bottom: 30px;">
-  <div style="margin-bottom: 10px;">
-    <label for="email" style="display:block; margin-bottom: 5px;">Email:</label>
+<form action="/invite" method="POST" style="margin-bottom: 32px;">
+  <div class="form-group">
+    <label for="email">Email</label>
     <input type="email" name="email" id="email" required style="width: 300px;">
   </div>
-  <div style="margin-bottom: 10px;">
-    <label for="role" style="display:block; margin-bottom: 5px;">Role:</label>
+  <div class="form-group">
+    <label for="role">Role</label>
     <select name="role" id="role">
       <option value="member">Member</option>
       <option value="admin">Admin</option>
     </select>
   </div>
-  <button type="submit">Create Invite</button>
+  <button type="submit" class="btn-primary">Create Invite</button>
 </form>
 
 <!-- Users -->
 <h2>Users</h2>
-<table border="1" cellpadding="8" cellspacing="0" style="margin-bottom: 30px;">
+<table>
   <thead>
     <tr>
       <th>Email</th>
       <th>Name</th>
       <th>Role</th>
       <th>Last Login</th>
-      <th>Actions</th>
+      <th></th>
     </tr>
   </thead>
   <tbody>
@@ -50,76 +49,82 @@
     <tr>
       <td>{{.Email}}</td>
       <td>{{.Name}}</td>
-      <td>{{.Role}}</td>
-      <td>{{if .LastLoginAt}}{{.LastLoginAt.Format "2006-01-02 15:04"}}{{else}}Never{{end}}</td>
+      <td>
+        {{if eq .Role.String "admin"}}<span class="badge badge-blue">admin</span>
+        {{else}}<span class="badge badge-gray">member</span>{{end}}
+      </td>
+      <td class="text-muted">{{if .LastLoginAt}}{{.LastLoginAt.Format "2006-01-02 15:04"}}{{else}}never{{end}}</td>
       <td>
         <form method="POST" action="/users/{{.ID}}/delete"
           onsubmit="return confirm('Delete user {{.Email}}?');" style="display:inline;">
-          <button type="submit" style="color: red; cursor: pointer;">Delete</button>
+          <button type="submit" class="btn-danger">Delete</button>
         </form>
       </td>
     </tr>
     {{else}}
-    <tr><td colspan="5">No users</td></tr>
+    <tr><td colspan="5" class="text-muted">No users.</td></tr>
     {{end}}
   </tbody>
 </table>
 
 <!-- Importers -->
 <h2>Importers</h2>
-<table border="1" cellpadding="8" cellspacing="0" style="margin-bottom: 20px;">
+<table>
   <thead>
     <tr>
       <th>Provider</th>
-      <th>Enabled</th>
+      <th>Status</th>
       <th>Interval</th>
       <th>Last Sync</th>
-      <th>Actions</th>
+      <th></th>
     </tr>
   </thead>
   <tbody>
     {{range .Importers}}
     <tr>
-      <td>{{.Provider}}</td>
-      <td>{{if .Enabled}}<span style="color:green;">Yes</span>{{else}}<span style="color:red;">No</span>{{end}}</td>
-      <td>{{.SyncIntervalSeconds}}s</td>
-      <td>{{if .LastSyncAt}}{{.LastSyncAt.Format "2006-01-02 15:04"}}{{else}}Never{{end}}</td>
+      <td class="mono">{{.Provider}}</td>
+      <td>
+        {{if .Enabled}}<span class="badge badge-green">enabled</span>
+        {{else}}<span class="badge badge-gray">disabled</span>{{end}}
+      </td>
+      <td class="text-muted">{{.SyncIntervalSeconds}}s</td>
+      <td class="text-muted">{{if .LastSyncAt}}{{.LastSyncAt.Format "2006-01-02 15:04"}}{{else}}never{{end}}</td>
       <td>
         <form method="POST" action="/importers/{{.ID}}/toggle" style="display:inline;">
-          <button type="submit" style="cursor: pointer;">{{if .Enabled}}Disable{{else}}Enable{{end}}</button>
+          <button type="submit">{{if .Enabled}}Disable{{else}}Enable{{end}}</button>
         </form>
         <form method="POST" action="/importers/{{.ID}}/delete"
           onsubmit="return confirm('Delete this importer?');" style="display:inline;">
-          <button type="submit" style="color: red; cursor: pointer;">Delete</button>
+          <button type="submit" class="btn-danger">Delete</button>
         </form>
       </td>
     </tr>
     {{else}}
-    <tr><td colspan="5">No importers configured</td></tr>
+    <tr><td colspan="5" class="text-muted">No importers configured.</td></tr>
     {{end}}
   </tbody>
 </table>
 
 <h3>Add Importer</h3>
-<form action="/importers" method="POST" style="margin-bottom: 20px;">
-  <div style="margin-bottom: 10px;">
-    <label for="provider" style="display:block; margin-bottom: 5px;">Provider:</label>
+<form action="/importers" method="POST">
+  <div class="form-group">
+    <label for="provider">Provider</label>
     <select name="provider" id="provider">
       {{range .Providers}}
       <option value="{{.}}">{{.}}</option>
       {{end}}
     </select>
   </div>
-  <div style="margin-bottom: 10px;">
-    <label for="credentials" style="display:block; margin-bottom: 5px;">Config (JSON):</label>
-    <textarea name="credentials" id="credentials" rows="4" cols="50"
+  <div class="form-group">
+    <label for="credentials">Config (JSON)</label>
+    <textarea name="credentials" id="credentials" rows="3" style="width: 100%; max-width: 500px;"
       placeholder='{"domain": "example.com"}'></textarea>
   </div>
-  <div style="margin-bottom: 10px;">
-    <label for="sync_interval" style="display:block; margin-bottom: 5px;">Sync Interval (seconds):</label>
-    <input type="number" name="sync_interval" id="sync_interval" value="3600" min="60" style="width: 150px;">
+  <div class="form-group">
+    <label for="sync_interval">Sync Interval (seconds)</label>
+    <input type="number" name="sync_interval" id="sync_interval" value="3600" min="60" style="width: 120px;">
   </div>
-  <button type="submit">Add Importer</button>
+  <button type="submit" class="btn-primary">Add Importer</button>
 </form>
 
 {{template "views/partials/footer" .}}

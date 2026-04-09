@@ -1,17 +1,18 @@
-<div style="background-color: #f0f0f0; padding: 10px; margin-bottom: 20px; border-bottom: 1px solid #ccc; display: flex; justify-content: space-between; align-items: center;">
+<nav>
   <div>
-    <a href="/" style="margin-right: 15px; text-decoration: none; font-weight: bold;">Dashboard</a>
-    <a href="/import" style="margin-right: 15px; text-decoration: none; font-weight: bold;">Import</a>
+    <a href="/">Dashboard</a>
+    <a href="/import">Import</a>
     {{if .IsAdmin}}
-    <a href="/settings" style="text-decoration: none; font-weight: bold;">Settings</a>
+    <a href="/settings">Settings</a>
     {{end}}
   </div>
   {{if .User}}
-  <div>
-    <span style="margin-right: 10px;">{{.User.Email}}</span>
-    <form method="POST" action="/logout" style="display: inline;">
-      <button type="submit" style="cursor: pointer;">Logout</button>
+  <div class="nav-right">
+    <span>{{.User.Email}}</span>
+    <form method="POST" action="/logout" style="display:inline;">
+      <button type="submit">Logout</button>
     </form>
   </div>
   {{end}}
-</div>
+</nav>
+<div class="container">

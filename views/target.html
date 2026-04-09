@@ -1,13 +1,13 @@
 {{template "views/partials/header" .}}
 
-<h1>Target: {{.Target.Input}}</h1>
-<p><a href="/">&larr; Back to Dashboard</a></p>
+<p style="margin-bottom: 16px;"><a href="/">&larr; Back</a></p>
+<h1>{{.Target.Input}}</h1>
 
-<h2>Resolved IPs & Port Scans</h2>
+<h2>Resolved IPs &amp; Port Scans</h2>
 {{if .Target.Edges.Ips}}
 {{range .Target.Edges.Ips}}
-<h3>IP: {{.Address}}</h3>
-<table border="1" cellpadding="5" cellspacing="0" width="100%">
+<h3 class="mono">{{.Address}}</h3>
+<table>
   <thead>
     <tr>
       <th>Time</th>
@@ -17,120 +17,99 @@
   <tbody>
     {{range .Edges.Scans}}
     <tr>
-      <td>{{.ScannedAt.Format "Jan 02, 2006 15:04:05"}}</td>
+      <td class="text-muted">{{.ScannedAt.Format "Jan 02, 2006 15:04"}}</td>
       <td>
         {{if .Edges.Ports}}
-        {{range .Edges.Ports}}
-        <span style="border:1px solid #ccc; padding:2px; margin-right:5px;">{{.Number}}</span>
-        {{end}}
+        {{range .Edges.Ports}}<span class="badge badge-red">{{.Number}}</span> {{end}}
         {{else}}
-        <span style="color:green">None</span>
+        <span class="badge badge-green">none</span>
         {{end}}
       </td>
     </tr>
     {{else}}
-    <tr>
-      <td colspan="2">No scans for this IP yet.</td>
-    </tr>
+    <tr><td colspan="2" class="text-muted">No scans yet.</td></tr>
     {{end}}
   </tbody>
 </table>
-<br>
 {{end}}
 {{else}}
-<p><em>Target not yet resolved to any IP addresses.</em></p>
+<p class="text-muted">Not yet resolved to any IP addresses.</p>
 {{end}}
 
 {{if not .Target.IsIP}}
-<h2>SSL Scans History</h2>
-<table border="1" cellpadding="5" cellspacing="0" width="100%">
+<h2>SSL History</h2>
+<table>
   <thead>
     <tr>
       <th>Time</th>
       <th>Grade</th>
       <th>Status</th>
-      <th>Cert Details</th>
+      <th>Certificate</th>
       <th>Vulnerabilities</th>
     </tr>
   </thead>
   <tbody>
     {{range .Target.Edges.SslScans}}
     <tr>
-      <td>{{.ScannedAt.Format "Jan 02, 2006 15:04:05"}}</td>
-      <td><strong>{{.Grade}}</strong></td>
+      <td class="text-muted">{{.ScannedAt.Format "Jan 02, 2006 15:04"}}</td>
+      <td><span class="badge badge-blue">{{.Grade}}</span></td>
       <td>{{.Status}}</td>
       <td>
         {{if .CertSubject}}
-        <div><strong>Subject:</strong> {{.CertSubject}}</div>
-        <div><strong>Issuer:</strong> {{.CertIssuer}}</div>
-        <div><strong>Expires:</strong> {{.CertExpiry.Format "2006-01-02"}}</div>
-        {{else}}
-        -
-        {{end}}
+        <div><strong>{{.CertSubject}}</strong></div>
+        <div class="text-muted">by {{.CertIssuer}}</div>
+        <div class="text-muted">expires {{.CertExpiry.Format "2006-01-02"}}</div>
+        {{else}}—{{end}}
       </td>
       <td>
         {{if .Vulnerabilities}}
-        {{range .Vulnerabilities}}
-        <div style="color:red">{{.}}</div>
-        {{end}}
+        {{range .Vulnerabilities}}<div><span class="badge badge-red">{{.}}</span></div>{{end}}
         {{else}}
-        <span style="color:green">None Detected</span>
+        <span class="badge badge-green">none</span>
         {{end}}
       </td>
     </tr>
     {{else}}
-    <tr>
-      <td colspan="5">No SSL scans yet.</td>
-    </tr>
+    <tr><td colspan="5" class="text-muted">No SSL scans yet.</td></tr>
     {{end}}
   </tbody>
 </table>
-{{end}}
 
-{{if not .Target.IsIP}}
-<h2>CSP Scans History</h2>
-<table border="1" cellpadding="5" cellspacing="0" width="100%">
+<h2>CSP History</h2>
+<table>
   <thead>
     <tr>
       <th>Time</th>
       <th>Findings</th>
-      <th>Raw Header</th>
+      <th>Header</th>
     </tr>
   </thead>
   <tbody>
     {{range .Target.Edges.CspScans}}
     <tr>
-      <td>{{.ScannedAt.Format "Jan 02, 2006 15:04:05"}}</td>
+      <td class="text-muted">{{.ScannedAt.Format "Jan 02, 2006 15:04"}}</td>
       <td>
         {{if .Findings}}
-        <ul style="padding-left: 20px; margin: 0;">
-          {{range .Findings}}
-          <li style="margin-bottom: 5px;">
-            {{if ge .Severity 40}}<strong style="color:red">[{{.Severity}}]</strong>{{else}}<strong
-              style="color:orange">[{{.Severity}}]</strong>{{end}}
-            <strong>{{.Directive}}:</strong> {{.Description}}
-          </li>
-          {{end}}
-        </ul>
+        {{range .Findings}}
+        <div style="margin-bottom: 4px;">
+          {{if ge .Severity 40}}<span class="badge badge-red">high</span>{{else}}<span class="badge badge-gray">info</span>{{end}}
+          <strong>{{.Directive}}</strong> {{.Description}}
+        </div>
+        {{end}}
         {{else}}
-        <span style="color:green">No Issues Found</span>
+        <span class="badge badge-green">clean</span>
         {{end}}
       </td>
       <td>
         {{if .CspHeader}}
-        <div
-          style="font-family: monospace; max-width: 400px; overflow-wrap: break-word; word-wrap: break-word; font-size: 0.9em;">
-          {{.CspHeader}}
-        </div>
+        <div class="mono" style="max-width: 350px; overflow-wrap: break-word;">{{.CspHeader}}</div>
         {{else}}
-        <span style="color:red; font-style: italic;">Missing Header</span>
+        <span class="badge badge-red">missing</span>
         {{end}}
       </td>
     </tr>
     {{else}}
-    <tr>
-      <td colspan="3">No CSP scans yet.</td>
-    </tr>
+    <tr><td colspan="3" class="text-muted">No CSP scans yet.</td></tr>
     {{end}}
   </tbody>
 </table>

@@ -1,36 +1,35 @@
 {{template "views/partials/header" .}}
 
-<h1>Target Status</h1>
+<h1>Targets</h1>
 
-<table border="1" cellpadding="10" cellspacing="0">
+<table>
   <thead>
     <tr>
-      <th>Target Input</th>
-      <th>CSP Scan</th>
+      <th>Target</th>
+      <th>CSP</th>
       <th>Open Ports</th>
-      <th>SSL Grade</th>
-      <th>Actions</th>
+      <th>SSL</th>
+      <th></th>
     </tr>
   </thead>
   <tbody>
     {{range .Targets}}
     <tr>
-      <td><strong><a href="/targets/{{.ID}}">{{.Input}}</a></strong></td>
+      <td><a href="/targets/{{.ID}}"><strong>{{.Input}}</strong></a></td>
 
       <td>
         {{if .IsIP}}
-        <small>N/A</small>
+        <span class="text-muted">—</span>
         {{else}}
         {{if .Edges.CspScans}}
         {{$latestCSP := index .Edges.CspScans 0}}
         {{if $latestCSP.Findings}}
-        {{$count := len $latestCSP.Findings}}
-        <span style="color:red"><strong>{{$count}} Findings</strong></span>
+        <span class="badge badge-red">{{len $latestCSP.Findings}} findings</span>
         {{else}}
-        <span style="color:green"><strong>OK</strong></span>
+        <span class="badge badge-green">OK</span>
         {{end}}
         {{else}}
-        <small>N/A</small>
+        <span class="text-muted">pending</span>
         {{end}}
         {{end}}
       </td>
@@ -38,52 +37,50 @@
       {{if .Edges.Ips}}
       <td>
         {{range .Edges.Ips}}
-        <div style="margin-bottom: 5px;">
-          <strong>{{.Address}}</strong>:
+        <div style="margin-bottom: 4px;">
+          <span class="mono">{{.Address}}</span>
           {{if .Edges.Scans}}
           {{$latestScan := index .Edges.Scans 0}}
           {{if $latestScan.Edges.Ports}}
-          <span style="color:red">
-            {{range $latestScan.Edges.Ports}}[{{.Number}}] {{end}}
-          </span>
+          {{range $latestScan.Edges.Ports}}<span class="badge badge-red">{{.Number}}</span> {{end}}
           {{else}}
-          <span style="color:green">Safe</span>
+          <span class="badge badge-green">clean</span>
           {{end}}
-          <small>({{$latestScan.ScannedAt.Format "01/02 15:04"}})</small>
+          <span class="text-muted">{{$latestScan.ScannedAt.Format "01/02 15:04"}}</span>
           {{else}}
-          <em>Pending...</em>
+          <span class="text-muted">pending</span>
           {{end}}
         </div>
         {{end}}
       </td>
       {{else}}
-      <td><em>Resolving...</em></td>
+      <td><span class="text-muted">resolving...</span></td>
       {{end}}
 
       <td>
         {{if .IsIP}}
-        <small>N/A</small>
+        <span class="text-muted">—</span>
         {{else}}
         {{if .Edges.SslScans}}
         {{$latestSSL := index .Edges.SslScans 0}}
-        <strong>{{$latestSSL.Grade}}</strong>
-        <br>
-        <small>{{$latestSSL.Status}}</small>
+        <span class="badge badge-blue">{{$latestSSL.Grade}}</span>
+        <span class="text-muted">{{$latestSSL.Status}}</span>
         {{else}}
-        <small>N/A</small>
+        <span class="text-muted">pending</span>
         {{end}}
         {{end}}
       </td>
+
       <td>
         <form method="POST" action="/targets/{{.ID}}/delete"
-          onsubmit="return confirm('Are you sure you want to delete this target?');" style="display:inline;">
-          <button type="submit" style="color: red; cursor: pointer;">Delete</button>
+          onsubmit="return confirm('Delete this target?');" style="display:inline;">
+          <button type="submit" class="btn-danger">Delete</button>
         </form>
       </td>
     </tr>
     {{else}}
     <tr>
-      <td colspan="4">No targets loaded. Run with -targets=file.txt</td>
+      <td colspan="5" class="text-muted" style="text-align:center; padding:24px;">No targets yet. <a href="/import">Import some.</a></td>
     </tr>
     {{end}}
   </tbody>

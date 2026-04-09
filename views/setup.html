@@ -1,22 +1,26 @@
-<h1>Setup — Create Admin Account</h1>
-<p>This is the first time running Perimeter. Create an admin account to get started.</p>
+<div class="container" style="max-width: 400px; margin-top: 80px;">
+
+<h1>Setup</h1>
+<p style="color: #666; margin-bottom: 20px;">Create the admin account to get started.</p>
 
 {{if .Error}}
-<p style="color: red; margin-bottom: 15px;">{{.Error}}</p>
+<div class="alert alert-error">{{.Error}}</div>
 {{end}}
 
 <form action="/setup" method="POST">
-  <div style="margin-bottom: 10px;">
-    <label for="name" style="display:block; margin-bottom: 5px;">Name:</label>
-    <input type="text" name="name" id="name" required style="width: 300px;">
+  <div class="form-group">
+    <label for="name">Name</label>
+    <input type="text" name="name" id="name" required style="width: 100%;">
   </div>
-  <div style="margin-bottom: 10px;">
-    <label for="email" style="display:block; margin-bottom: 5px;">Email:</label>
-    <input type="email" name="email" id="email" required style="width: 300px;">
+  <div class="form-group">
+    <label for="email">Email</label>
+    <input type="email" name="email" id="email" required style="width: 100%;">
   </div>
-  <div style="margin-bottom: 10px;">
-    <label for="password" style="display:block; margin-bottom: 5px;">Password:</label>
-    <input type="password" name="password" id="password" required minlength="8" style="width: 300px;">
+  <div class="form-group">
+    <label for="password">Password</label>
+    <input type="password" name="password" id="password" required minlength="8" style="width: 100%;">
   </div>
-  <button type="submit">Create Admin</button>
+  <button type="submit" class="btn-primary" style="width: 100%;">Create Admin</button>
 </form>
+
+</div>
