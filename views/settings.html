@@ -106,26 +106,105 @@
 </table>
 
 <h3>Add Importer</h3>
-<form action="/importers" method="POST">
+<form action="/importers" method="POST" id="importer-form">
   <div class="form-group">
     <label for="provider">Provider</label>
-    <select name="provider" id="provider">
+    <select name="provider" id="provider" onchange="showProviderFields()">
       {{range .Providers}}
       <option value="{{.}}">{{.}}</option>
       {{end}}
     </select>
   </div>
-  <div class="form-group">
-    <label for="credentials">Config (JSON)</label>
-    <textarea name="credentials" id="credentials" rows="3" style="width: 100%; max-width: 500px;"
-      placeholder='{"domain": "example.com"}'></textarea>
+
+  <div id="fields-dns_bruteforce" class="provider-fields">
+    <div class="form-group">
+      <label for="dns_domain">Domain</label>
+      <input type="text" id="dns_domain" placeholder="example.com" style="width: 300px;">
+    </div>
   </div>
+
+  <div id="fields-hetzner_cloud" class="provider-fields" style="display:none;">
+    <div class="form-group">
+      <label for="hcloud_token">API Token</label>
+      <input type="password" id="hcloud_token" placeholder="Hetzner Cloud API token" style="width: 300px;">
+    </div>
+  </div>
+
+  <div id="fields-hetzner_robot" class="provider-fields" style="display:none;">
+    <div class="form-group">
+      <label for="robot_user">Webservice User</label>
+      <input type="text" id="robot_user" placeholder="#ws+user" style="width: 300px;">
+    </div>
+    <div class="form-group">
+      <label for="robot_password">Webservice Password</label>
+      <input type="password" id="robot_password" style="width: 300px;">
+    </div>
+  </div>
+
+  <div id="fields-namecheap" class="provider-fields" style="display:none;">
+    <div class="form-group">
+      <label for="nc_api_user">API User</label>
+      <input type="text" id="nc_api_user" style="width: 300px;">
+    </div>
+    <div class="form-group">
+      <label for="nc_api_key">API Key</label>
+      <input type="password" id="nc_api_key" style="width: 300px;">
+    </div>
+    <div class="form-group">
+      <label for="nc_client_ip">Client IP</label>
+      <input type="text" id="nc_client_ip" placeholder="Your whitelisted IP" style="width: 300px;">
+    </div>
+  </div>
+
+  <div id="fields-gandi" class="provider-fields" style="display:none;">
+    <div class="form-group">
+      <label for="gandi_api_key">API Key (Personal Access Token)</label>
+      <input type="password" id="gandi_api_key" style="width: 300px;">
+    </div>
+  </div>
+
+  <input type="hidden" name="credentials" id="credentials-hidden">
+
   <div class="form-group">
     <label for="sync_interval">Sync Interval (seconds)</label>
     <input type="number" name="sync_interval" id="sync_interval" value="3600" min="60" style="width: 120px;">
   </div>
-  <button type="submit" class="btn-primary">Add Importer</button>
+  <button type="submit" class="btn-primary" onclick="buildCredentials()">Add Importer</button>
 </form>
+
+<script>
+function showProviderFields() {
+  document.querySelectorAll('.provider-fields').forEach(function(el) { el.style.display = 'none'; });
+  var provider = document.getElementById('provider').value;
+  var fields = document.getElementById('fields-' + provider);
+  if (fields) fields.style.display = '';
+}
+
+function buildCredentials() {
+  var provider = document.getElementById('provider').value;
+  var config = {};
+  switch (provider) {
+    case 'dns_bruteforce':
+      config = { domain: document.getElementById('dns_domain').value };
+      break;
+    case 'hetzner_cloud':
+      config = { api_token: document.getElementById('hcloud_token').value };
+      break;
+    case 'hetzner_robot':
+      config = { user: document.getElementById('robot_user').value, password: document.getElementById('robot_password').value };
+      break;
+    case 'namecheap':
+      config = { api_user: document.getElementById('nc_api_user').value, api_key: document.getElementById('nc_api_key').value, client_ip: document.getElementById('nc_client_ip').value };
+      break;
+    case 'gandi':
+      config = { api_key: document.getElementById('gandi_api_key').value };
+      break;
+  }
+  document.getElementById('credentials-hidden').value = JSON.stringify(config);
+}
+
+showProviderFields();
+</script>
 
 <!-- Notifiers -->
 <h2>Notifiers</h2>
@@ -162,7 +241,7 @@
 </table>
 
 <h3>Add Notifier</h3>
-<form action="/notifiers" method="POST">
+<form action="/notifiers" method="POST" onsubmit="buildNotifierConfig()">
   <div class="form-group">
     <label for="notifier_provider">Provider</label>
     <select name="provider" id="notifier_provider">
@@ -172,12 +251,19 @@
     </select>
   </div>
   <div class="form-group">
-    <label for="notifier_config">Config (JSON)</label>
-    <textarea name="config" id="notifier_config" rows="3" style="width: 100%; max-width: 500px;"
-      placeholder='{"url": "https://example.com/webhook"}'></textarea>
+    <label for="webhook_url">Webhook URL</label>
+    <input type="url" id="webhook_url" placeholder="https://example.com/webhook" style="width: 100%; max-width: 500px;">
   </div>
+  <input type="hidden" name="config" id="notifier-config-hidden">
   <button type="submit" class="btn-primary">Add Notifier</button>
 </form>
+
+<script>
+function buildNotifierConfig() {
+  var url = document.getElementById('webhook_url').value;
+  document.getElementById('notifier-config-hidden').value = JSON.stringify({ url: url });
+}
+</script>
 
 <!-- Tags -->
 <h2>Tags</h2>

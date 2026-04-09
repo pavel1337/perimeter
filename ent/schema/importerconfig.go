@@ -12,7 +12,7 @@ type ImporterConfig struct {
 
 func (ImporterConfig) Fields() []ent.Field {
 	return []ent.Field{
-		field.Enum("provider").Values("manual", "dns_bruteforce"),
+		field.Enum("provider").Values("manual", "dns_bruteforce", "hetzner_cloud", "hetzner_robot", "namecheap", "gandi"),
 		field.Bytes("credentials"),
 		field.Int64("sync_interval_seconds").Default(3600),
 		field.Time("last_sync_at").Optional().Nillable(),

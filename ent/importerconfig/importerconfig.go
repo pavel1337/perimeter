@@ -74,6 +74,10 @@ type Provider string
 const (
 	ProviderManual        Provider = "manual"
 	ProviderDNSBruteforce Provider = "dns_bruteforce"
+	ProviderHetznerCloud  Provider = "hetzner_cloud"
+	ProviderHetznerRobot  Provider = "hetzner_robot"
+	ProviderNamecheap     Provider = "namecheap"
+	ProviderGandi         Provider = "gandi"
 )
 
 func (pr Provider) String() string {
@@ -83,7 +87,7 @@ func (pr Provider) String() string {
 // ProviderValidator is a validator for the "provider" field enum values. It is called by the builders before save.
 func ProviderValidator(pr Provider) error {
 	switch pr {
-	case ProviderManual, ProviderDNSBruteforce:
+	case ProviderManual, ProviderDNSBruteforce, ProviderHetznerCloud, ProviderHetznerRobot, ProviderNamecheap, ProviderGandi:
 		return nil
 	default:
 		return fmt.Errorf("importerconfig: invalid enum value for provider field: %q", pr)

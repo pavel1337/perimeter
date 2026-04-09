@@ -199,6 +199,10 @@ func main() {
 	// 7. Start Importer Sync Loop
 	importerRegistry := importer.NewRegistry()
 	importerRegistry.Register("dns_bruteforce", importer.NewDNSBruteforceFactory())
+	importerRegistry.Register("hetzner_cloud", importer.NewHetznerCloudFactory())
+	importerRegistry.Register("hetzner_robot", importer.NewHetznerRobotFactory())
+	importerRegistry.Register("namecheap", importer.NewNamecheapFactory())
+	importerRegistry.Register("gandi", importer.NewGandiFactory())
 	syncLoop := importer.NewSyncLoop(client, importerRegistry, store)
 	syncLoop.Start()
 

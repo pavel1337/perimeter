@@ -48,7 +48,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "create_time", Type: field.TypeTime},
 		{Name: "update_time", Type: field.TypeTime},
-		{Name: "provider", Type: field.TypeEnum, Enums: []string{"manual", "dns_bruteforce"}},
+		{Name: "provider", Type: field.TypeEnum, Enums: []string{"manual", "dns_bruteforce", "hetzner_cloud", "hetzner_robot", "namecheap", "gandi"}},
 		{Name: "credentials", Type: field.TypeBytes},
 		{Name: "sync_interval_seconds", Type: field.TypeInt64, Default: 3600},
 		{Name: "last_sync_at", Type: field.TypeTime, Nullable: true},
