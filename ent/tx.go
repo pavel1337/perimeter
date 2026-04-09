@@ -32,6 +32,8 @@ type Tx struct {
 	SSLScan *SSLScanClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
+	// Tag is the client for interacting with the Tag builders.
+	Tag *TagClient
 	// Target is the client for interacting with the Target builders.
 	Target *TargetClient
 	// User is the client for interacting with the User builders.
@@ -177,6 +179,7 @@ func (tx *Tx) init() {
 	tx.PortScan = NewPortScanClient(tx.config)
 	tx.SSLScan = NewSSLScanClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
+	tx.Tag = NewTagClient(tx.config)
 	tx.Target = NewTargetClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }

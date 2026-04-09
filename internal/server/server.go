@@ -10,6 +10,7 @@ import (
 	"perimeter/ent"
 	"perimeter/ent/importerconfig"
 	"perimeter/ent/notifierconfig"
+	"perimeter/ent/tag"
 	"perimeter/ent/user"
 	"perimeter/internal/auth"
 	"perimeter/internal/importer"
@@ -31,6 +32,14 @@ type Server struct {
 
 func New(s storage.Storage, a *auth.Auth, client *ent.Client, registry *importer.Registry, notifierReg *notifier.Registry, viewsFS fs.FS) *Server {
 	engine := html.NewFileSystem(http.FS(viewsFS), ".html")
+	engine.AddFunc("hasTag", func(tags []*ent.Tag, id int) bool {
+		for _, t := range tags {
+			if t.ID == id {
+				return true
+			}
+		}
+		return false
+	})
 
 	app := fiber.New(fiber.Config{
 		Views: engine,
@@ -75,6 +84,7 @@ func (s *Server) setupRoutes() {
 	authed.Get("/import", s.handleImport)
 	authed.Post("/import", s.handleImportSubmit)
 	authed.Post("/targets/:id/delete", s.handleDeleteTarget)
+	authed.Post("/targets/:id/tags", s.handleUpdateTargetTags)
 
 	// Admin routes
 	admin := authed.Group("", auth.RequireRole(user.RoleAdmin))
@@ -88,6 +98,8 @@ func (s *Server) setupRoutes() {
 	admin.Post("/notifiers", s.handleCreateNotifier)
 	admin.Post("/notifiers/:id/delete", s.handleDeleteNotifier)
 	admin.Post("/notifiers/:id/toggle", s.handleToggleNotifier)
+	admin.Post("/tags", s.handleCreateTag)
+	admin.Post("/tags/:id/delete", s.handleDeleteTag)
 }
 
 // templateData returns a fiber.Map with common template data (user, role).
@@ -261,6 +273,23 @@ func (s *Server) handleIndex(c *fiber.Ctx) error {
 		return c.Status(500).SendString(err.Error())
 	}
 
+	allTags, _ := s.client.Tag.Query().All(c.Context())
+
+	// Filter by tag if specified
+	filterTag := c.Query("tag")
+	if filterTag != "" {
+		var filtered []*ent.Target
+		for _, t := range targets {
+			for _, tg := range t.Edges.Tags {
+				if tg.Name == filterTag {
+					filtered = append(filtered, t)
+					break
+				}
+			}
+		}
+		targets = filtered
+	}
+
 	// Compute dashboard stats
 	totalTargets := len(targets)
 	totalOpenPorts := 0
@@ -268,21 +297,18 @@ func (s *Server) handleIndex(c *fiber.Ctx) error {
 	cspIssues := 0
 
 	for _, t := range targets {
-		// Count open ports across all IPs
 		for _, ip := range t.Edges.Ips {
 			if len(ip.Edges.Scans) > 0 {
 				latestScan := ip.Edges.Scans[0]
 				totalOpenPorts += len(latestScan.Edges.Ports)
 			}
 		}
-		// Count expiring SSL certs (<30 days)
 		if len(t.Edges.SslScans) > 0 {
 			latest := t.Edges.SslScans[0]
 			if !latest.CertExpiry.IsZero() && time.Until(latest.CertExpiry) < 30*24*time.Hour {
 				expiringCerts++
 			}
 		}
-		// Count targets with CSP issues
 		if len(t.Edges.CspScans) > 0 {
 			latest := t.Edges.CspScans[0]
 			if len(latest.Findings) > 0 {
@@ -292,12 +318,14 @@ func (s *Server) handleIndex(c *fiber.Ctx) error {
 	}
 
 	return c.Render("views/index", s.templateData(c, fiber.Map{
-		"Title":         "Perimeter Dashboard",
-		"Targets":       targets,
-		"TotalTargets":  totalTargets,
+		"Title":          "Perimeter Dashboard",
+		"Targets":        targets,
+		"Tags":           allTags,
+		"FilterTag":      filterTag,
+		"TotalTargets":   totalTargets,
 		"TotalOpenPorts": totalOpenPorts,
-		"ExpiringCerts": expiringCerts,
-		"CSPIssues":     cspIssues,
+		"ExpiringCerts":  expiringCerts,
+		"CSPIssues":      cspIssues,
 	}), "views/layouts/main")
 }
 
@@ -316,9 +344,12 @@ func (s *Server) handleTargetDetails(c *fiber.Ctx) error {
 		return c.Status(500).SendString(err.Error())
 	}
 
+	allTags, _ := s.client.Tag.Query().All(c.Context())
+
 	return c.Render("views/target", s.templateData(c, fiber.Map{
-		"Title":  "Target Details",
-		"Target": target,
+		"Title":   "Target Details",
+		"Target":  target,
+		"AllTags": allTags,
 	}), "views/layouts/main")
 }
 
@@ -378,6 +409,7 @@ func (s *Server) settingsData(c *fiber.Ctx, extra fiber.Map) fiber.Map {
 	users, _ := s.client.User.Query().All(c.Context())
 	importers, _ := s.client.ImporterConfig.Query().All(c.Context())
 	notifiers, _ := s.client.NotifierConfig.Query().All(c.Context())
+	tags, _ := s.client.Tag.Query().All(c.Context())
 	providers := s.registry.List()
 	notifierProviders := s.notifierRegistry.List()
 
@@ -386,6 +418,7 @@ func (s *Server) settingsData(c *fiber.Ctx, extra fiber.Map) fiber.Map {
 		"Users":             users,
 		"Importers":         importers,
 		"Notifiers":         notifiers,
+		"Tags":              tags,
 		"Providers":         providers,
 		"NotifierProviders": notifierProviders,
 	})
@@ -554,4 +587,71 @@ func (s *Server) handleToggleNotifier(c *fiber.Ctx) error {
 
 	s.client.NotifierConfig.UpdateOne(cfg).SetEnabled(!cfg.Enabled).Exec(c.Context())
 	return c.Redirect("/settings")
+}
+
+// --- Tag handlers ---
+
+func (s *Server) handleCreateTag(c *fiber.Ctx) error {
+	name := c.FormValue("name")
+	color := c.FormValue("color")
+	if color == "" {
+		color = "#6b7280"
+	}
+
+	_, err := s.client.Tag.Create().
+		SetName(name).
+		SetColor(color).
+		Save(c.Context())
+	if err != nil {
+		return c.Render("views/settings", s.settingsData(c, fiber.Map{
+			"Error": "Failed to create tag: " + err.Error(),
+		}), "views/layouts/main")
+	}
+
+	return c.Redirect("/settings")
+}
+
+func (s *Server) handleDeleteTag(c *fiber.Ctx) error {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(400).SendString("Invalid ID")
+	}
+
+	if err := s.client.Tag.DeleteOneID(id).Exec(c.Context()); err != nil {
+		return c.Render("views/settings", s.settingsData(c, fiber.Map{
+			"Error": "Failed to delete tag: " + err.Error(),
+		}), "views/layouts/main")
+	}
+
+	return c.Redirect("/settings")
+}
+
+func (s *Server) handleUpdateTargetTags(c *fiber.Ctx) error {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(400).SendString("Invalid ID")
+	}
+
+	t, err := s.client.Target.Get(c.Context(), id)
+	if err != nil {
+		return c.Status(404).SendString("Target not found")
+	}
+
+	// Get selected tag IDs from form
+	tagIDs := c.Context().PostArgs().PeekMulti("tags")
+	var ids []int
+	for _, raw := range tagIDs {
+		if tid, err := strconv.Atoi(string(raw)); err == nil {
+			ids = append(ids, tid)
+		}
+	}
+
+	// Clear existing tags and set new ones
+	s.client.Target.UpdateOne(t).ClearTags().Exec(c.Context())
+	if len(ids) > 0 {
+		tags, _ := s.client.Tag.Query().Where(tag.IDIn(ids...)).All(c.Context())
+		s.client.Target.UpdateOne(t).AddTags(tags...).Exec(c.Context())
+	}
+
+	return c.Redirect(fmt.Sprintf("/targets/%d", id))
 }

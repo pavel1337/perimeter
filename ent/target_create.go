@@ -9,6 +9,7 @@ import (
 	"perimeter/ent/cspscan"
 	"perimeter/ent/ip"
 	"perimeter/ent/sslscan"
+	"perimeter/ent/tag"
 	"perimeter/ent/target"
 	"perimeter/ent/user"
 	"time"
@@ -134,6 +135,21 @@ func (_c *TargetCreate) SetNillableOwnerID(id *int) *TargetCreate {
 // SetOwner sets the "owner" edge to the User entity.
 func (_c *TargetCreate) SetOwner(v *User) *TargetCreate {
 	return _c.SetOwnerID(v.ID)
+}
+
+// AddTagIDs adds the "tags" edge to the Tag entity by IDs.
+func (_c *TargetCreate) AddTagIDs(ids ...int) *TargetCreate {
+	_c.mutation.AddTagIDs(ids...)
+	return _c
+}
+
+// AddTags adds the "tags" edges to the Tag entity.
+func (_c *TargetCreate) AddTags(v ...*Tag) *TargetCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddTagIDs(ids...)
 }
 
 // Mutation returns the TargetMutation object of the builder.
@@ -309,6 +325,22 @@ func (_c *TargetCreate) createSpec() (*Target, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.user_targets = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.TagsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: false,
+			Table:   target.TagsTable,
+			Columns: target.TagsPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(tag.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

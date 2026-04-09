@@ -16,6 +16,7 @@ import (
 	"perimeter/ent/portscan"
 	"perimeter/ent/session"
 	"perimeter/ent/sslscan"
+	"perimeter/ent/tag"
 	"perimeter/ent/target"
 	"perimeter/ent/user"
 	"reflect"
@@ -94,6 +95,7 @@ func checkColumn(t, c string) error {
 			portscan.Table:       portscan.ValidColumn,
 			sslscan.Table:        sslscan.ValidColumn,
 			session.Table:        session.ValidColumn,
+			tag.Table:            tag.ValidColumn,
 			target.Table:         target.ValidColumn,
 			user.Table:           user.ValidColumn,
 		})

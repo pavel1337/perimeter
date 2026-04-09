@@ -43,9 +43,11 @@ type TargetEdges struct {
 	CspScans []*CSPScan `json:"csp_scans,omitempty"`
 	// Owner holds the value of the owner edge.
 	Owner *User `json:"owner,omitempty"`
+	// Tags holds the value of the tags edge.
+	Tags []*Tag `json:"tags,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [4]bool
+	loadedTypes [5]bool
 }
 
 // IpsOrErr returns the Ips value or an error if the edge
@@ -84,6 +86,15 @@ func (e TargetEdges) OwnerOrErr() (*User, error) {
 		return nil, &NotFoundError{label: user.Label}
 	}
 	return nil, &NotLoadedError{edge: "owner"}
+}
+
+// TagsOrErr returns the Tags value or an error if the edge
+// was not loaded in eager-loading.
+func (e TargetEdges) TagsOrErr() ([]*Tag, error) {
+	if e.loadedTypes[4] {
+		return e.Tags, nil
+	}
+	return nil, &NotLoadedError{edge: "tags"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -184,6 +195,11 @@ func (_m *Target) QueryCspScans() *CSPScanQuery {
 // QueryOwner queries the "owner" edge of the Target entity.
 func (_m *Target) QueryOwner() *UserQuery {
 	return NewTargetClient(_m.config).QueryOwner(_m)
+}
+
+// QueryTags queries the "tags" edge of the Target entity.
+func (_m *Target) QueryTags() *TagQuery {
+	return NewTargetClient(_m.config).QueryTags(_m)
 }
 
 // Update returns a builder for updating this Target.

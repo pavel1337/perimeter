@@ -36,6 +36,9 @@ type SSLScan func(*sql.Selector)
 // Session is the predicate function for session builders.
 type Session func(*sql.Selector)
 
+// Tag is the predicate function for tag builders.
+type Tag func(*sql.Selector)
+
 // Target is the predicate function for target builders.
 type Target func(*sql.Selector)
 

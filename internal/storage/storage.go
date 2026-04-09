@@ -110,6 +110,7 @@ func (s *EntStorage) GetTargets(ctx context.Context) ([]*ent.Target, error) {
 		}).
 		WithSslScans().
 		WithCspScans().
+		WithTags().
 		All(ctx)
 }
 
@@ -123,6 +124,7 @@ func (s *EntStorage) GetTarget(ctx context.Context, id int) (*ent.Target, error)
 		}).
 		WithSslScans().
 		WithCspScans().
+		WithTags().
 		Only(ctx)
 }
 

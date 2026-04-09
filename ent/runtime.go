@@ -11,6 +11,7 @@ import (
 	"perimeter/ent/portscan"
 	"perimeter/ent/schema"
 	"perimeter/ent/session"
+	"perimeter/ent/tag"
 	"perimeter/ent/target"
 	"perimeter/ent/user"
 	"time"
@@ -144,6 +145,16 @@ func init() {
 	sessionDescTokenHash := sessionFields[0].Descriptor()
 	// session.TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
 	session.TokenHashValidator = sessionDescTokenHash.Validators[0].(func(string) error)
+	tagFields := schema.Tag{}.Fields()
+	_ = tagFields
+	// tagDescName is the schema descriptor for name field.
+	tagDescName := tagFields[0].Descriptor()
+	// tag.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	tag.NameValidator = tagDescName.Validators[0].(func(string) error)
+	// tagDescColor is the schema descriptor for color field.
+	tagDescColor := tagFields[1].Descriptor()
+	// tag.DefaultColor holds the default value on creation for the color field.
+	tag.DefaultColor = tagDescColor.Default.(string)
 	targetMixin := schema.Target{}.Mixin()
 	targetMixinFields0 := targetMixin[0].Fields()
 	_ = targetMixinFields0

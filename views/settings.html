@@ -179,4 +179,47 @@
   <button type="submit" class="btn-primary">Add Notifier</button>
 </form>
 
+<!-- Tags -->
+<h2>Tags</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Color</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .Tags}}
+    <tr>
+      <td><span class="badge" style="background: {{.Color}}20; color: {{.Color}};">{{.Name}}</span></td>
+      <td class="mono">{{.Color}}</td>
+      <td>
+        <form method="POST" action="/tags/{{.ID}}/delete"
+          onsubmit="return confirm('Delete this tag?');" style="display:inline;">
+          <button type="submit" class="btn-danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {{else}}
+    <tr><td colspan="3" class="text-muted">No tags.</td></tr>
+    {{end}}
+  </tbody>
+</table>
+
+<h3>Add Tag</h3>
+<form action="/tags" method="POST">
+  <div style="display: flex; gap: 12px; align-items: end;">
+    <div class="form-group" style="margin-bottom: 0;">
+      <label for="tag_name">Name</label>
+      <input type="text" name="name" id="tag_name" required style="width: 200px;">
+    </div>
+    <div class="form-group" style="margin-bottom: 0;">
+      <label for="tag_color">Color</label>
+      <input type="color" name="color" id="tag_color" value="#6b7280" style="width: 50px; height: 32px; padding: 2px;">
+    </div>
+    <button type="submit" class="btn-primary">Add Tag</button>
+  </div>
+</form>
+
 {{template "views/partials/footer" .}}

@@ -21,6 +21,18 @@
   </div>
 </div>
 
+{{if .Tags}}
+<div style="margin-bottom: 16px;">
+  <span class="text-muted" style="margin-right: 8px;">Filter:</span>
+  <a href="/" style="margin-right: 6px; {{if eq .FilterTag ""}}font-weight: 600;{{end}}">All</a>
+  {{range .Tags}}
+  <a href="/?tag={{.Name}}" style="margin-right: 6px; {{if eq $.FilterTag .Name}}font-weight: 600;{{end}}">
+    <span class="badge" style="background: {{.Color}}20; color: {{.Color}};">{{.Name}}</span>
+  </a>
+  {{end}}
+</div>
+{{end}}
+
 <h2>Targets</h2>
 
 <table>
@@ -36,7 +48,10 @@
   <tbody>
     {{range .Targets}}
     <tr>
-      <td><a href="/targets/{{.ID}}"><strong>{{.Input}}</strong></a></td>
+      <td>
+        <a href="/targets/{{.ID}}"><strong>{{.Input}}</strong></a>
+        {{range .Edges.Tags}}<span class="badge" style="background: {{.Color}}20; color: {{.Color}}; margin-left: 4px;">{{.Name}}</span>{{end}}
+      </td>
 
       <td>
         {{if .IsIP}}

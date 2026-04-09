@@ -3,6 +3,25 @@
 <p style="margin-bottom: 16px;"><a href="/">&larr; Back</a></p>
 <h1>{{.Target.Input}}</h1>
 
+<div style="margin-bottom: 20px;">
+  {{range .Target.Edges.Tags}}<span class="badge" style="background: {{.Color}}20; color: {{.Color}}; margin-right: 4px;">{{.Name}}</span>{{end}}
+</div>
+
+{{if .AllTags}}
+<form method="POST" action="/targets/{{.Target.ID}}/tags" style="margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+    {{range .AllTags}}
+    <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px;">
+      <input type="checkbox" name="tags" value="{{.ID}}"
+        {{if hasTag $.Target.Edges.Tags .ID}}checked{{end}}>
+      <span class="badge" style="background: {{.Color}}20; color: {{.Color}};">{{.Name}}</span>
+    </label>
+    {{end}}
+    <button type="submit" style="margin-left: 8px;">Update Tags</button>
+  </div>
+</form>
+{{end}}
+
 <h2>Resolved IPs &amp; Port Scans</h2>
 {{if .Target.Edges.Ips}}
 {{range .Target.Edges.Ips}}

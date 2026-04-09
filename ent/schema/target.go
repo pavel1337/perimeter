@@ -32,6 +32,9 @@ func (Target) Edges() []ent.Edge {
 		edge.From("owner", User.Type).
 			Ref("targets").
 			Unique(),
+
+		// Tags for grouping
+		edge.To("tags", Tag.Type),
 	}
 }
 
