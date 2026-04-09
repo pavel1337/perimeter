@@ -1,10 +1,14 @@
 package server
 
 import (
+	"bytes"
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"perimeter/ent"
@@ -85,6 +89,7 @@ func (s *Server) setupRoutes() {
 	authed.Post("/import", s.handleImportSubmit)
 	authed.Post("/targets/:id/delete", s.handleDeleteTarget)
 	authed.Post("/targets/:id/tags", s.handleUpdateTargetTags)
+	authed.Get("/targets/:id/export", s.handleExportTarget)
 
 	// Admin routes
 	admin := authed.Group("", auth.RequireRole(user.RoleAdmin))
@@ -654,4 +659,135 @@ func (s *Server) handleUpdateTargetTags(c *fiber.Ctx) error {
 	}
 
 	return c.Redirect(fmt.Sprintf("/targets/%d", id))
+}
+
+// --- Export handler ---
+
+type exportData struct {
+	Target string       `json:"target"`
+	IsIP   bool         `json:"is_ip"`
+	IPs    []exportIP   `json:"ips,omitempty"`
+	SSL    []exportSSL  `json:"ssl_scans,omitempty"`
+	CSP    []exportCSP  `json:"csp_scans,omitempty"`
+}
+
+type exportIP struct {
+	Address   string     `json:"address"`
+	Scans     []exportPortScan `json:"scans,omitempty"`
+}
+
+type exportPortScan struct {
+	ScannedAt string `json:"scanned_at"`
+	Ports     []int  `json:"ports"`
+}
+
+type exportSSL struct {
+	ScannedAt       string   `json:"scanned_at"`
+	Grade           string   `json:"grade"`
+	Status          string   `json:"status"`
+	CertSubject     string   `json:"cert_subject,omitempty"`
+	CertIssuer      string   `json:"cert_issuer,omitempty"`
+	CertExpiry      string   `json:"cert_expiry,omitempty"`
+	Vulnerabilities []string `json:"vulnerabilities,omitempty"`
+}
+
+type exportCSP struct {
+	ScannedAt string `json:"scanned_at"`
+	Header    string `json:"csp_header"`
+	Findings  int    `json:"findings_count"`
+}
+
+func (s *Server) handleExportTarget(c *fiber.Ctx) error {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(400).SendString("Invalid ID")
+	}
+
+	t, err := s.storage.GetTarget(c.Context(), id)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return c.Status(404).SendString("Target not found")
+		}
+		return c.Status(500).SendString(err.Error())
+	}
+
+	format := c.Query("format", "json")
+
+	data := exportData{
+		Target: t.Input,
+		IsIP:   t.IsIP,
+	}
+
+	for _, ip := range t.Edges.Ips {
+		eip := exportIP{Address: ip.Address}
+		for _, scan := range ip.Edges.Scans {
+			var ports []int
+			for _, p := range scan.Edges.Ports {
+				ports = append(ports, p.Number)
+			}
+			eip.Scans = append(eip.Scans, exportPortScan{
+				ScannedAt: scan.ScannedAt.Format(time.RFC3339),
+				Ports:     ports,
+			})
+		}
+		data.IPs = append(data.IPs, eip)
+	}
+
+	for _, scan := range t.Edges.SslScans {
+		essl := exportSSL{
+			ScannedAt:       scan.ScannedAt.Format(time.RFC3339),
+			Grade:           scan.Grade,
+			Status:          scan.Status,
+			CertSubject:     scan.CertSubject,
+			CertIssuer:      scan.CertIssuer,
+			Vulnerabilities: scan.Vulnerabilities,
+		}
+		if !scan.CertExpiry.IsZero() {
+			essl.CertExpiry = scan.CertExpiry.Format("2006-01-02")
+		}
+		data.SSL = append(data.SSL, essl)
+	}
+
+	for _, scan := range t.Edges.CspScans {
+		data.CSP = append(data.CSP, exportCSP{
+			ScannedAt: scan.ScannedAt.Format(time.RFC3339),
+			Header:    scan.CspHeader,
+			Findings:  len(scan.Findings),
+		})
+	}
+
+	switch format {
+	case "csv":
+		c.Set("Content-Type", "text/csv")
+		c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s.csv", t.Input))
+
+		var buf bytes.Buffer
+		w := csv.NewWriter(&buf)
+		w.Write([]string{"type", "timestamp", "detail", "value"})
+
+		for _, ip := range data.IPs {
+			for _, scan := range ip.Scans {
+				portStrs := make([]string, len(scan.Ports))
+				for i, p := range scan.Ports {
+					portStrs[i] = strconv.Itoa(p)
+				}
+				w.Write([]string{"port_scan", scan.ScannedAt, ip.Address, strings.Join(portStrs, ";")})
+			}
+		}
+		for _, scan := range data.SSL {
+			w.Write([]string{"ssl_scan", scan.ScannedAt, scan.Grade, scan.Status})
+		}
+		for _, scan := range data.CSP {
+			w.Write([]string{"csp_scan", scan.ScannedAt, strconv.Itoa(scan.Findings) + " findings", scan.Header})
+		}
+
+		w.Flush()
+		return c.Send(buf.Bytes())
+
+	default:
+		c.Set("Content-Type", "application/json")
+		c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s.json", t.Input))
+		out, _ := json.MarshalIndent(data, "", "  ")
+		return c.Send(out)
+	}
 }

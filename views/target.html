@@ -22,6 +22,11 @@
 </form>
 {{end}}
 
+<div style="margin-bottom: 20px;">
+  <a href="/targets/{{.Target.ID}}/export?format=json" class="btn" style="margin-right: 6px;">Export JSON</a>
+  <a href="/targets/{{.Target.ID}}/export?format=csv" class="btn">Export CSV</a>
+</div>
+
 <h2>Resolved IPs &amp; Port Scans</h2>
 {{if .Target.Edges.Ips}}
 {{range .Target.Edges.Ips}}
