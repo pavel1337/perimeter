@@ -5,3 +5,4 @@ perimeter
 docs/superpowers
 .superpowers
 *.md
+!README.md
