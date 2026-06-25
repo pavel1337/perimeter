@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-perimeter}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-perimeter}
+      POSTGRES_DB: ${POSTGRES_DB:-perimeter}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-perimeter}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    # App config (SSL Labs creds, OIDC, intervals, ...) comes from .env.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Force the app onto the bundled Postgres, overriding .env's DB settings.
+      DB_DRIVER: postgres
+      DB_DSN: "postgres://${POSTGRES_USER:-perimeter}:${POSTGRES_PASSWORD:-perimeter}@db:5432/${POSTGRES_DB:-perimeter}?sslmode=disable"
+    ports:
+      - "${HTTP_PORT:-3000}:${HTTP_PORT:-3000}"
+    restart: unless-stopped
+
+volumes:
+  pgdata:

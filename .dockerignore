@@ -1,0 +1,13 @@
+.git
+.github
+*.db
+*.lst
+.env
+perimeter
+docs
+.superpowers
+*.md
+!README.md
+Dockerfile
+.dockerignore
+docker-compose.yml
