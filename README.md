@@ -48,10 +48,38 @@ SSL Labs needs registration details (`FIRST_NAME`, `LAST_NAME`, `EMAIL`, `ORGANI
 ## Build
 
 ```bash
-go build -o perimeter      # binary
+make build                 # static binary (CGO-less)
 make generate              # regenerate Ent code after schema changes
-go test ./...              # run tests
+make test                  # run tests
+make lint                  # golangci-lint + format check
 ```
+
+## Docker
+
+```bash
+docker compose up --build  # app + PostgreSQL
+```
+
+The app listens on http://localhost:3000 and stores data in the bundled
+Postgres. Configure via the `environment:` block in `docker-compose.yml`.
+Published images live at `ghcr.io/pavel1337/perimeter`.
+
+## Versioning & releases
+
+Versioning is automatic, driven by git tags (`vMAJOR.MINOR.PATCH`):
+
+- Every push to `main` bumps the **patch** version and, once lint and tests
+  pass, builds and pushes `ghcr.io/pavel1337/perimeter:<version>` and `:latest`,
+  then creates the matching `v<version>` git tag.
+- For a **minor** or **major** bump, push a tag yourself — the next push to
+  `main` continues patch bumps from there:
+
+  ```bash
+  git tag v0.3.0 && git push origin v0.3.0   # minor
+  git tag v1.0.0 && git push origin v1.0.0   # major
+  ```
+
+  (Pushing a tag doesn't trigger CI, so it won't double-build.)
 
 ## How it works
 

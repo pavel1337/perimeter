@@ -1,0 +1,74 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      # Unpinned on purpose: always run the latest golangci-lint so new checks
+      # surface early. Trade-off: a new release can fail an unrelated PR.
+      - uses: golangci/golangci-lint-action@v7
+        with:
+          version: latest
+      - name: gofmt / goimports check
+        run: golangci-lint fmt --diff
+
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: make test
+
+  # Builds and pushes the image only on push to main, and only after lint and
+  # test pass. Auto-bumps the patch version (0.0.x) from the latest git tag.
+  release:
+    needs: [lint, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # push the version tag
+      packages: write # push the image to GHCR
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # need full tag history for git describe
+
+      - name: Compute next version (patch bump)
+        id: ver
+        run: |
+          latest=$(git describe --tags --match "v*" --abbrev=0 2>/dev/null || echo v0.0.0)
+          v=${latest#v}
+          IFS=. read -r major minor patch <<< "$v"
+          echo "version=${major}.${minor}.$((patch + 1))" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ steps.ver.outputs.version }}
+            ghcr.io/${{ github.repository }}:latest
+
+      - name: Tag release
+        run: |
+          git tag "v${{ steps.ver.outputs.version }}"
+          git push origin "v${{ steps.ver.outputs.version }}"
