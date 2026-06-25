@@ -78,6 +78,8 @@ func (s *SyncLoop) tick(ctx context.Context) {
 		}
 
 		// Update last_sync_at
-		s.client.ImporterConfig.UpdateOne(cfg).SetLastSyncAt(now).Exec(ctx)
+		if err := s.client.ImporterConfig.UpdateOne(cfg).SetLastSyncAt(now).Exec(ctx); err != nil {
+			log.Printf("Importer sync: failed to update last_sync_at for %s (id=%d): %v", cfg.Provider, cfg.ID, err)
+		}
 	}
 }

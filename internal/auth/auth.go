@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"perimeter/ent"
@@ -159,7 +160,9 @@ func (a *Auth) Register(ctx context.Context, email, name, password string) (*ent
 		return nil, err
 	}
 
-	a.client.Invite.UpdateOne(inv).SetAcceptedAt(now).Exec(ctx)
+	if err := a.client.Invite.UpdateOne(inv).SetAcceptedAt(now).Exec(ctx); err != nil {
+		log.Printf("auth: failed to mark invite accepted: %v", err)
+	}
 	return u, nil
 }
 
@@ -182,7 +185,9 @@ func (a *Auth) Login(ctx context.Context, email, password string) (*ent.User, er
 	}
 
 	now := time.Now()
-	a.client.User.UpdateOne(u).SetLastLoginAt(now).Exec(ctx)
+	if err := a.client.User.UpdateOne(u).SetLastLoginAt(now).Exec(ctx); err != nil {
+		log.Printf("auth: failed to update last login: %v", err)
+	}
 	u.LastLoginAt = &now
 	return u, nil
 }
@@ -232,7 +237,9 @@ func (a *Auth) OIDCResolveUser(ctx context.Context, claims *OIDCClaims) (*ent.Us
 	u, err := a.client.User.Query().Where(user.EmailEQ(claims.Email)).Only(ctx)
 	if err == nil {
 		now := time.Now()
-		a.client.User.UpdateOne(u).SetLastLoginAt(now).Exec(ctx)
+		if err := a.client.User.UpdateOne(u).SetLastLoginAt(now).Exec(ctx); err != nil {
+			log.Printf("auth: failed to update last login: %v", err)
+		}
 		u.LastLoginAt = &now
 		return u, nil
 	}
@@ -283,7 +290,9 @@ func (a *Auth) OIDCResolveUser(ctx context.Context, claims *OIDCClaims) (*ent.Us
 		return nil, err
 	}
 
-	a.client.Invite.UpdateOne(inv).SetAcceptedAt(now).Exec(ctx)
+	if err := a.client.Invite.UpdateOne(inv).SetAcceptedAt(now).Exec(ctx); err != nil {
+		log.Printf("auth: failed to mark invite accepted: %v", err)
+	}
 	return u, nil
 }
 

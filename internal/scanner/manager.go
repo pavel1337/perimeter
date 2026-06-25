@@ -135,13 +135,17 @@ func (m *Manager) removeInFlight(key string) {
 
 func (m *Manager) completeJob(ctx context.Context, j Job) {
 	if m.config.UseDBQueue && j.ID > 0 {
-		m.storage.CompleteJob(ctx, j.ID, nil)
+		if err := m.storage.CompleteJob(ctx, j.ID, nil); err != nil {
+			log.Printf("Worker: failed to mark job %d complete: %v", j.ID, err)
+		}
 	}
 }
 
 func (m *Manager) failJob(ctx context.Context, j Job, errMsg string) {
 	if m.config.UseDBQueue && j.ID > 0 {
-		m.storage.FailJob(ctx, j.ID, errMsg)
+		if err := m.storage.FailJob(ctx, j.ID, errMsg); err != nil {
+			log.Printf("Worker: failed to mark job %d failed: %v", j.ID, err)
+		}
 	}
 }
 
@@ -221,7 +225,9 @@ func (m *Manager) runResolutionProducer() {
 
 		for _, t := range targets {
 			if m.canEnqueue(ctx, string(JobTypeResolution), t.Input) {
-				m.queue.Enqueue(ctx, Job{Type: JobTypeResolution, Input: t.Input})
+				if err := m.queue.Enqueue(ctx, Job{Type: JobTypeResolution, Input: t.Input}); err != nil {
+					log.Printf("Producer: failed to enqueue resolution for %s: %v", t.Input, err)
+				}
 			}
 		}
 		time.Sleep(1 * time.Second)
@@ -245,8 +251,8 @@ func (m *Manager) runIPScanProducer() {
 
 		if !m.canEnqueue(ctx, string(JobTypePortScan), ipEntity.Address) {
 			time.Sleep(1 * time.Second)
-		} else {
-			m.queue.Enqueue(ctx, Job{Type: JobTypePortScan, Address: ipEntity.Address})
+		} else if err := m.queue.Enqueue(ctx, Job{Type: JobTypePortScan, Address: ipEntity.Address}); err != nil {
+			log.Printf("Producer: failed to enqueue port scan for %s: %v", ipEntity.Address, err)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -272,8 +278,8 @@ func (m *Manager) runSSLScanProducer() {
 
 		if !m.canEnqueue(ctx, string(JobTypeSSLScan), t.Input) {
 			time.Sleep(1 * time.Second)
-		} else {
-			m.queue.Enqueue(ctx, Job{Type: JobTypeSSLScan, Input: t.Input})
+		} else if err := m.queue.Enqueue(ctx, Job{Type: JobTypeSSLScan, Input: t.Input}); err != nil {
+			log.Printf("Producer: failed to enqueue SSL scan for %s: %v", t.Input, err)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -296,8 +302,8 @@ func (m *Manager) runCSPScanProducer() {
 
 		if !m.canEnqueue(ctx, string(JobTypeCSPScan), t.Input) {
 			time.Sleep(1 * time.Second)
-		} else {
-			m.queue.Enqueue(ctx, Job{Type: JobTypeCSPScan, Input: t.Input})
+		} else if err := m.queue.Enqueue(ctx, Job{Type: JobTypeCSPScan, Input: t.Input}); err != nil {
+			log.Printf("Producer: failed to enqueue CSP scan for %s: %v", t.Input, err)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -310,7 +316,9 @@ func (m *Manager) processResolution(ctx context.Context, j Job) {
 	ips, err := net.LookupIP(j.Input)
 	if err != nil {
 		log.Printf("Worker: Failed to resolve %s: %v", j.Input, err)
-		m.storage.TouchTarget(ctx, j.Input)
+		if terr := m.storage.TouchTarget(ctx, j.Input); terr != nil {
+			log.Printf("Worker: failed to touch target %s: %v", j.Input, terr)
+		}
 		m.failJob(ctx, j, err.Error())
 		return
 	}
@@ -370,10 +378,10 @@ func (m *Manager) processPortScan(ctx context.Context, j Job, scanner *ports.Sim
 			portStrs[i] = fmt.Sprintf("%d", p)
 		}
 		m.dispatcher.Dispatch(ctx, notifier.Event{
-			Type:    notifier.EventNewOpenPorts,
-			Target:  j.Address,
-			Message: fmt.Sprintf("New open ports detected on %s: %s", j.Address, strings.Join(portStrs, ", ")),
-			Details: map[string]any{"new_ports": newPorts, "all_ports": openPorts},
+			Type:      notifier.EventNewOpenPorts,
+			Target:    j.Address,
+			Message:   fmt.Sprintf("New open ports detected on %s: %s", j.Address, strings.Join(portStrs, ", ")),
+			Details:   map[string]any{"new_ports": newPorts, "all_ports": openPorts},
 			Timestamp: time.Now(),
 		})
 	}
@@ -391,7 +399,9 @@ func (m *Manager) processSSLScan(ctx context.Context, j Job, scanner *ssl.SSLLab
 			Grade:  "F",
 			Status: "Error: " + err.Error(),
 		}
-		m.storage.SaveSSLScan(ctx, j.Input, saveRes)
+		if serr := m.storage.SaveSSLScan(ctx, j.Input, saveRes); serr != nil {
+			log.Printf("Worker: failed to save SSL scan for %s: %v", j.Input, serr)
+		}
 		m.failJob(ctx, j, err.Error())
 		return
 	}
@@ -419,10 +429,10 @@ func (m *Manager) processSSLScan(ctx context.Context, j Job, scanner *ssl.SSLLab
 	// Check for grade drop
 	if prevGrade != "" && res.Grade > prevGrade {
 		m.dispatcher.Dispatch(ctx, notifier.Event{
-			Type:    notifier.EventSSLGradeDrop,
-			Target:  j.Input,
-			Message: fmt.Sprintf("SSL grade dropped for %s: %s → %s", j.Input, prevGrade, res.Grade),
-			Details: map[string]any{"previous_grade": prevGrade, "new_grade": res.Grade},
+			Type:      notifier.EventSSLGradeDrop,
+			Target:    j.Input,
+			Message:   fmt.Sprintf("SSL grade dropped for %s: %s → %s", j.Input, prevGrade, res.Grade),
+			Details:   map[string]any{"previous_grade": prevGrade, "new_grade": res.Grade},
 			Timestamp: time.Now(),
 		})
 	}
@@ -430,10 +440,10 @@ func (m *Manager) processSSLScan(ctx context.Context, j Job, scanner *ssl.SSLLab
 	// Check for expiring cert (<30 days)
 	if !res.CertExpiry.IsZero() && time.Until(res.CertExpiry) < 30*24*time.Hour {
 		m.dispatcher.Dispatch(ctx, notifier.Event{
-			Type:    notifier.EventCertExpiring,
-			Target:  j.Input,
-			Message: fmt.Sprintf("Certificate for %s expires on %s", j.Input, res.CertExpiry.Format("2006-01-02")),
-			Details: map[string]any{"cert_expiry": res.CertExpiry, "cert_subject": res.CertSubject},
+			Type:      notifier.EventCertExpiring,
+			Target:    j.Input,
+			Message:   fmt.Sprintf("Certificate for %s expires on %s", j.Input, res.CertExpiry.Format("2006-01-02")),
+			Details:   map[string]any{"cert_expiry": res.CertExpiry, "cert_subject": res.CertSubject},
 			Timestamp: time.Now(),
 		})
 	}
@@ -451,10 +461,12 @@ func (m *Manager) processCSPScan(ctx context.Context, j Job, client http.Client,
 
 	if err != nil {
 		log.Printf("Worker: CSP Failed to connect to %s: %v", j.Input, err)
-		m.storage.SaveCSPScan(ctx, j.Input, "", []csp.Finding{{
+		if serr := m.storage.SaveCSPScan(ctx, j.Input, "", []csp.Finding{{
 			Description: "Target Unreachable",
 			Severity:    csp.SeverityInfo,
-		}})
+		}}); serr != nil {
+			log.Printf("Worker: failed to save CSP scan for %s: %v", j.Input, serr)
+		}
 		m.failJob(ctx, j, err.Error())
 		return
 	}
@@ -496,10 +508,10 @@ func (m *Manager) processCSPScan(ctx context.Context, j Job, client http.Client,
 	}
 	if len(highFindings) > 0 {
 		m.dispatcher.Dispatch(ctx, notifier.Event{
-			Type:    notifier.EventCSPIssues,
-			Target:  j.Input,
-			Message: fmt.Sprintf("CSP issues found on %s: %s", j.Input, strings.Join(highFindings, "; ")),
-			Details: map[string]any{"findings_count": len(highFindings)},
+			Type:      notifier.EventCSPIssues,
+			Target:    j.Input,
+			Message:   fmt.Sprintf("CSP issues found on %s: %s", j.Input, strings.Join(highFindings, "; ")),
+			Details:   map[string]any{"findings_count": len(highFindings)},
 			Timestamp: time.Now(),
 		})
 	}

@@ -270,7 +270,9 @@ func (s *EntStorage) SaveIPs(ctx context.Context, targetInput string, ipAddresse
 	}
 
 	// Update timestamp of Target to indicate we processed it?
-	s.client.Target.UpdateOne(t).SetUpdateTime(time.Now()).Exec(ctx)
+	if err := s.client.Target.UpdateOne(t).SetUpdateTime(time.Now()).Exec(ctx); err != nil {
+		log.Printf("Failed to update target timestamp for %s: %v", t.Input, err)
+	}
 
 	return nil
 }

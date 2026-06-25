@@ -21,11 +21,11 @@ func TestSSLLabsScanner_Scan(t *testing.T) {
 		// Mock Responses
 		// 1. Initial Call (starts new)
 		if r.URL.Query().Get("startNew") == "on" {
-			w.Write([]byte(`{
+			fmt.Fprint(w, `{
 				"host": "example.com",
 				"status": "IN_PROGRESS",
 				"statusMessage": "In progress"
-			}`))
+			}`)
 			return
 		}
 

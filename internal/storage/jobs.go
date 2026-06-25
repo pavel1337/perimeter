@@ -32,11 +32,13 @@ func (s *EntStorage) ClaimJob(ctx context.Context, timeout time.Duration) (*ent.
 		Limit(1).
 		First(ctx)
 	if err != nil {
-		tx.Rollback()
 		if ent.IsNotFound(err) {
+			if rerr := tx.Rollback(); rerr != nil {
+				return nil, fmt.Errorf("rollback: %w", rerr)
+			}
 			return nil, nil
 		}
-		return nil, err
+		return nil, rollback(tx, err)
 	}
 
 	now := time.Now()
@@ -46,8 +48,7 @@ func (s *EntStorage) ClaimJob(ctx context.Context, timeout time.Duration) (*ent.
 		SetTimeoutAt(now.Add(timeout)).
 		Save(ctx)
 	if err != nil {
-		tx.Rollback()
-		return nil, err
+		return nil, rollback(tx, err)
 	}
 
 	if err := tx.Commit(); err != nil {

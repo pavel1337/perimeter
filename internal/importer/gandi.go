@@ -146,7 +146,7 @@ func (s *GandiSource) doRequest(ctx context.Context, url string) ([]byte, error)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("Gandi API returned %d", resp.StatusCode)
+		return nil, fmt.Errorf("gandi API returned %d", resp.StatusCode)
 	}
 
 	return io.ReadAll(resp.Body)

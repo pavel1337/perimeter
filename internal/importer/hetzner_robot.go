@@ -63,7 +63,7 @@ func (s *HetznerRobotSource) Fetch(ctx context.Context) ([]string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("Robot API returned %d", resp.StatusCode)
+		return nil, fmt.Errorf("robot API returned %d", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)

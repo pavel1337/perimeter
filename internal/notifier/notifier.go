@@ -22,10 +22,10 @@ type Event struct {
 type EventType string
 
 const (
-	EventNewOpenPorts  EventType = "new_open_ports"
-	EventSSLGradeDrop  EventType = "ssl_grade_drop"
-	EventCertExpiring  EventType = "cert_expiring"
-	EventCSPIssues     EventType = "csp_issues"
+	EventNewOpenPorts EventType = "new_open_ports"
+	EventSSLGradeDrop EventType = "ssl_grade_drop"
+	EventCertExpiring EventType = "cert_expiring"
+	EventCSPIssues    EventType = "csp_issues"
 )
 
 // Notifier sends alerts for security events.

@@ -63,7 +63,7 @@ type ncDomainsResponse struct {
 }
 
 type ncHostsResponse struct {
-	XMLName xml.Name `xml:"ApiResponse"`
+	XMLName         xml.Name `xml:"ApiResponse"`
 	CommandResponse struct {
 		DomainDNSGetHostsResult struct {
 			Hosts []struct {

@@ -106,7 +106,8 @@ func (s *SSLLabsScanner) Scan(target string) (*SSLResult, error) {
 		shouldStartNew = true
 	} else {
 		// We have some data
-		if hostData.Status == "READY" {
+		switch hostData.Status {
+		case "READY":
 			// Check age
 			scanTime := time.Unix(hostData.TestTime/1000, 0)
 			// If scan is reasonably fresh (e.g. < 24 hours), use it.
@@ -117,10 +118,10 @@ func (s *SSLLabsScanner) Scan(target string) (*SSLResult, error) {
 			}
 			// It's old, trigger new
 			shouldStartNew = true
-		} else if hostData.Status == "IN_PROGRESS" || hostData.Status == "DNS" {
+		case "IN_PROGRESS", "DNS":
 			// Already running, join the poll
 			shouldStartNew = false
-		} else {
+		default:
 			// ERROR or unknown, start new
 			shouldStartNew = true
 		}

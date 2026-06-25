@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -197,9 +198,10 @@ func (s *Server) handleRegister(c *fiber.Ctx) error {
 	u, err := s.auth.Register(c.Context(), email, name, password)
 	if err != nil {
 		errMsg := "Registration failed"
-		if err == auth.ErrNotAllowed {
+		switch err {
+		case auth.ErrNotAllowed:
 			errMsg = "Registration is invite-only"
-		} else if err == auth.ErrEmailTaken {
+		case auth.ErrEmailTaken:
 			errMsg = "Email already registered"
 		}
 		return c.Render("views/register", fiber.Map{
@@ -213,7 +215,9 @@ func (s *Server) handleRegister(c *fiber.Ctx) error {
 func (s *Server) handleLogout(c *fiber.Ctx) error {
 	token := c.Cookies(auth.SessionCookie)
 	if token != "" {
-		s.auth.DeleteSession(c.Context(), token)
+		if err := s.auth.DeleteSession(c.Context(), token); err != nil {
+			log.Printf("Logout: failed to delete session: %v", err)
+		}
 	}
 	c.ClearCookie(auth.SessionCookie)
 	return c.Redirect("/login")
@@ -540,7 +544,9 @@ func (s *Server) handleToggleImporter(c *fiber.Ctx) error {
 		return c.Status(404).SendString("Importer not found")
 	}
 
-	s.client.ImporterConfig.UpdateOne(cfg).SetEnabled(!cfg.Enabled).Exec(c.Context())
+	if err := s.client.ImporterConfig.UpdateOne(cfg).SetEnabled(!cfg.Enabled).Exec(c.Context()); err != nil {
+		return c.Status(500).SendString("Failed to toggle importer")
+	}
 	return c.Redirect("/settings")
 }
 
@@ -590,7 +596,9 @@ func (s *Server) handleToggleNotifier(c *fiber.Ctx) error {
 		return c.Status(404).SendString("Notifier not found")
 	}
 
-	s.client.NotifierConfig.UpdateOne(cfg).SetEnabled(!cfg.Enabled).Exec(c.Context())
+	if err := s.client.NotifierConfig.UpdateOne(cfg).SetEnabled(!cfg.Enabled).Exec(c.Context()); err != nil {
+		return c.Status(500).SendString("Failed to toggle notifier")
+	}
 	return c.Redirect("/settings")
 }
 
@@ -652,10 +660,14 @@ func (s *Server) handleUpdateTargetTags(c *fiber.Ctx) error {
 	}
 
 	// Clear existing tags and set new ones
-	s.client.Target.UpdateOne(t).ClearTags().Exec(c.Context())
+	if err := s.client.Target.UpdateOne(t).ClearTags().Exec(c.Context()); err != nil {
+		return c.Status(500).SendString("Failed to clear tags")
+	}
 	if len(ids) > 0 {
 		tags, _ := s.client.Tag.Query().Where(tag.IDIn(ids...)).All(c.Context())
-		s.client.Target.UpdateOne(t).AddTags(tags...).Exec(c.Context())
+		if err := s.client.Target.UpdateOne(t).AddTags(tags...).Exec(c.Context()); err != nil {
+			return c.Status(500).SendString("Failed to set tags")
+		}
 	}
 
 	return c.Redirect(fmt.Sprintf("/targets/%d", id))
@@ -664,16 +676,16 @@ func (s *Server) handleUpdateTargetTags(c *fiber.Ctx) error {
 // --- Export handler ---
 
 type exportData struct {
-	Target string       `json:"target"`
-	IsIP   bool         `json:"is_ip"`
-	IPs    []exportIP   `json:"ips,omitempty"`
-	SSL    []exportSSL  `json:"ssl_scans,omitempty"`
-	CSP    []exportCSP  `json:"csp_scans,omitempty"`
+	Target string      `json:"target"`
+	IsIP   bool        `json:"is_ip"`
+	IPs    []exportIP  `json:"ips,omitempty"`
+	SSL    []exportSSL `json:"ssl_scans,omitempty"`
+	CSP    []exportCSP `json:"csp_scans,omitempty"`
 }
 
 type exportIP struct {
-	Address   string     `json:"address"`
-	Scans     []exportPortScan `json:"scans,omitempty"`
+	Address string           `json:"address"`
+	Scans   []exportPortScan `json:"scans,omitempty"`
 }
 
 type exportPortScan struct {
@@ -761,27 +773,28 @@ func (s *Server) handleExportTarget(c *fiber.Ctx) error {
 		c.Set("Content-Type", "text/csv")
 		c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s.csv", t.Input))
 
-		var buf bytes.Buffer
-		w := csv.NewWriter(&buf)
-		w.Write([]string{"type", "timestamp", "detail", "value"})
-
+		rows := [][]string{{"type", "timestamp", "detail", "value"}}
 		for _, ip := range data.IPs {
 			for _, scan := range ip.Scans {
 				portStrs := make([]string, len(scan.Ports))
 				for i, p := range scan.Ports {
 					portStrs[i] = strconv.Itoa(p)
 				}
-				w.Write([]string{"port_scan", scan.ScannedAt, ip.Address, strings.Join(portStrs, ";")})
+				rows = append(rows, []string{"port_scan", scan.ScannedAt, ip.Address, strings.Join(portStrs, ";")})
 			}
 		}
 		for _, scan := range data.SSL {
-			w.Write([]string{"ssl_scan", scan.ScannedAt, scan.Grade, scan.Status})
+			rows = append(rows, []string{"ssl_scan", scan.ScannedAt, scan.Grade, scan.Status})
 		}
 		for _, scan := range data.CSP {
-			w.Write([]string{"csp_scan", scan.ScannedAt, strconv.Itoa(scan.Findings) + " findings", scan.Header})
+			rows = append(rows, []string{"csp_scan", scan.ScannedAt, strconv.Itoa(scan.Findings) + " findings", scan.Header})
 		}
 
-		w.Flush()
+		var buf bytes.Buffer
+		w := csv.NewWriter(&buf)
+		if err := w.WriteAll(rows); err != nil {
+			return c.Status(500).SendString("Failed to write CSV")
+		}
 		return c.Send(buf.Bytes())
 
 	default:

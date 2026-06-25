@@ -44,7 +44,9 @@ func TestWebhookNotify(t *testing.T) {
 	}
 
 	var payload map[string]any
-	json.Unmarshal(received, &payload)
+	if err := json.Unmarshal(received, &payload); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
 	if payload["event"] != string(notifier.EventNewOpenPorts) {
 		t.Errorf("expected event type %s, got %v", notifier.EventNewOpenPorts, payload["event"])
 	}

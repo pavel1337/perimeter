@@ -11,8 +11,8 @@ import (
 
 // DBQueue implements Queue using the database-backed job table.
 type DBQueue struct {
-	storage     *storage.EntStorage
-	jobTimeout  time.Duration
+	storage      *storage.EntStorage
+	jobTimeout   time.Duration
 	pollInterval time.Duration
 }
 
