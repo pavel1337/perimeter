@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 
@@ -9,12 +10,16 @@ import (
 	"perimeter/ent/user"
 	"perimeter/internal/auth"
 
-	_ "github.com/mattn/go-sqlite3"
+	sqlite "modernc.org/sqlite"
 )
+
+// modernc.org/sqlite registers itself as "sqlite"; ent opens the "sqlite3"
+// driver name, so alias it here. Pure-Go, no CGO.
+func init() { sql.Register("sqlite3", &sqlite.Driver{}) }
 
 func newTestAuth(t *testing.T) *auth.Auth {
 	t.Helper()
-	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_pragma=foreign_keys(1)")
 	t.Cleanup(func() { client.Close() })
 
 	a, err := auth.New(context.Background(), auth.Config{

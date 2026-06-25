@@ -2,6 +2,7 @@ package storage_test
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 
@@ -9,12 +10,16 @@ import (
 	"perimeter/ent/job"
 	"perimeter/internal/storage"
 
-	_ "github.com/mattn/go-sqlite3"
+	sqlite "modernc.org/sqlite"
 )
+
+// modernc.org/sqlite registers itself as "sqlite"; ent opens the "sqlite3"
+// driver name, so alias it here. Pure-Go, no CGO.
+func init() { sql.Register("sqlite3", &sqlite.Driver{}) }
 
 func newTestStorage(t *testing.T) *storage.EntStorage {
 	t.Helper()
-	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_pragma=foreign_keys(1)")
 	t.Cleanup(func() { client.Close() })
 	return storage.NewEntStorage(client)
 }
@@ -44,8 +49,12 @@ func TestImportTargetsIdempotent(t *testing.T) {
 	s := newTestStorage(t)
 	ctx := context.Background()
 
-	s.ImportTargets(ctx, []string{"example.com"})
-	s.ImportTargets(ctx, []string{"example.com"})
+	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
+		t.Fatalf("ImportTargets: %v", err)
+	}
+	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
+		t.Fatalf("ImportTargets: %v", err)
+	}
 
 	targets, err := s.GetTargets(ctx)
 	if err != nil {
@@ -60,7 +69,9 @@ func TestDeleteTarget(t *testing.T) {
 	s := newTestStorage(t)
 	ctx := context.Background()
 
-	s.ImportTargets(ctx, []string{"example.com"})
+	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
+		t.Fatalf("ImportTargets: %v", err)
+	}
 	targets, _ := s.GetTargets(ctx)
 	if len(targets) != 1 {
 		t.Fatalf("expected 1 target")
@@ -140,7 +151,9 @@ func TestHasPendingJob(t *testing.T) {
 		t.Error("expected no pending job")
 	}
 
-	s.CreateJob(ctx, job.TypeResolve, map[string]any{"input": "example.com"})
+	if _, err := s.CreateJob(ctx, job.TypeResolve, map[string]any{"input": "example.com"}); err != nil {
+		t.Fatalf("CreateJob: %v", err)
+	}
 
 	has, err = s.HasPendingJob(ctx, job.TypeResolve, "input", "example.com")
 	if err != nil {
@@ -155,7 +168,9 @@ func TestRecoverStaleJobs(t *testing.T) {
 	s := newTestStorage(t)
 	ctx := context.Background()
 
-	s.CreateJob(ctx, job.TypeResolve, map[string]any{"input": "example.com"})
+	if _, err := s.CreateJob(ctx, job.TypeResolve, map[string]any{"input": "example.com"}); err != nil {
+		t.Fatalf("CreateJob: %v", err)
+	}
 
 	// Claim with very short timeout
 	j, _ := s.ClaimJob(ctx, 1*time.Millisecond)
@@ -185,8 +200,12 @@ func TestSaveAndGetPortScan(t *testing.T) {
 	s := newTestStorage(t)
 	ctx := context.Background()
 
-	s.ImportTargets(ctx, []string{"example.com"})
-	s.SaveIPs(ctx, "example.com", []string{"1.2.3.4"})
+	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
+		t.Fatalf("ImportTargets: %v", err)
+	}
+	if err := s.SaveIPs(ctx, "example.com", []string{"1.2.3.4"}); err != nil {
+		t.Fatalf("SaveIPs: %v", err)
+	}
 
 	err := s.SavePortScan(ctx, "1.2.3.4", []int{80, 443})
 	if err != nil {
@@ -206,7 +225,9 @@ func TestSaveSSLScan(t *testing.T) {
 	s := newTestStorage(t)
 	ctx := context.Background()
 
-	s.ImportTargets(ctx, []string{"example.com"})
+	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
+		t.Fatalf("ImportTargets: %v", err)
+	}
 
 	err := s.SaveSSLScan(ctx, "example.com", storage.SSLResult{
 		Grade:  "A+",

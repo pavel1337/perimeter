@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"database/sql"
 	"embed"
 	"flag"
 	"fmt"
@@ -10,6 +11,9 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
 
 	"perimeter/ent"
 	"perimeter/internal/auth"
@@ -21,7 +25,7 @@ import (
 	"perimeter/scanner/ssl"
 
 	_ "github.com/lib/pq"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 //go:embed views/*
@@ -68,9 +72,9 @@ var (
 	sslInterval  = getEnvOrDefaultDuration("SSL_INTERVAL", 12*time.Hour)
 	cspInterval  = getEnvOrDefaultDuration("CSP_INTERVAL", 1*time.Hour)
 
-	sessionMaxAge  = getEnvOrDefaultDuration("SESSION_MAX_AGE", 720*time.Hour)
-	oidcIssuer     = getEnvOrDefaultStr("OIDC_ISSUER", "")
-	oidcClientID   = getEnvOrDefaultStr("OIDC_CLIENT_ID", "")
+	sessionMaxAge    = getEnvOrDefaultDuration("SESSION_MAX_AGE", 720*time.Hour)
+	oidcIssuer       = getEnvOrDefaultStr("OIDC_ISSUER", "")
+	oidcClientID     = getEnvOrDefaultStr("OIDC_CLIENT_ID", "")
 	oidcClientSecret = getEnvOrDefaultStr("OIDC_CLIENT_SECRET", "")
 	oidcRedirectURL  = getEnvOrDefaultStr("OIDC_REDIRECT_URL", "")
 	requireConfirm   = getEnvOrDefaultStr("REQUIRE_CONFIRM", "false")
@@ -114,23 +118,28 @@ func main() {
 
 	// 2. Initialize Database & Storage
 	var (
-		client *ent.Client
-		err    error
+		db      *sql.DB
+		dialEnt string
+		err     error
 	)
 	switch dbDriver {
-	case "sqlite3":
-		client, err = ent.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&_fk=1", dbPath))
+	case "sqlite3", "sqlite":
+		// modernc.org/sqlite is pure-Go (no CGO); driver name is "sqlite".
+		db, err = sql.Open("sqlite", fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)", dbPath))
+		dialEnt = dialect.SQLite
 	case "postgres":
 		if dbDSN == "" {
 			log.Fatal("DB_DSN is required when DB_DRIVER=postgres")
 		}
-		client, err = ent.Open("postgres", dbDSN)
+		db, err = sql.Open("postgres", dbDSN)
+		dialEnt = dialect.Postgres
 	default:
 		log.Fatalf("unsupported DB_DRIVER: %s (use sqlite3 or postgres)", dbDriver)
 	}
 	if err != nil {
 		log.Fatalf("failed opening database connection: %v", err)
 	}
+	client := ent.NewClient(ent.Driver(entsql.OpenDB(dialEnt, db)))
 	log.Printf("Database: %s", dbDriver)
 	defer client.Close()
 
