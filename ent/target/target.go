@@ -22,6 +22,10 @@ const (
 	FieldInput = "input"
 	// FieldIsIP holds the string denoting the is_ip field in the database.
 	FieldIsIP = "is_ip"
+	// FieldResolveAttempts holds the string denoting the resolve_attempts field in the database.
+	FieldResolveAttempts = "resolve_attempts"
+	// FieldResolveError holds the string denoting the resolve_error field in the database.
+	FieldResolveError = "resolve_error"
 	// EdgeIps holds the string denoting the ips edge name in mutations.
 	EdgeIps = "ips"
 	// EdgeSslScans holds the string denoting the ssl_scans edge name in mutations.
@@ -74,6 +78,8 @@ var Columns = []string{
 	FieldUpdateTime,
 	FieldInput,
 	FieldIsIP,
+	FieldResolveAttempts,
+	FieldResolveError,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "targets"
@@ -117,6 +123,8 @@ var (
 	InputValidator func(string) error
 	// DefaultIsIP holds the default value on creation for the "is_ip" field.
 	DefaultIsIP bool
+	// DefaultResolveAttempts holds the default value on creation for the "resolve_attempts" field.
+	DefaultResolveAttempts int
 )
 
 // OrderOption defines the ordering options for the Target queries.
@@ -145,6 +153,16 @@ func ByInput(opts ...sql.OrderTermOption) OrderOption {
 // ByIsIP orders the results by the is_ip field.
 func ByIsIP(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIsIP, opts...).ToFunc()
+}
+
+// ByResolveAttempts orders the results by the resolve_attempts field.
+func ByResolveAttempts(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResolveAttempts, opts...).ToFunc()
+}
+
+// ByResolveError orders the results by the resolve_error field.
+func ByResolveError(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResolveError, opts...).ToFunc()
 }
 
 // ByIpsCount orders the results by ips count.

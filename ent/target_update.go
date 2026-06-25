@@ -67,6 +67,47 @@ func (_u *TargetUpdate) SetNillableIsIP(v *bool) *TargetUpdate {
 	return _u
 }
 
+// SetResolveAttempts sets the "resolve_attempts" field.
+func (_u *TargetUpdate) SetResolveAttempts(v int) *TargetUpdate {
+	_u.mutation.ResetResolveAttempts()
+	_u.mutation.SetResolveAttempts(v)
+	return _u
+}
+
+// SetNillableResolveAttempts sets the "resolve_attempts" field if the given value is not nil.
+func (_u *TargetUpdate) SetNillableResolveAttempts(v *int) *TargetUpdate {
+	if v != nil {
+		_u.SetResolveAttempts(*v)
+	}
+	return _u
+}
+
+// AddResolveAttempts adds value to the "resolve_attempts" field.
+func (_u *TargetUpdate) AddResolveAttempts(v int) *TargetUpdate {
+	_u.mutation.AddResolveAttempts(v)
+	return _u
+}
+
+// SetResolveError sets the "resolve_error" field.
+func (_u *TargetUpdate) SetResolveError(v string) *TargetUpdate {
+	_u.mutation.SetResolveError(v)
+	return _u
+}
+
+// SetNillableResolveError sets the "resolve_error" field if the given value is not nil.
+func (_u *TargetUpdate) SetNillableResolveError(v *string) *TargetUpdate {
+	if v != nil {
+		_u.SetResolveError(*v)
+	}
+	return _u
+}
+
+// ClearResolveError clears the value of the "resolve_error" field.
+func (_u *TargetUpdate) ClearResolveError() *TargetUpdate {
+	_u.mutation.ClearResolveError()
+	return _u
+}
+
 // AddIPIDs adds the "ips" edge to the IP entity by IDs.
 func (_u *TargetUpdate) AddIPIDs(ids ...int) *TargetUpdate {
 	_u.mutation.AddIPIDs(ids...)
@@ -307,6 +348,18 @@ func (_u *TargetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.IsIP(); ok {
 		_spec.SetField(target.FieldIsIP, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ResolveAttempts(); ok {
+		_spec.SetField(target.FieldResolveAttempts, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedResolveAttempts(); ok {
+		_spec.AddField(target.FieldResolveAttempts, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ResolveError(); ok {
+		_spec.SetField(target.FieldResolveError, field.TypeString, value)
+	}
+	if _u.mutation.ResolveErrorCleared() {
+		_spec.ClearField(target.FieldResolveError, field.TypeString)
 	}
 	if _u.mutation.IpsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -568,6 +621,47 @@ func (_u *TargetUpdateOne) SetNillableIsIP(v *bool) *TargetUpdateOne {
 	if v != nil {
 		_u.SetIsIP(*v)
 	}
+	return _u
+}
+
+// SetResolveAttempts sets the "resolve_attempts" field.
+func (_u *TargetUpdateOne) SetResolveAttempts(v int) *TargetUpdateOne {
+	_u.mutation.ResetResolveAttempts()
+	_u.mutation.SetResolveAttempts(v)
+	return _u
+}
+
+// SetNillableResolveAttempts sets the "resolve_attempts" field if the given value is not nil.
+func (_u *TargetUpdateOne) SetNillableResolveAttempts(v *int) *TargetUpdateOne {
+	if v != nil {
+		_u.SetResolveAttempts(*v)
+	}
+	return _u
+}
+
+// AddResolveAttempts adds value to the "resolve_attempts" field.
+func (_u *TargetUpdateOne) AddResolveAttempts(v int) *TargetUpdateOne {
+	_u.mutation.AddResolveAttempts(v)
+	return _u
+}
+
+// SetResolveError sets the "resolve_error" field.
+func (_u *TargetUpdateOne) SetResolveError(v string) *TargetUpdateOne {
+	_u.mutation.SetResolveError(v)
+	return _u
+}
+
+// SetNillableResolveError sets the "resolve_error" field if the given value is not nil.
+func (_u *TargetUpdateOne) SetNillableResolveError(v *string) *TargetUpdateOne {
+	if v != nil {
+		_u.SetResolveError(*v)
+	}
+	return _u
+}
+
+// ClearResolveError clears the value of the "resolve_error" field.
+func (_u *TargetUpdateOne) ClearResolveError() *TargetUpdateOne {
+	_u.mutation.ClearResolveError()
 	return _u
 }
 
@@ -841,6 +935,18 @@ func (_u *TargetUpdateOne) sqlSave(ctx context.Context) (_node *Target, err erro
 	}
 	if value, ok := _u.mutation.IsIP(); ok {
 		_spec.SetField(target.FieldIsIP, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ResolveAttempts(); ok {
+		_spec.SetField(target.FieldResolveAttempts, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedResolveAttempts(); ok {
+		_spec.AddField(target.FieldResolveAttempts, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ResolveError(); ok {
+		_spec.SetField(target.FieldResolveError, field.TypeString, value)
+	}
+	if _u.mutation.ResolveErrorCleared() {
+		_spec.ClearField(target.FieldResolveError, field.TypeString)
 	}
 	if _u.mutation.IpsCleared() {
 		edge := &sqlgraph.EdgeSpec{

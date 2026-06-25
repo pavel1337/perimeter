@@ -57,7 +57,7 @@
 </table>
 {{end}}
 {{else}}
-<p class="text-muted">Not yet resolved to any IP addresses.</p>
+<p class="text-muted">{{if .ResolveError}}Unresolved: {{.ResolveError}} (attempt {{.ResolveAttempts}}){{else}}Not yet resolved to any IP addresses.{{end}}</p>
 {{end}}
 
 {{if not .Target.IsIP}}

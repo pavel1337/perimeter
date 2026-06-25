@@ -16,6 +16,9 @@ func (Target) Fields() []ent.Field {
 		// The distinct IP or Domain: "192.168.1.1" or "example.com"
 		field.String("input").Unique().NotEmpty(),
 		field.Bool("is_ip").Default(false),
+		// Resolution backoff state (see scanner.resolveBackoff).
+		field.Int("resolve_attempts").Default(0),
+		field.String("resolve_error").Optional(),
 	}
 }
 

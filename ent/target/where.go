@@ -75,6 +75,16 @@ func IsIP(v bool) predicate.Target {
 	return predicate.Target(sql.FieldEQ(FieldIsIP, v))
 }
 
+// ResolveAttempts applies equality check predicate on the "resolve_attempts" field. It's identical to ResolveAttemptsEQ.
+func ResolveAttempts(v int) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldResolveAttempts, v))
+}
+
+// ResolveError applies equality check predicate on the "resolve_error" field. It's identical to ResolveErrorEQ.
+func ResolveError(v string) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldResolveError, v))
+}
+
 // CreateTimeEQ applies the EQ predicate on the "create_time" field.
 func CreateTimeEQ(v time.Time) predicate.Target {
 	return predicate.Target(sql.FieldEQ(FieldCreateTime, v))
@@ -228,6 +238,121 @@ func IsIPEQ(v bool) predicate.Target {
 // IsIPNEQ applies the NEQ predicate on the "is_ip" field.
 func IsIPNEQ(v bool) predicate.Target {
 	return predicate.Target(sql.FieldNEQ(FieldIsIP, v))
+}
+
+// ResolveAttemptsEQ applies the EQ predicate on the "resolve_attempts" field.
+func ResolveAttemptsEQ(v int) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldResolveAttempts, v))
+}
+
+// ResolveAttemptsNEQ applies the NEQ predicate on the "resolve_attempts" field.
+func ResolveAttemptsNEQ(v int) predicate.Target {
+	return predicate.Target(sql.FieldNEQ(FieldResolveAttempts, v))
+}
+
+// ResolveAttemptsIn applies the In predicate on the "resolve_attempts" field.
+func ResolveAttemptsIn(vs ...int) predicate.Target {
+	return predicate.Target(sql.FieldIn(FieldResolveAttempts, vs...))
+}
+
+// ResolveAttemptsNotIn applies the NotIn predicate on the "resolve_attempts" field.
+func ResolveAttemptsNotIn(vs ...int) predicate.Target {
+	return predicate.Target(sql.FieldNotIn(FieldResolveAttempts, vs...))
+}
+
+// ResolveAttemptsGT applies the GT predicate on the "resolve_attempts" field.
+func ResolveAttemptsGT(v int) predicate.Target {
+	return predicate.Target(sql.FieldGT(FieldResolveAttempts, v))
+}
+
+// ResolveAttemptsGTE applies the GTE predicate on the "resolve_attempts" field.
+func ResolveAttemptsGTE(v int) predicate.Target {
+	return predicate.Target(sql.FieldGTE(FieldResolveAttempts, v))
+}
+
+// ResolveAttemptsLT applies the LT predicate on the "resolve_attempts" field.
+func ResolveAttemptsLT(v int) predicate.Target {
+	return predicate.Target(sql.FieldLT(FieldResolveAttempts, v))
+}
+
+// ResolveAttemptsLTE applies the LTE predicate on the "resolve_attempts" field.
+func ResolveAttemptsLTE(v int) predicate.Target {
+	return predicate.Target(sql.FieldLTE(FieldResolveAttempts, v))
+}
+
+// ResolveErrorEQ applies the EQ predicate on the "resolve_error" field.
+func ResolveErrorEQ(v string) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldResolveError, v))
+}
+
+// ResolveErrorNEQ applies the NEQ predicate on the "resolve_error" field.
+func ResolveErrorNEQ(v string) predicate.Target {
+	return predicate.Target(sql.FieldNEQ(FieldResolveError, v))
+}
+
+// ResolveErrorIn applies the In predicate on the "resolve_error" field.
+func ResolveErrorIn(vs ...string) predicate.Target {
+	return predicate.Target(sql.FieldIn(FieldResolveError, vs...))
+}
+
+// ResolveErrorNotIn applies the NotIn predicate on the "resolve_error" field.
+func ResolveErrorNotIn(vs ...string) predicate.Target {
+	return predicate.Target(sql.FieldNotIn(FieldResolveError, vs...))
+}
+
+// ResolveErrorGT applies the GT predicate on the "resolve_error" field.
+func ResolveErrorGT(v string) predicate.Target {
+	return predicate.Target(sql.FieldGT(FieldResolveError, v))
+}
+
+// ResolveErrorGTE applies the GTE predicate on the "resolve_error" field.
+func ResolveErrorGTE(v string) predicate.Target {
+	return predicate.Target(sql.FieldGTE(FieldResolveError, v))
+}
+
+// ResolveErrorLT applies the LT predicate on the "resolve_error" field.
+func ResolveErrorLT(v string) predicate.Target {
+	return predicate.Target(sql.FieldLT(FieldResolveError, v))
+}
+
+// ResolveErrorLTE applies the LTE predicate on the "resolve_error" field.
+func ResolveErrorLTE(v string) predicate.Target {
+	return predicate.Target(sql.FieldLTE(FieldResolveError, v))
+}
+
+// ResolveErrorContains applies the Contains predicate on the "resolve_error" field.
+func ResolveErrorContains(v string) predicate.Target {
+	return predicate.Target(sql.FieldContains(FieldResolveError, v))
+}
+
+// ResolveErrorHasPrefix applies the HasPrefix predicate on the "resolve_error" field.
+func ResolveErrorHasPrefix(v string) predicate.Target {
+	return predicate.Target(sql.FieldHasPrefix(FieldResolveError, v))
+}
+
+// ResolveErrorHasSuffix applies the HasSuffix predicate on the "resolve_error" field.
+func ResolveErrorHasSuffix(v string) predicate.Target {
+	return predicate.Target(sql.FieldHasSuffix(FieldResolveError, v))
+}
+
+// ResolveErrorIsNil applies the IsNil predicate on the "resolve_error" field.
+func ResolveErrorIsNil() predicate.Target {
+	return predicate.Target(sql.FieldIsNull(FieldResolveError))
+}
+
+// ResolveErrorNotNil applies the NotNil predicate on the "resolve_error" field.
+func ResolveErrorNotNil() predicate.Target {
+	return predicate.Target(sql.FieldNotNull(FieldResolveError))
+}
+
+// ResolveErrorEqualFold applies the EqualFold predicate on the "resolve_error" field.
+func ResolveErrorEqualFold(v string) predicate.Target {
+	return predicate.Target(sql.FieldEqualFold(FieldResolveError, v))
+}
+
+// ResolveErrorContainsFold applies the ContainsFold predicate on the "resolve_error" field.
+func ResolveErrorContainsFold(v string) predicate.Target {
+	return predicate.Target(sql.FieldContainsFold(FieldResolveError, v))
 }
 
 // HasIps applies the HasEdge predicate on the "ips" edge.

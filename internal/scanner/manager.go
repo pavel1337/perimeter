@@ -2,6 +2,8 @@ package scanner
 
 import (
 	"context"
+	"crypto/tls"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -223,7 +225,12 @@ func (m *Manager) runResolutionProducer() {
 			continue
 		}
 
+		now := time.Now()
 		for _, t := range targets {
+			// Fibonacci backoff (capped 1h) keyed off the last attempt time.
+			if now.Sub(t.UpdateTime) < resolveBackoff(t.ResolveAttempts, m.config.ResolutionInterval) {
+				continue
+			}
 			if m.canEnqueue(ctx, string(JobTypeResolution), t.Input) {
 				if err := m.queue.Enqueue(ctx, Job{Type: JobTypeResolution, Input: t.Input}); err != nil {
 					log.Printf("Producer: failed to enqueue resolution for %s: %v", t.Input, err)
@@ -315,11 +322,12 @@ func (m *Manager) processResolution(ctx context.Context, j Job) {
 	log.Printf("Worker: Resolving %s", j.Input)
 	ips, err := net.LookupIP(j.Input)
 	if err != nil {
-		log.Printf("Worker: Failed to resolve %s: %v", j.Input, err)
-		if terr := m.storage.TouchTarget(ctx, j.Input); terr != nil {
-			log.Printf("Worker: failed to touch target %s: %v", j.Input, terr)
+		msg := dnsErrorMessage(err)
+		log.Printf("Worker: Failed to resolve %s: %s", j.Input, msg)
+		if terr := m.storage.RecordResolveFailure(ctx, j.Input, msg); terr != nil {
+			log.Printf("Worker: failed to record resolve failure for %s: %v", j.Input, terr)
 		}
-		m.failJob(ctx, j, err.Error())
+		m.failJob(ctx, j, msg)
 		return
 	}
 
@@ -389,6 +397,20 @@ func (m *Manager) processPortScan(ctx context.Context, j Job, scanner *ports.Sim
 
 func (m *Manager) processSSLScan(ctx context.Context, j Job, scanner *ssl.SSLLabsScanner) {
 	log.Printf("Worker: SSL Scanning %s", j.Input)
+
+	// Preflight: only ask SSL Labs about hosts that actually serve a cert on 443.
+	// Avoids hammering the API (and 529s) with non-web names like DKIM/MX records.
+	if !servesTLS(j.Input) {
+		log.Printf("Worker: %s serves no certificate on port 443, skipping SSL Labs", j.Input)
+		if serr := m.storage.SaveSSLScan(ctx, j.Input, storage.SSLResult{
+			Grade:  "-",
+			Status: "No HTTPS service on port 443",
+		}); serr != nil {
+			log.Printf("Worker: failed to save SSL scan for %s: %v", j.Input, serr)
+		}
+		m.completeJob(ctx, j)
+		return
+	}
 
 	prevGrade, _ := m.storage.GetPreviousSSLGrade(ctx, j.Input)
 
@@ -515,4 +537,48 @@ func (m *Manager) processCSPScan(ctx context.Context, j Job, client http.Client,
 			Timestamp: time.Now(),
 		})
 	}
+}
+
+// --- Helpers ---
+
+// servesTLS reports whether host completes a TLS handshake on :443.
+// InsecureSkipVerify because we only care that a cert is served; SSL Labs grades it.
+func servesTLS(host string) bool {
+	d := &net.Dialer{Timeout: 5 * time.Second}
+	conn, err := tls.DialWithDialer(d, "tcp", host+":443", &tls.Config{InsecureSkipVerify: true}) //nolint:gosec
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
+}
+
+// dnsErrorMessage turns a net resolver error into a short, deterministic status.
+func dnsErrorMessage(err error) string {
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		switch {
+		case dnsErr.IsNotFound:
+			return "no such host (NXDOMAIN)"
+		case dnsErr.IsTimeout:
+			return "DNS timeout"
+		default:
+			return "DNS error: " + dnsErr.Err
+		}
+	}
+	return err.Error()
+}
+
+// resolveBackoff returns how long to wait before the next attempt given the
+// number of prior failures: fibonacci multiples of base, capped at 1h.
+func resolveBackoff(attempts int, base time.Duration) time.Duration {
+	a, b := 1, 1
+	for range attempts {
+		a, b = b, a+b
+	}
+	w := time.Duration(a) * base
+	if w > time.Hour {
+		return time.Hour
+	}
+	return w
 }

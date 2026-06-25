@@ -73,6 +73,34 @@ func (_c *TargetCreate) SetNillableIsIP(v *bool) *TargetCreate {
 	return _c
 }
 
+// SetResolveAttempts sets the "resolve_attempts" field.
+func (_c *TargetCreate) SetResolveAttempts(v int) *TargetCreate {
+	_c.mutation.SetResolveAttempts(v)
+	return _c
+}
+
+// SetNillableResolveAttempts sets the "resolve_attempts" field if the given value is not nil.
+func (_c *TargetCreate) SetNillableResolveAttempts(v *int) *TargetCreate {
+	if v != nil {
+		_c.SetResolveAttempts(*v)
+	}
+	return _c
+}
+
+// SetResolveError sets the "resolve_error" field.
+func (_c *TargetCreate) SetResolveError(v string) *TargetCreate {
+	_c.mutation.SetResolveError(v)
+	return _c
+}
+
+// SetNillableResolveError sets the "resolve_error" field if the given value is not nil.
+func (_c *TargetCreate) SetNillableResolveError(v *string) *TargetCreate {
+	if v != nil {
+		_c.SetResolveError(*v)
+	}
+	return _c
+}
+
 // AddIPIDs adds the "ips" edge to the IP entity by IDs.
 func (_c *TargetCreate) AddIPIDs(ids ...int) *TargetCreate {
 	_c.mutation.AddIPIDs(ids...)
@@ -199,6 +227,10 @@ func (_c *TargetCreate) defaults() {
 		v := target.DefaultIsIP
 		_c.mutation.SetIsIP(v)
 	}
+	if _, ok := _c.mutation.ResolveAttempts(); !ok {
+		v := target.DefaultResolveAttempts
+		_c.mutation.SetResolveAttempts(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -219,6 +251,9 @@ func (_c *TargetCreate) check() error {
 	}
 	if _, ok := _c.mutation.IsIP(); !ok {
 		return &ValidationError{Name: "is_ip", err: errors.New(`ent: missing required field "Target.is_ip"`)}
+	}
+	if _, ok := _c.mutation.ResolveAttempts(); !ok {
+		return &ValidationError{Name: "resolve_attempts", err: errors.New(`ent: missing required field "Target.resolve_attempts"`)}
 	}
 	return nil
 }
@@ -261,6 +296,14 @@ func (_c *TargetCreate) createSpec() (*Target, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.IsIP(); ok {
 		_spec.SetField(target.FieldIsIP, field.TypeBool, value)
 		_node.IsIP = value
+	}
+	if value, ok := _c.mutation.ResolveAttempts(); ok {
+		_spec.SetField(target.FieldResolveAttempts, field.TypeInt, value)
+		_node.ResolveAttempts = value
+	}
+	if value, ok := _c.mutation.ResolveError(); ok {
+		_spec.SetField(target.FieldResolveError, field.TypeString, value)
+		_node.ResolveError = value
 	}
 	if nodes := _c.mutation.IpsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

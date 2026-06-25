@@ -59,8 +59,14 @@
         {{else}}
         {{if .Edges.CspScans}}
         {{$latestCSP := index .Edges.CspScans 0}}
-        {{if $latestCSP.Findings}}
-        <span class="badge badge-red">{{len $latestCSP.Findings}} findings</span>
+        {{if eq $latestCSP.CspHeader ""}}
+          {{if and $latestCSP.Findings (eq (index $latestCSP.Findings 0).Description "Target Unreachable")}}
+          <span class="text-muted">unreachable</span>
+          {{else}}
+          <span class="badge badge-red">no CSP header</span>
+          {{end}}
+        {{else if $latestCSP.Findings}}
+        <span class="badge badge-red">{{len $latestCSP.Findings}} issues</span>
         {{else}}
         <span class="badge badge-green">OK</span>
         {{end}}
@@ -90,7 +96,7 @@
         {{end}}
       </td>
       {{else}}
-      <td><span class="text-muted">resolving...</span></td>
+      <td>{{if .ResolveError}}<span class="text-muted" title="attempt {{.ResolveAttempts}}">unresolved: {{.ResolveError}}</span>{{else}}<span class="text-muted">resolving...</span>{{end}}</td>
       {{end}}
 
       <td>

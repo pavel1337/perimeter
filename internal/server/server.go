@@ -503,6 +503,13 @@ func (s *Server) handleCreateImporter(c *fiber.Ctx) error {
 		interval = 3600 // Default 1 hour
 	}
 
+	// Validate credentials now instead of silently failing in the background sync loop.
+	if _, err := s.registry.Get(provider, []byte(credentials)); err != nil {
+		return c.Render("views/settings", s.settingsData(c, fiber.Map{
+			"Error": "Invalid importer config: " + err.Error(),
+		}), "views/layouts/main")
+	}
+
 	_, err = s.client.ImporterConfig.Create().
 		SetProvider(importerconfig.Provider(provider)).
 		SetCredentials([]byte(credentials)).

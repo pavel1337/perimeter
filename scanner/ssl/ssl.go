@@ -184,6 +184,13 @@ func (s *SSLLabsScanner) buildResult(hostData *apiHost) *SSLResult {
 		ep := hostData.Endpoints[0]
 		result.Grade = ep.Grade
 
+		// A host-level "READY" only means the assessment finished, not that the
+		// endpoint was reachable/gradeable. When there's no grade, the real
+		// reason lives in the endpoint's statusMessage — surface it.
+		if ep.Grade == "" && ep.StatusMessage != "" {
+			result.Status = ep.StatusMessage
+		}
+
 		// Protocols
 		var protos []string
 		for _, p := range ep.Details.Protocols {

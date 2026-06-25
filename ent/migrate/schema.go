@@ -230,6 +230,8 @@ var (
 		{Name: "update_time", Type: field.TypeTime},
 		{Name: "input", Type: field.TypeString, Unique: true},
 		{Name: "is_ip", Type: field.TypeBool, Default: false},
+		{Name: "resolve_attempts", Type: field.TypeInt, Default: 0},
+		{Name: "resolve_error", Type: field.TypeString, Nullable: true},
 		{Name: "user_targets", Type: field.TypeInt, Nullable: true},
 	}
 	// TargetsTable holds the schema information for the "targets" table.
@@ -240,7 +242,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "targets_users_targets",
-				Columns:    []*schema.Column{TargetsColumns[5]},
+				Columns:    []*schema.Column{TargetsColumns[7]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},

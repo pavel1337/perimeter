@@ -178,6 +178,10 @@ func init() {
 	targetDescIsIP := targetFields[1].Descriptor()
 	// target.DefaultIsIP holds the default value on creation for the is_ip field.
 	target.DefaultIsIP = targetDescIsIP.Default.(bool)
+	// targetDescResolveAttempts is the schema descriptor for resolve_attempts field.
+	targetDescResolveAttempts := targetFields[2].Descriptor()
+	// target.DefaultResolveAttempts holds the default value on creation for the resolve_attempts field.
+	target.DefaultResolveAttempts = targetDescResolveAttempts.Default.(int)
 	userMixin := schema.User{}.Mixin()
 	userMixinFields0 := userMixin[0].Fields()
 	_ = userMixinFields0

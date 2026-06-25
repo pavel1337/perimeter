@@ -38,6 +38,7 @@ type Storage interface {
 	GetOldestOutdatedTarget(ctx context.Context, scanType ScanType, threshold time.Duration) (*ent.Target, error)
 	GetOldestOutdatedIP(ctx context.Context, threshold time.Duration) (*ent.IP, error)
 	GetUnresolvedTargets(ctx context.Context, limit int, threshold time.Duration) ([]*ent.Target, error)
+	RecordResolveFailure(ctx context.Context, input, msg string) error
 	TouchTarget(ctx context.Context, input string) error
 
 	// Saving Results
@@ -206,14 +207,26 @@ func (s *EntStorage) GetOldestOutdatedIP(ctx context.Context, threshold time.Dur
 	return i, nil
 }
 
-func (s *EntStorage) GetUnresolvedTargets(ctx context.Context, limit int, threshold time.Duration) ([]*ent.Target, error) {
-	cutoff := time.Now().Add(-threshold)
-	// Return targets with NO IPs and haven't been touched since cutoff.
+// GetUnresolvedTargets returns up to limit targets with no IPs, oldest-attempt
+// first. The caller applies per-target backoff (see scanner.resolveBackoff);
+// oldest-first ordering means if the head isn't due yet, none are.
+func (s *EntStorage) GetUnresolvedTargets(ctx context.Context, limit int, _ time.Duration) ([]*ent.Target, error) {
 	return s.client.Target.Query().
 		Where(target.Not(target.HasIps())).
-		Where(target.UpdateTimeLT(cutoff)).
+		Order(ent.Asc(target.FieldUpdateTime)).
 		Limit(limit).
 		All(ctx)
+}
+
+// RecordResolveFailure bumps the attempt counter and stores a status message.
+// UpdateTime is the backoff clock, so it is reset to now.
+func (s *EntStorage) RecordResolveFailure(ctx context.Context, input, msg string) error {
+	return s.client.Target.Update().
+		Where(target.Input(input)).
+		AddResolveAttempts(1).
+		SetResolveError(msg).
+		SetUpdateTime(time.Now()).
+		Exec(ctx)
 }
 
 func (s *EntStorage) TouchTarget(ctx context.Context, input string) error {
@@ -269,8 +282,11 @@ func (s *EntStorage) SaveIPs(ctx context.Context, targetInput string, ipAddresse
 		}
 	}
 
-	// Update timestamp of Target to indicate we processed it?
-	if err := s.client.Target.UpdateOne(t).SetUpdateTime(time.Now()).Exec(ctx); err != nil {
+	// Resolved successfully: clear backoff state and update timestamp.
+	if err := s.client.Target.UpdateOne(t).
+		SetResolveAttempts(0).
+		SetResolveError("").
+		SetUpdateTime(time.Now()).Exec(ctx); err != nil {
 		log.Printf("Failed to update target timestamp for %s: %v", t.Input, err)
 	}
 

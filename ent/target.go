@@ -26,6 +26,10 @@ type Target struct {
 	Input string `json:"input,omitempty"`
 	// IsIP holds the value of the "is_ip" field.
 	IsIP bool `json:"is_ip,omitempty"`
+	// ResolveAttempts holds the value of the "resolve_attempts" field.
+	ResolveAttempts int `json:"resolve_attempts,omitempty"`
+	// ResolveError holds the value of the "resolve_error" field.
+	ResolveError string `json:"resolve_error,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the TargetQuery when eager-loading is set.
 	Edges        TargetEdges `json:"edges"`
@@ -104,9 +108,9 @@ func (*Target) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case target.FieldIsIP:
 			values[i] = new(sql.NullBool)
-		case target.FieldID:
+		case target.FieldID, target.FieldResolveAttempts:
 			values[i] = new(sql.NullInt64)
-		case target.FieldInput:
+		case target.FieldInput, target.FieldResolveError:
 			values[i] = new(sql.NullString)
 		case target.FieldCreateTime, target.FieldUpdateTime:
 			values[i] = new(sql.NullTime)
@@ -156,6 +160,18 @@ func (_m *Target) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field is_ip", values[i])
 			} else if value.Valid {
 				_m.IsIP = value.Bool
+			}
+		case target.FieldResolveAttempts:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field resolve_attempts", values[i])
+			} else if value.Valid {
+				_m.ResolveAttempts = int(value.Int64)
+			}
+		case target.FieldResolveError:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field resolve_error", values[i])
+			} else if value.Valid {
+				_m.ResolveError = value.String
 			}
 		case target.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -236,6 +252,12 @@ func (_m *Target) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("is_ip=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsIP))
+	builder.WriteString(", ")
+	builder.WriteString("resolve_attempts=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ResolveAttempts))
+	builder.WriteString(", ")
+	builder.WriteString("resolve_error=")
+	builder.WriteString(_m.ResolveError)
 	builder.WriteByte(')')
 	return builder.String()
 }

@@ -6942,31 +6942,34 @@ func (m *TagMutation) ResetEdge(name string) error {
 // TargetMutation represents an operation that mutates the Target nodes in the graph.
 type TargetMutation struct {
 	config
-	op               Op
-	typ              string
-	id               *int
-	create_time      *time.Time
-	update_time      *time.Time
-	input            *string
-	is_ip            *bool
-	clearedFields    map[string]struct{}
-	ips              map[int]struct{}
-	removedips       map[int]struct{}
-	clearedips       bool
-	ssl_scans        map[int]struct{}
-	removedssl_scans map[int]struct{}
-	clearedssl_scans bool
-	csp_scans        map[int]struct{}
-	removedcsp_scans map[int]struct{}
-	clearedcsp_scans bool
-	owner            *int
-	clearedowner     bool
-	tags             map[int]struct{}
-	removedtags      map[int]struct{}
-	clearedtags      bool
-	done             bool
-	oldValue         func(context.Context) (*Target, error)
-	predicates       []predicate.Target
+	op                  Op
+	typ                 string
+	id                  *int
+	create_time         *time.Time
+	update_time         *time.Time
+	input               *string
+	is_ip               *bool
+	resolve_attempts    *int
+	addresolve_attempts *int
+	resolve_error       *string
+	clearedFields       map[string]struct{}
+	ips                 map[int]struct{}
+	removedips          map[int]struct{}
+	clearedips          bool
+	ssl_scans           map[int]struct{}
+	removedssl_scans    map[int]struct{}
+	clearedssl_scans    bool
+	csp_scans           map[int]struct{}
+	removedcsp_scans    map[int]struct{}
+	clearedcsp_scans    bool
+	owner               *int
+	clearedowner        bool
+	tags                map[int]struct{}
+	removedtags         map[int]struct{}
+	clearedtags         bool
+	done                bool
+	oldValue            func(context.Context) (*Target, error)
+	predicates          []predicate.Target
 }
 
 var _ ent.Mutation = (*TargetMutation)(nil)
@@ -7209,6 +7212,111 @@ func (m *TargetMutation) OldIsIP(ctx context.Context) (v bool, err error) {
 // ResetIsIP resets all changes to the "is_ip" field.
 func (m *TargetMutation) ResetIsIP() {
 	m.is_ip = nil
+}
+
+// SetResolveAttempts sets the "resolve_attempts" field.
+func (m *TargetMutation) SetResolveAttempts(i int) {
+	m.resolve_attempts = &i
+	m.addresolve_attempts = nil
+}
+
+// ResolveAttempts returns the value of the "resolve_attempts" field in the mutation.
+func (m *TargetMutation) ResolveAttempts() (r int, exists bool) {
+	v := m.resolve_attempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolveAttempts returns the old "resolve_attempts" field's value of the Target entity.
+// If the Target object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TargetMutation) OldResolveAttempts(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolveAttempts is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolveAttempts requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolveAttempts: %w", err)
+	}
+	return oldValue.ResolveAttempts, nil
+}
+
+// AddResolveAttempts adds i to the "resolve_attempts" field.
+func (m *TargetMutation) AddResolveAttempts(i int) {
+	if m.addresolve_attempts != nil {
+		*m.addresolve_attempts += i
+	} else {
+		m.addresolve_attempts = &i
+	}
+}
+
+// AddedResolveAttempts returns the value that was added to the "resolve_attempts" field in this mutation.
+func (m *TargetMutation) AddedResolveAttempts() (r int, exists bool) {
+	v := m.addresolve_attempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetResolveAttempts resets all changes to the "resolve_attempts" field.
+func (m *TargetMutation) ResetResolveAttempts() {
+	m.resolve_attempts = nil
+	m.addresolve_attempts = nil
+}
+
+// SetResolveError sets the "resolve_error" field.
+func (m *TargetMutation) SetResolveError(s string) {
+	m.resolve_error = &s
+}
+
+// ResolveError returns the value of the "resolve_error" field in the mutation.
+func (m *TargetMutation) ResolveError() (r string, exists bool) {
+	v := m.resolve_error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolveError returns the old "resolve_error" field's value of the Target entity.
+// If the Target object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TargetMutation) OldResolveError(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolveError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolveError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolveError: %w", err)
+	}
+	return oldValue.ResolveError, nil
+}
+
+// ClearResolveError clears the value of the "resolve_error" field.
+func (m *TargetMutation) ClearResolveError() {
+	m.resolve_error = nil
+	m.clearedFields[target.FieldResolveError] = struct{}{}
+}
+
+// ResolveErrorCleared returns if the "resolve_error" field was cleared in this mutation.
+func (m *TargetMutation) ResolveErrorCleared() bool {
+	_, ok := m.clearedFields[target.FieldResolveError]
+	return ok
+}
+
+// ResetResolveError resets all changes to the "resolve_error" field.
+func (m *TargetMutation) ResetResolveError() {
+	m.resolve_error = nil
+	delete(m.clearedFields, target.FieldResolveError)
 }
 
 // AddIPIDs adds the "ips" edge to the IP entity by ids.
@@ -7500,7 +7608,7 @@ func (m *TargetMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TargetMutation) Fields() []string {
-	fields := make([]string, 0, 4)
+	fields := make([]string, 0, 6)
 	if m.create_time != nil {
 		fields = append(fields, target.FieldCreateTime)
 	}
@@ -7512,6 +7620,12 @@ func (m *TargetMutation) Fields() []string {
 	}
 	if m.is_ip != nil {
 		fields = append(fields, target.FieldIsIP)
+	}
+	if m.resolve_attempts != nil {
+		fields = append(fields, target.FieldResolveAttempts)
+	}
+	if m.resolve_error != nil {
+		fields = append(fields, target.FieldResolveError)
 	}
 	return fields
 }
@@ -7529,6 +7643,10 @@ func (m *TargetMutation) Field(name string) (ent.Value, bool) {
 		return m.Input()
 	case target.FieldIsIP:
 		return m.IsIP()
+	case target.FieldResolveAttempts:
+		return m.ResolveAttempts()
+	case target.FieldResolveError:
+		return m.ResolveError()
 	}
 	return nil, false
 }
@@ -7546,6 +7664,10 @@ func (m *TargetMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldInput(ctx)
 	case target.FieldIsIP:
 		return m.OldIsIP(ctx)
+	case target.FieldResolveAttempts:
+		return m.OldResolveAttempts(ctx)
+	case target.FieldResolveError:
+		return m.OldResolveError(ctx)
 	}
 	return nil, fmt.Errorf("unknown Target field %s", name)
 }
@@ -7583,6 +7705,20 @@ func (m *TargetMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetIsIP(v)
 		return nil
+	case target.FieldResolveAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolveAttempts(v)
+		return nil
+	case target.FieldResolveError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolveError(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Target field %s", name)
 }
@@ -7590,13 +7726,21 @@ func (m *TargetMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *TargetMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.addresolve_attempts != nil {
+		fields = append(fields, target.FieldResolveAttempts)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *TargetMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case target.FieldResolveAttempts:
+		return m.AddedResolveAttempts()
+	}
 	return nil, false
 }
 
@@ -7605,6 +7749,13 @@ func (m *TargetMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *TargetMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case target.FieldResolveAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddResolveAttempts(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Target numeric field %s", name)
 }
@@ -7612,7 +7763,11 @@ func (m *TargetMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *TargetMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(target.FieldResolveError) {
+		fields = append(fields, target.FieldResolveError)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -7625,6 +7780,11 @@ func (m *TargetMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *TargetMutation) ClearField(name string) error {
+	switch name {
+	case target.FieldResolveError:
+		m.ClearResolveError()
+		return nil
+	}
 	return fmt.Errorf("unknown Target nullable field %s", name)
 }
 
@@ -7643,6 +7803,12 @@ func (m *TargetMutation) ResetField(name string) error {
 		return nil
 	case target.FieldIsIP:
 		m.ResetIsIP()
+		return nil
+	case target.FieldResolveAttempts:
+		m.ResetResolveAttempts()
+		return nil
+	case target.FieldResolveError:
+		m.ResetResolveError()
 		return nil
 	}
 	return fmt.Errorf("unknown Target field %s", name)
