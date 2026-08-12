@@ -74,7 +74,7 @@
     </tr>
   </thead>
   <tbody>
-    {{range .Target.Edges.SslScans}}
+    {{range .SSLScans}}
     <tr>
       <td class="text-muted">{{.ScannedAt.Format "Jan 02, 2006 15:04"}}</td>
       <td><span class="badge badge-blue">{{.Grade}}</span></td>
@@ -99,6 +99,7 @@
     {{end}}
   </tbody>
 </table>
+{{template "views/partials/pagination" .SSLPagination}}
 
 <h2>CSP History</h2>
 <table>
@@ -110,7 +111,7 @@
     </tr>
   </thead>
   <tbody>
-    {{range .Target.Edges.CspScans}}
+    {{range .CSPScans}}
     <tr>
       <td class="text-muted">{{.ScannedAt.Format "Jan 02, 2006 15:04"}}</td>
       <td>
@@ -138,6 +139,7 @@
     {{end}}
   </tbody>
 </table>
+{{template "views/partials/pagination" .CSPPagination}}
 {{end}}
 
 {{template "views/partials/footer" .}}
