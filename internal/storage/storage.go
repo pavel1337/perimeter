@@ -133,9 +133,6 @@ func (s *EntStorage) GetTarget(ctx context.Context, id int) (*ent.Target, error)
 		Only(ctx)
 }
 
-// GetTargetBasic loads a target's header info, tags, and IP list, without
-// eager-loading each IP's (potentially very long) scan history. Use
-// GetIPScansPage to page through an individual IP's scans.
 func (s *EntStorage) GetTargetBasic(ctx context.Context, id int) (*ent.Target, error) {
 	return s.client.Target.Query().
 		Where(target.ID(id)).
@@ -144,8 +141,6 @@ func (s *EntStorage) GetTargetBasic(ctx context.Context, id int) (*ent.Target, e
 		Only(ctx)
 }
 
-// GetIPScansPage returns one page of an IP's port scans (newest first) plus
-// the total scan count.
 func (s *EntStorage) GetIPScansPage(ctx context.Context, ipID, limit, offset int) ([]*ent.PortScan, int, error) {
 	total, err := s.client.PortScan.Query().
 		Where(portscan.HasIPWith(ip.IDEQ(ipID))).
@@ -168,8 +163,6 @@ func (s *EntStorage) GetIPScansPage(ctx context.Context, ipID, limit, offset int
 	return scans, total, nil
 }
 
-// GetSSLScansPage returns one page of a target's SSL scans (newest first)
-// plus the total scan count.
 func (s *EntStorage) GetSSLScansPage(ctx context.Context, targetID, limit, offset int) ([]*ent.SSLScan, int, error) {
 	total, err := s.client.SSLScan.Query().
 		Where(sslscan.HasTargetWith(target.IDEQ(targetID))).
@@ -191,8 +184,6 @@ func (s *EntStorage) GetSSLScansPage(ctx context.Context, targetID, limit, offse
 	return scans, total, nil
 }
 
-// GetCSPScansPage returns one page of a target's CSP scans (newest first)
-// plus the total scan count.
 func (s *EntStorage) GetCSPScansPage(ctx context.Context, targetID, limit, offset int) ([]*ent.CSPScan, int, error) {
 	total, err := s.client.CSPScan.Query().
 		Where(cspscan.HasTargetWith(target.IDEQ(targetID))).

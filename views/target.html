@@ -54,10 +54,6 @@
 {{template "views/partials/footer" .}}
 
 <script>
-  // Paginating a history table (IP scans, SSL history, CSP history) swaps
-  // just that section in place instead of a full page navigation, so
-  // scroll position doesn't jump. Falls back to a normal page load if the
-  // fetch fails (or if JS is disabled, the links work as plain <a> tags).
   document.addEventListener('click', function (e) {
     var link = e.target.closest('.pagination a[href]');
     if (!link) return;
@@ -87,8 +83,6 @@
       });
   });
 
-  // The back/forward buttons change the URL but we don't track history
-  // state to restore a swapped section, so just reload.
   window.addEventListener('popstate', function () {
     window.location.reload();
   });

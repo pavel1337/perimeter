@@ -340,12 +340,8 @@ func (s *Server) handleIndex(c *fiber.Ctx) error {
 	}), "views/layouts/main")
 }
 
-// scanPageSize is the number of rows shown per page in the target detail
-// page's IP/SSL/CSP history tables.
 const scanPageSize = 10
 
-// pagination holds the data a paginated table's template partial needs to
-// render its Prev/Next controls.
 type pagination struct {
 	Page       int
 	TotalPages int
@@ -353,7 +349,6 @@ type pagination struct {
 	NextURL    string
 }
 
-// ipScanRow pairs an IP with one page of its port-scan history.
 type ipScanRow struct {
 	IP         *ent.IP
 	Scans      []*ent.PortScan
@@ -362,8 +357,6 @@ type ipScanRow struct {
 
 func ipPageKey(ipID int) string { return fmt.Sprintf("ip_%d_page", ipID) }
 
-// parsePage reads a 1-based page number from the query string, defaulting to
-// (and clamping invalid values to) 1.
 func parsePage(c *fiber.Ctx, key string) int {
 	p, err := strconv.Atoi(c.Query(key, "1"))
 	if err != nil || p < 1 {
@@ -372,18 +365,12 @@ func parsePage(c *fiber.Ctx, key string) int {
 	return p
 }
 
-// buildPageLink builds a link to a single page of one table. Each table
-// pages independently — navigating one doesn't carry over the others'
-// current page (paging resets them to page 1), which is fine since none of
-// this is meant to survive a reload anyway.
 func buildPageLink(c *fiber.Ctx, key string, page int) string {
 	v := url.Values{}
 	v.Set(key, strconv.Itoa(page))
 	return c.Path() + "?" + v.Encode()
 }
 
-// buildPagination clamps page into range given total rows, and builds the
-// Prev/Next links for it.
 func buildPagination(c *fiber.Ctx, key string, page, total int) pagination {
 	totalPages := (total + scanPageSize - 1) / scanPageSize
 	if totalPages < 1 {
@@ -403,10 +390,6 @@ func buildPagination(c *fiber.Ctx, key string, page, total int) pagination {
 	return p
 }
 
-// sslHistoryData fetches one page of a target's SSL scans plus the
-// pagination info for it. In the common case (a valid requested page) this
-// is a single round trip; it only re-queries if the requested page had to be
-// clamped into range.
 func (s *Server) sslHistoryData(ctx context.Context, c *fiber.Ctx, targetID int) ([]*ent.SSLScan, pagination, error) {
 	page := parsePage(c, "ssl_page")
 	scans, total, err := s.storage.GetSSLScansPage(ctx, targetID, scanPageSize, (page-1)*scanPageSize)
@@ -423,7 +406,6 @@ func (s *Server) sslHistoryData(ctx context.Context, c *fiber.Ctx, targetID int)
 	return scans, p, nil
 }
 
-// cspHistoryData is the CSP-scan equivalent of sslHistoryData.
 func (s *Server) cspHistoryData(ctx context.Context, c *fiber.Ctx, targetID int) ([]*ent.CSPScan, pagination, error) {
 	page := parsePage(c, "csp_page")
 	scans, total, err := s.storage.GetCSPScansPage(ctx, targetID, scanPageSize, (page-1)*scanPageSize)
@@ -440,7 +422,6 @@ func (s *Server) cspHistoryData(ctx context.Context, c *fiber.Ctx, targetID int)
 	return scans, p, nil
 }
 
-// ipHistoryData is the port-scan equivalent of sslHistoryData, for one IP.
 func (s *Server) ipHistoryData(ctx context.Context, c *fiber.Ctx, i *ent.IP) (ipScanRow, error) {
 	key := ipPageKey(i.ID)
 	page := parsePage(c, key)
@@ -473,11 +454,6 @@ func (s *Server) handleTargetDetails(c *fiber.Ctx) error {
 		return c.Status(500).SendString(err.Error())
 	}
 
-	// Paginating via JS re-requests this same route with a `fragment` param
-	// and renders just the swapped section instead of the full page (see the
-	// inline script in views/layouts/main.html). Only the requested
-	// section's data is fetched — a click on the SSL table shouldn't also
-	// re-query CSP and every IP's port-scan history.
 	switch c.Query("fragment") {
 	case "ssl":
 		sslScans, sslPagination, err := s.sslHistoryData(c.Context(), c, target.ID)
