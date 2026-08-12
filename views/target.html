@@ -28,9 +28,9 @@
 </div>
 
 <h2>Resolved IPs &amp; Port Scans</h2>
-{{if .Target.Edges.Ips}}
-{{range .Target.Edges.Ips}}
-<h3 class="mono">{{.Address}}</h3>
+{{if .IPRows}}
+{{range .IPRows}}
+<h3 class="mono">{{.IP.Address}}</h3>
 <table>
   <thead>
     <tr>
@@ -39,7 +39,7 @@
     </tr>
   </thead>
   <tbody>
-    {{range .Edges.Scans}}
+    {{range .Scans}}
     <tr>
       <td class="text-muted">{{.ScannedAt.Format "Jan 02, 2006 15:04"}}</td>
       <td>
@@ -55,6 +55,7 @@
     {{end}}
   </tbody>
 </table>
+{{template "views/partials/pagination" .Pagination}}
 {{end}}
 {{else}}
 <p class="text-muted">{{if .ResolveError}}Unresolved: {{.ResolveError}} (attempt {{.ResolveAttempts}}){{else}}Not yet resolved to any IP addresses.{{end}}</p>

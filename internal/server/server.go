@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -338,6 +339,71 @@ func (s *Server) handleIndex(c *fiber.Ctx) error {
 	}), "views/layouts/main")
 }
 
+// scanPageSize is the number of rows shown per page in the target detail
+// page's IP/SSL/CSP history tables.
+const scanPageSize = 10
+
+// pagination holds the data a paginated table's template partial needs to
+// render its Prev/Next controls.
+type pagination struct {
+	Page       int
+	TotalPages int
+	PrevURL    string
+	NextURL    string
+}
+
+// ipScanRow pairs an IP with one page of its port-scan history.
+type ipScanRow struct {
+	IP         *ent.IP
+	Scans      []*ent.PortScan
+	Pagination pagination
+}
+
+func ipPageKey(ipID int) string { return fmt.Sprintf("ip_%d_page", ipID) }
+
+// parsePage reads a 1-based page number from the query string, defaulting to
+// (and clamping invalid values to) 1.
+func parsePage(c *fiber.Ctx, key string) int {
+	p, err := strconv.Atoi(c.Query(key, "1"))
+	if err != nil || p < 1 {
+		return 1
+	}
+	return p
+}
+
+// buildPageLink rewrites a single query param on the current path while
+// preserving every other query param, so paging one table doesn't reset the
+// page of another table on the same page.
+func buildPageLink(c *fiber.Ctx, key string, page int) string {
+	v := url.Values{}
+	for k, val := range c.Queries() {
+		v.Set(k, val)
+	}
+	v.Set(key, strconv.Itoa(page))
+	return c.Path() + "?" + v.Encode()
+}
+
+// buildPagination clamps page into range given total rows, and builds the
+// Prev/Next links for it.
+func buildPagination(c *fiber.Ctx, key string, page, total int) pagination {
+	totalPages := (total + scanPageSize - 1) / scanPageSize
+	if totalPages < 1 {
+		totalPages = 1
+	}
+	if page > totalPages {
+		page = totalPages
+	}
+
+	p := pagination{Page: page, TotalPages: totalPages}
+	if page > 1 {
+		p.PrevURL = buildPageLink(c, key, page-1)
+	}
+	if page < totalPages {
+		p.NextURL = buildPageLink(c, key, page+1)
+	}
+	return p
+}
+
 func (s *Server) handleTargetDetails(c *fiber.Ctx) error {
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -345,7 +411,7 @@ func (s *Server) handleTargetDetails(c *fiber.Ctx) error {
 		return c.Status(400).SendString("Invalid ID")
 	}
 
-	target, err := s.storage.GetTarget(c.Context(), id)
+	target, err := s.storage.GetTargetBasic(c.Context(), id)
 	if err != nil {
 		if ent.IsNotFound(err) {
 			return c.Status(404).SendString("Target not found")
@@ -353,12 +419,58 @@ func (s *Server) handleTargetDetails(c *fiber.Ctx) error {
 		return c.Status(500).SendString(err.Error())
 	}
 
+	sslPage := parsePage(c, "ssl_page")
+	_, sslTotal, err := s.storage.GetSSLScansPage(c.Context(), target.ID, scanPageSize, 0)
+	if err != nil {
+		return c.Status(500).SendString(err.Error())
+	}
+	sslPagination := buildPagination(c, "ssl_page", sslPage, sslTotal)
+	sslScans, _, err := s.storage.GetSSLScansPage(c.Context(), target.ID, scanPageSize, (sslPagination.Page-1)*scanPageSize)
+	if err != nil {
+		return c.Status(500).SendString(err.Error())
+	}
+
+	cspPage := parsePage(c, "csp_page")
+	_, cspTotal, err := s.storage.GetCSPScansPage(c.Context(), target.ID, scanPageSize, 0)
+	if err != nil {
+		return c.Status(500).SendString(err.Error())
+	}
+	cspPagination := buildPagination(c, "csp_page", cspPage, cspTotal)
+	cspScans, _, err := s.storage.GetCSPScansPage(c.Context(), target.ID, scanPageSize, (cspPagination.Page-1)*scanPageSize)
+	if err != nil {
+		return c.Status(500).SendString(err.Error())
+	}
+
+	ipRows := make([]ipScanRow, 0, len(target.Edges.Ips))
+	for _, i := range target.Edges.Ips {
+		key := ipPageKey(i.ID)
+		page := parsePage(c, key)
+
+		_, total, err := s.storage.GetIPScansPage(c.Context(), i.ID, scanPageSize, 0)
+		if err != nil {
+			return c.Status(500).SendString(err.Error())
+		}
+		p := buildPagination(c, key, page, total)
+
+		scans, _, err := s.storage.GetIPScansPage(c.Context(), i.ID, scanPageSize, (p.Page-1)*scanPageSize)
+		if err != nil {
+			return c.Status(500).SendString(err.Error())
+		}
+
+		ipRows = append(ipRows, ipScanRow{IP: i, Scans: scans, Pagination: p})
+	}
+
 	allTags, _ := s.client.Tag.Query().All(c.Context())
 
 	return c.Render("views/target", s.templateData(c, fiber.Map{
-		"Title":   "Target Details",
-		"Target":  target,
-		"AllTags": allTags,
+		"Title":         "Target Details",
+		"Target":        target,
+		"AllTags":       allTags,
+		"IPRows":        ipRows,
+		"SSLScans":      sslScans,
+		"SSLPagination": sslPagination,
+		"CSPScans":      cspScans,
+		"CSPPagination": cspPagination,
 	}), "views/layouts/main")
 }
 
