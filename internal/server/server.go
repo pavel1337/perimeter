@@ -390,51 +390,40 @@ func buildPagination(c *fiber.Ctx, key string, page, total int) pagination {
 	return p
 }
 
-func (s *Server) sslHistoryData(ctx context.Context, c *fiber.Ctx, targetID int) ([]*ent.SSLScan, pagination, error) {
-	page := parsePage(c, "ssl_page")
-	scans, total, err := s.storage.GetSSLScansPage(ctx, targetID, scanPageSize, (page-1)*scanPageSize)
-	if err != nil {
-		return nil, pagination{}, err
-	}
-	p := buildPagination(c, "ssl_page", page, total)
-	if p.Page != page {
-		scans, _, err = s.storage.GetSSLScansPage(ctx, targetID, scanPageSize, (p.Page-1)*scanPageSize)
-		if err != nil {
-			return nil, pagination{}, err
-		}
-	}
-	return scans, p, nil
-}
-
-func (s *Server) cspHistoryData(ctx context.Context, c *fiber.Ctx, targetID int) ([]*ent.CSPScan, pagination, error) {
-	page := parsePage(c, "csp_page")
-	scans, total, err := s.storage.GetCSPScansPage(ctx, targetID, scanPageSize, (page-1)*scanPageSize)
-	if err != nil {
-		return nil, pagination{}, err
-	}
-	p := buildPagination(c, "csp_page", page, total)
-	if p.Page != page {
-		scans, _, err = s.storage.GetCSPScansPage(ctx, targetID, scanPageSize, (p.Page-1)*scanPageSize)
-		if err != nil {
-			return nil, pagination{}, err
-		}
-	}
-	return scans, p, nil
-}
-
-func (s *Server) ipHistoryData(ctx context.Context, c *fiber.Ctx, i *ent.IP) (ipScanRow, error) {
-	key := ipPageKey(i.ID)
+func paginatedFetch[T any](c *fiber.Ctx, key string, fetch func(limit, offset int) ([]T, int, error)) ([]T, pagination, error) {
 	page := parsePage(c, key)
-	scans, total, err := s.storage.GetIPScansPage(ctx, i.ID, scanPageSize, (page-1)*scanPageSize)
+	items, total, err := fetch(scanPageSize, (page-1)*scanPageSize)
 	if err != nil {
-		return ipScanRow{}, err
+		return nil, pagination{}, err
 	}
 	p := buildPagination(c, key, page, total)
 	if p.Page != page {
-		scans, _, err = s.storage.GetIPScansPage(ctx, i.ID, scanPageSize, (p.Page-1)*scanPageSize)
+		items, _, err = fetch(scanPageSize, (p.Page-1)*scanPageSize)
 		if err != nil {
-			return ipScanRow{}, err
+			return nil, pagination{}, err
 		}
+	}
+	return items, p, nil
+}
+
+func (s *Server) sslHistoryData(ctx context.Context, c *fiber.Ctx, targetID int) ([]*ent.SSLScan, pagination, error) {
+	return paginatedFetch(c, "ssl_page", func(limit, offset int) ([]*ent.SSLScan, int, error) {
+		return s.storage.GetSSLScansPage(ctx, targetID, limit, offset)
+	})
+}
+
+func (s *Server) cspHistoryData(ctx context.Context, c *fiber.Ctx, targetID int) ([]*ent.CSPScan, pagination, error) {
+	return paginatedFetch(c, "csp_page", func(limit, offset int) ([]*ent.CSPScan, int, error) {
+		return s.storage.GetCSPScansPage(ctx, targetID, limit, offset)
+	})
+}
+
+func (s *Server) ipHistoryData(ctx context.Context, c *fiber.Ctx, i *ent.IP) (ipScanRow, error) {
+	scans, p, err := paginatedFetch(c, ipPageKey(i.ID), func(limit, offset int) ([]*ent.PortScan, int, error) {
+		return s.storage.GetIPScansPage(ctx, i.ID, limit, offset)
+	})
+	if err != nil {
+		return ipScanRow{}, err
 	}
 	return ipScanRow{IP: i, Scans: scans, Pagination: p}, nil
 }
