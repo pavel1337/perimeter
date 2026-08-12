@@ -31,31 +31,9 @@
 {{if .IPRows}}
 {{range .IPRows}}
 <h3 class="mono">{{.IP.Address}}</h3>
-<table>
-  <thead>
-    <tr>
-      <th>Time</th>
-      <th>Open Ports</th>
-    </tr>
-  </thead>
-  <tbody>
-    {{range .Scans}}
-    <tr>
-      <td class="text-muted">{{.ScannedAt.Format "Jan 02, 2006 15:04"}}</td>
-      <td>
-        {{if .Edges.Ports}}
-        {{range .Edges.Ports}}<span class="badge badge-red">{{.Number}}</span> {{end}}
-        {{else}}
-        <span class="badge badge-green">none</span>
-        {{end}}
-      </td>
-    </tr>
-    {{else}}
-    <tr><td colspan="2" class="text-muted">No scans yet.</td></tr>
-    {{end}}
-  </tbody>
-</table>
-{{template "views/partials/pagination" .Pagination}}
+<div id="ip-{{.IP.ID}}-body" data-fragment="ip" data-ip-id="{{.IP.ID}}">
+  {{template "views/partials/ip_section" .}}
+</div>
 {{end}}
 {{else}}
 <p class="text-muted">{{if .ResolveError}}Unresolved: {{.ResolveError}} (attempt {{.ResolveAttempts}}){{else}}Not yet resolved to any IP addresses.{{end}}</p>
@@ -63,83 +41,14 @@
 
 {{if not .Target.IsIP}}
 <h2>SSL History</h2>
-<table>
-  <thead>
-    <tr>
-      <th>Time</th>
-      <th>Grade</th>
-      <th>Status</th>
-      <th>Certificate</th>
-      <th>Vulnerabilities</th>
-    </tr>
-  </thead>
-  <tbody>
-    {{range .SSLScans}}
-    <tr>
-      <td class="text-muted">{{.ScannedAt.Format "Jan 02, 2006 15:04"}}</td>
-      <td><span class="badge badge-blue">{{.Grade}}</span></td>
-      <td>{{.Status}}</td>
-      <td>
-        {{if .CertSubject}}
-        <div><strong>{{.CertSubject}}</strong></div>
-        <div class="text-muted">by {{.CertIssuer}}</div>
-        <div class="text-muted">expires {{.CertExpiry.Format "2006-01-02"}}</div>
-        {{else}}—{{end}}
-      </td>
-      <td>
-        {{if .Vulnerabilities}}
-        {{range .Vulnerabilities}}<div><span class="badge badge-red">{{.}}</span></div>{{end}}
-        {{else}}
-        <span class="badge badge-green">none</span>
-        {{end}}
-      </td>
-    </tr>
-    {{else}}
-    <tr><td colspan="5" class="text-muted">No SSL scans yet.</td></tr>
-    {{end}}
-  </tbody>
-</table>
-{{template "views/partials/pagination" .SSLPagination}}
+<div id="ssl-history-body" data-fragment="ssl">
+  {{template "views/partials/ssl_section" .}}
+</div>
 
 <h2>CSP History</h2>
-<table>
-  <thead>
-    <tr>
-      <th>Time</th>
-      <th>Findings</th>
-      <th>Header</th>
-    </tr>
-  </thead>
-  <tbody>
-    {{range .CSPScans}}
-    <tr>
-      <td class="text-muted">{{.ScannedAt.Format "Jan 02, 2006 15:04"}}</td>
-      <td>
-        {{if .Findings}}
-        {{range .Findings}}
-        <div style="margin-bottom: 4px;">
-          {{if ge .Severity 40}}<span class="badge badge-red">high</span>{{else}}<span class="badge badge-gray">info</span>{{end}}
-          <strong>{{.Directive}}</strong> {{.Description}}
-        </div>
-        {{end}}
-        {{else}}
-        <span class="badge badge-green">clean</span>
-        {{end}}
-      </td>
-      <td>
-        {{if .CspHeader}}
-        <div class="mono" style="max-width: 350px; overflow-wrap: break-word;">{{.CspHeader}}</div>
-        {{else}}
-        <span class="badge badge-red">missing</span>
-        {{end}}
-      </td>
-    </tr>
-    {{else}}
-    <tr><td colspan="3" class="text-muted">No CSP scans yet.</td></tr>
-    {{end}}
-  </tbody>
-</table>
-{{template "views/partials/pagination" .CSPPagination}}
+<div id="csp-history-body" data-fragment="csp">
+  {{template "views/partials/csp_section" .}}
+</div>
 {{end}}
 
 {{template "views/partials/footer" .}}

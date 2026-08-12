@@ -371,14 +371,12 @@ func parsePage(c *fiber.Ctx, key string) int {
 	return p
 }
 
-// buildPageLink rewrites a single query param on the current path while
-// preserving every other query param, so paging one table doesn't reset the
-// page of another table on the same page.
+// buildPageLink builds a link to a single page of one table. Each table
+// pages independently — navigating one doesn't carry over the others'
+// current page (paging resets them to page 1), which is fine since none of
+// this is meant to survive a reload anyway.
 func buildPageLink(c *fiber.Ctx, key string, page int) string {
 	v := url.Values{}
-	for k, val := range c.Queries() {
-		v.Set(k, val)
-	}
 	v.Set(key, strconv.Itoa(page))
 	return c.Path() + "?" + v.Encode()
 }
@@ -458,6 +456,33 @@ func (s *Server) handleTargetDetails(c *fiber.Ctx) error {
 		}
 
 		ipRows = append(ipRows, ipScanRow{IP: i, Scans: scans, Pagination: p})
+	}
+
+	// Paginating via JS re-requests this same route with a `fragment` param
+	// and renders just the swapped section instead of the full page (see the
+	// inline script in views/layouts/main.html).
+	switch c.Query("fragment") {
+	case "ssl":
+		return c.Render("views/partials/ssl_section", fiber.Map{
+			"SSLScans":      sslScans,
+			"SSLPagination": sslPagination,
+		})
+	case "csp":
+		return c.Render("views/partials/csp_section", fiber.Map{
+			"CSPScans":      cspScans,
+			"CSPPagination": cspPagination,
+		})
+	case "ip":
+		ipID, err := strconv.Atoi(c.Query("ipId"))
+		if err != nil {
+			return c.Status(400).SendString("Invalid ipId")
+		}
+		for _, row := range ipRows {
+			if row.IP.ID == ipID {
+				return c.Render("views/partials/ip_section", row)
+			}
+		}
+		return c.Status(404).SendString("IP not found")
 	}
 
 	allTags, _ := s.client.Tag.Query().All(c.Context())
