@@ -212,9 +212,13 @@
     });
 
     // The back/forward buttons change the URL but we don't track history
-    // state to restore a swapped section, so just reload.
+    // state to restore a swapped section, so just reload — only on pages
+    // that actually have paginated sections (this script is loaded
+    // app-wide), so it doesn't stomp on some other page's own history use.
     window.addEventListener('popstate', function () {
-      window.location.reload();
+      if (document.querySelector('[data-fragment]')) {
+        window.location.reload();
+      }
     });
   </script>
 </body>

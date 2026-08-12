@@ -156,7 +156,7 @@ func (s *EntStorage) GetIPScansPage(ctx context.Context, ipID, limit, offset int
 
 	scans, err := s.client.PortScan.Query().
 		Where(portscan.HasIPWith(ip.IDEQ(ipID))).
-		Order(ent.Desc(portscan.FieldScannedAt)).
+		Order(ent.Desc(portscan.FieldScannedAt), ent.Desc(portscan.FieldID)).
 		Limit(limit).
 		Offset(offset).
 		WithPorts().
@@ -180,7 +180,7 @@ func (s *EntStorage) GetSSLScansPage(ctx context.Context, targetID, limit, offse
 
 	scans, err := s.client.SSLScan.Query().
 		Where(sslscan.HasTargetWith(target.IDEQ(targetID))).
-		Order(ent.Desc(sslscan.FieldScannedAt)).
+		Order(ent.Desc(sslscan.FieldScannedAt), ent.Desc(sslscan.FieldID)).
 		Limit(limit).
 		Offset(offset).
 		All(ctx)
@@ -203,7 +203,7 @@ func (s *EntStorage) GetCSPScansPage(ctx context.Context, targetID, limit, offse
 
 	scans, err := s.client.CSPScan.Query().
 		Where(cspscan.HasTargetWith(target.IDEQ(targetID))).
-		Order(ent.Desc(cspscan.FieldScannedAt)).
+		Order(ent.Desc(cspscan.FieldScannedAt), ent.Desc(cspscan.FieldID)).
 		Limit(limit).
 		Offset(offset).
 		All(ctx)
