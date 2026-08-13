@@ -76,14 +76,9 @@
       })
       .then(function (html) {
         container.innerHTML = html;
-        history.pushState(null, '', link.href);
       })
       .catch(function () {
         window.location.href = link.href;
       });
-  });
-
-  window.addEventListener('popstate', function () {
-    window.location.reload();
   });
 </script>
