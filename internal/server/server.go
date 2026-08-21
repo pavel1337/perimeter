@@ -371,13 +371,21 @@ func buildPageLink(c *fiber.Ctx, key string, page int) string {
 	return c.Path() + "?" + v.Encode()
 }
 
+func clampPage(page, total int) int {
+	totalPages := (total + scanPageSize - 1) / scanPageSize
+	if totalPages < 1 {
+		return 1
+	}
+	if page > totalPages {
+		return totalPages
+	}
+	return page
+}
+
 func buildPagination(c *fiber.Ctx, key string, page, total int) pagination {
 	totalPages := (total + scanPageSize - 1) / scanPageSize
 	if totalPages < 1 {
 		totalPages = 1
-	}
-	if page > totalPages {
-		page = totalPages
 	}
 
 	p := pagination{Page: page, TotalPages: totalPages}
@@ -390,42 +398,52 @@ func buildPagination(c *fiber.Ctx, key string, page, total int) pagination {
 	return p
 }
 
-func paginatedFetch[T any](c *fiber.Ctx, key string, fetch func(limit, offset int) ([]T, int, error)) ([]T, pagination, error) {
-	page := parsePage(c, key)
-	items, total, err := fetch(scanPageSize, (page-1)*scanPageSize)
+func (s *Server) sslHistoryData(ctx context.Context, c *fiber.Ctx, targetID int) ([]*ent.SSLScan, pagination, error) {
+	page := parsePage(c, "ssl_page")
+	items, total, err := s.storage.GetSSLScansPage(ctx, targetID, scanPageSize, (page-1)*scanPageSize)
 	if err != nil {
 		return nil, pagination{}, err
 	}
-	p := buildPagination(c, key, page, total)
-	if p.Page != page {
-		items, _, err = fetch(scanPageSize, (p.Page-1)*scanPageSize)
+	if settled := clampPage(page, total); settled != page {
+		items, _, err = s.storage.GetSSLScansPage(ctx, targetID, scanPageSize, (settled-1)*scanPageSize)
 		if err != nil {
 			return nil, pagination{}, err
 		}
+		page = settled
 	}
-	return items, p, nil
-}
-
-func (s *Server) sslHistoryData(ctx context.Context, c *fiber.Ctx, targetID int) ([]*ent.SSLScan, pagination, error) {
-	return paginatedFetch(c, "ssl_page", func(limit, offset int) ([]*ent.SSLScan, int, error) {
-		return s.storage.GetSSLScansPage(ctx, targetID, limit, offset)
-	})
+	return items, buildPagination(c, "ssl_page", page, total), nil
 }
 
 func (s *Server) cspHistoryData(ctx context.Context, c *fiber.Ctx, targetID int) ([]*ent.CSPScan, pagination, error) {
-	return paginatedFetch(c, "csp_page", func(limit, offset int) ([]*ent.CSPScan, int, error) {
-		return s.storage.GetCSPScansPage(ctx, targetID, limit, offset)
-	})
+	page := parsePage(c, "csp_page")
+	items, total, err := s.storage.GetCSPScansPage(ctx, targetID, scanPageSize, (page-1)*scanPageSize)
+	if err != nil {
+		return nil, pagination{}, err
+	}
+	if settled := clampPage(page, total); settled != page {
+		items, _, err = s.storage.GetCSPScansPage(ctx, targetID, scanPageSize, (settled-1)*scanPageSize)
+		if err != nil {
+			return nil, pagination{}, err
+		}
+		page = settled
+	}
+	return items, buildPagination(c, "csp_page", page, total), nil
 }
 
 func (s *Server) ipHistoryData(ctx context.Context, c *fiber.Ctx, i *ent.IP) (ipScanRow, error) {
-	scans, p, err := paginatedFetch(c, ipPageKey(i.ID), func(limit, offset int) ([]*ent.PortScan, int, error) {
-		return s.storage.GetIPScansPage(ctx, i.ID, limit, offset)
-	})
+	page := parsePage(c, ipPageKey(i.ID))
+	items, total, err := s.storage.GetIPScansPage(ctx, i.ID, scanPageSize, (page-1)*scanPageSize)
 	if err != nil {
 		return ipScanRow{}, err
 	}
-	return ipScanRow{IP: i, Scans: scans, Pagination: p}, nil
+	if settled := clampPage(page, total); settled != page {
+		items, _, err = s.storage.GetIPScansPage(ctx, i.ID, scanPageSize, (settled-1)*scanPageSize)
+		if err != nil {
+			return ipScanRow{}, err
+		}
+		page = settled
+	}
+	return ipScanRow{IP: i, Scans: items, Pagination: buildPagination(c, ipPageKey(i.ID), page, total)}, nil
 }
 
 func (s *Server) handleTargetDetails(c *fiber.Ctx) error {
