@@ -2,12 +2,14 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -338,6 +340,112 @@ func (s *Server) handleIndex(c *fiber.Ctx) error {
 	}), "views/layouts/main")
 }
 
+const scanPageSize = 10
+
+type pagination struct {
+	Page       int
+	TotalPages int
+	PrevURL    string
+	NextURL    string
+}
+
+type ipScanRow struct {
+	IP         *ent.IP
+	Scans      []*ent.PortScan
+	Pagination pagination
+}
+
+func ipPageKey(ipID int) string { return fmt.Sprintf("ip_%d_page", ipID) }
+
+func parsePage(c *fiber.Ctx, key string) int {
+	p, err := strconv.Atoi(c.Query(key, "1"))
+	if err != nil || p < 1 {
+		return 1
+	}
+	return p
+}
+
+func buildPageLink(c *fiber.Ctx, key string, page int) string {
+	v := url.Values{}
+	v.Set(key, strconv.Itoa(page))
+	return c.Path() + "?" + v.Encode()
+}
+
+func clampPage(page, total int) int {
+	totalPages := (total + scanPageSize - 1) / scanPageSize
+	if totalPages < 1 {
+		return 1
+	}
+	if page > totalPages {
+		return totalPages
+	}
+	return page
+}
+
+func buildPagination(c *fiber.Ctx, key string, page, total int) pagination {
+	totalPages := (total + scanPageSize - 1) / scanPageSize
+	if totalPages < 1 {
+		totalPages = 1
+	}
+
+	p := pagination{Page: page, TotalPages: totalPages}
+	if page > 1 {
+		p.PrevURL = buildPageLink(c, key, page-1)
+	}
+	if page < totalPages {
+		p.NextURL = buildPageLink(c, key, page+1)
+	}
+	return p
+}
+
+func (s *Server) sslHistoryData(ctx context.Context, c *fiber.Ctx, targetID int) ([]*ent.SSLScan, pagination, error) {
+	page := parsePage(c, "ssl_page")
+	items, total, err := s.storage.GetSSLScansPage(ctx, targetID, scanPageSize, (page-1)*scanPageSize)
+	if err != nil {
+		return nil, pagination{}, err
+	}
+	if settled := clampPage(page, total); settled != page {
+		items, _, err = s.storage.GetSSLScansPage(ctx, targetID, scanPageSize, (settled-1)*scanPageSize)
+		if err != nil {
+			return nil, pagination{}, err
+		}
+		page = settled
+	}
+	return items, buildPagination(c, "ssl_page", page, total), nil
+}
+
+func (s *Server) cspHistoryData(ctx context.Context, c *fiber.Ctx, targetID int) ([]*ent.CSPScan, pagination, error) {
+	page := parsePage(c, "csp_page")
+	items, total, err := s.storage.GetCSPScansPage(ctx, targetID, scanPageSize, (page-1)*scanPageSize)
+	if err != nil {
+		return nil, pagination{}, err
+	}
+	if settled := clampPage(page, total); settled != page {
+		items, _, err = s.storage.GetCSPScansPage(ctx, targetID, scanPageSize, (settled-1)*scanPageSize)
+		if err != nil {
+			return nil, pagination{}, err
+		}
+		page = settled
+	}
+	return items, buildPagination(c, "csp_page", page, total), nil
+}
+
+func (s *Server) ipHistoryData(ctx context.Context, c *fiber.Ctx, i *ent.IP) (ipScanRow, error) {
+	page := parsePage(c, ipPageKey(i.ID))
+	items, total, err := s.storage.GetIPScansPage(ctx, i.ID, scanPageSize, (page-1)*scanPageSize)
+	if err != nil {
+		return ipScanRow{}, err
+	}
+	if settled := clampPage(page, total); settled != page {
+		items, _, err = s.storage.GetIPScansPage(ctx, i.ID, scanPageSize, (settled-1)*scanPageSize)
+		if err != nil {
+			return ipScanRow{}, err
+		}
+		page = settled
+	}
+	return ipScanRow{IP: i, Scans: items, Pagination: buildPagination(c, ipPageKey(i.ID), page, total)}, nil
+}
+
 func (s *Server) handleTargetDetails(c *fiber.Ctx) error {
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -345,7 +453,7 @@ func (s *Server) handleTargetDetails(c *fiber.Ctx) error {
 		return c.Status(400).SendString("Invalid ID")
 	}
 
-	target, err := s.storage.GetTarget(c.Context(), id)
+	target, err := s.storage.GetTargetBasic(c.Context(), id)
 	if err != nil {
 		if ent.IsNotFound(err) {
 			return c.Status(404).SendString("Target not found")
@@ -353,12 +461,70 @@ func (s *Server) handleTargetDetails(c *fiber.Ctx) error {
 		return c.Status(500).SendString(err.Error())
 	}
 
+	switch c.Query("fragment") {
+	case "ssl":
+		sslScans, sslPagination, err := s.sslHistoryData(c.Context(), c, target.ID)
+		if err != nil {
+			return c.Status(500).SendString(err.Error())
+		}
+		return c.Render("views/partials/ssl_section", fiber.Map{
+			"SSLScans":      sslScans,
+			"SSLPagination": sslPagination,
+		})
+	case "csp":
+		cspScans, cspPagination, err := s.cspHistoryData(c.Context(), c, target.ID)
+		if err != nil {
+			return c.Status(500).SendString(err.Error())
+		}
+		return c.Render("views/partials/csp_section", fiber.Map{
+			"CSPScans":      cspScans,
+			"CSPPagination": cspPagination,
+		})
+	case "ip":
+		ipID, err := strconv.Atoi(c.Query("ipId"))
+		if err != nil {
+			return c.Status(400).SendString("Invalid ipId")
+		}
+		for _, i := range target.Edges.Ips {
+			if i.ID == ipID {
+				row, err := s.ipHistoryData(c.Context(), c, i)
+				if err != nil {
+					return c.Status(500).SendString(err.Error())
+				}
+				return c.Render("views/partials/ip_section", row)
+			}
+		}
+		return c.Status(404).SendString("IP not found")
+	}
+
+	sslScans, sslPagination, err := s.sslHistoryData(c.Context(), c, target.ID)
+	if err != nil {
+		return c.Status(500).SendString(err.Error())
+	}
+	cspScans, cspPagination, err := s.cspHistoryData(c.Context(), c, target.ID)
+	if err != nil {
+		return c.Status(500).SendString(err.Error())
+	}
+	ipRows := make([]ipScanRow, 0, len(target.Edges.Ips))
+	for _, i := range target.Edges.Ips {
+		row, err := s.ipHistoryData(c.Context(), c, i)
+		if err != nil {
+			return c.Status(500).SendString(err.Error())
+		}
+		ipRows = append(ipRows, row)
+	}
+
 	allTags, _ := s.client.Tag.Query().All(c.Context())
 
 	return c.Render("views/target", s.templateData(c, fiber.Map{
-		"Title":   "Target Details",
-		"Target":  target,
-		"AllTags": allTags,
+		"Title":         "Target Details",
+		"Target":        target,
+		"AllTags":       allTags,
+		"IPRows":        ipRows,
+		"SSLScans":      sslScans,
+		"SSLPagination": sslPagination,
+		"CSPScans":      cspScans,
+		"CSPPagination": cspPagination,
 	}), "views/layouts/main")
 }
 

@@ -32,6 +32,10 @@ type Storage interface {
 	ImportTargets(ctx context.Context, lines []string) (int, error)
 	GetTargets(ctx context.Context) ([]*ent.Target, error)
 	GetTarget(ctx context.Context, id int) (*ent.Target, error)
+	GetTargetBasic(ctx context.Context, id int) (*ent.Target, error)
+	GetIPScansPage(ctx context.Context, ipID, limit, offset int) ([]*ent.PortScan, int, error)
+	GetSSLScansPage(ctx context.Context, targetID, limit, offset int) ([]*ent.SSLScan, int, error)
+	GetCSPScansPage(ctx context.Context, targetID, limit, offset int) ([]*ent.CSPScan, int, error)
 	DeleteTarget(ctx context.Context, id int) error
 
 	// Scanning Logic
@@ -127,6 +131,78 @@ func (s *EntStorage) GetTarget(ctx context.Context, id int) (*ent.Target, error)
 		WithCspScans().
 		WithTags().
 		Only(ctx)
+}
+
+func (s *EntStorage) GetTargetBasic(ctx context.Context, id int) (*ent.Target, error) {
+	return s.client.Target.Query().
+		Where(target.ID(id)).
+		WithIps().
+		WithTags().
+		Only(ctx)
+}
+
+func (s *EntStorage) GetIPScansPage(ctx context.Context, ipID, limit, offset int) ([]*ent.PortScan, int, error) {
+	total, err := s.client.PortScan.Query().
+		Where(portscan.HasIPWith(ip.IDEQ(ipID))).
+		Count(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	scans, err := s.client.PortScan.Query().
+		Where(portscan.HasIPWith(ip.IDEQ(ipID))).
+		Order(ent.Desc(portscan.FieldScannedAt), ent.Desc(portscan.FieldID)).
+		Limit(limit).
+		Offset(offset).
+		WithPorts().
+		All(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return scans, total, nil
+}
+
+func (s *EntStorage) GetSSLScansPage(ctx context.Context, targetID, limit, offset int) ([]*ent.SSLScan, int, error) {
+	total, err := s.client.SSLScan.Query().
+		Where(sslscan.HasTargetWith(target.IDEQ(targetID))).
+		Count(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	scans, err := s.client.SSLScan.Query().
+		Where(sslscan.HasTargetWith(target.IDEQ(targetID))).
+		Order(ent.Desc(sslscan.FieldScannedAt), ent.Desc(sslscan.FieldID)).
+		Limit(limit).
+		Offset(offset).
+		All(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return scans, total, nil
+}
+
+func (s *EntStorage) GetCSPScansPage(ctx context.Context, targetID, limit, offset int) ([]*ent.CSPScan, int, error) {
+	total, err := s.client.CSPScan.Query().
+		Where(cspscan.HasTargetWith(target.IDEQ(targetID))).
+		Count(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	scans, err := s.client.CSPScan.Query().
+		Where(cspscan.HasTargetWith(target.IDEQ(targetID))).
+		Order(ent.Desc(cspscan.FieldScannedAt), ent.Desc(cspscan.FieldID)).
+		Limit(limit).
+		Offset(offset).
+		All(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return scans, total, nil
 }
 
 func (s *EntStorage) DeleteTarget(ctx context.Context, id int) error {

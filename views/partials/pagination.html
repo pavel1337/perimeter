@@ -1,0 +1,7 @@
+{{if gt .TotalPages 1}}
+<div class="pagination" style="display: flex; align-items: center; gap: 12px; margin: 8px 0 20px;">
+  {{if .PrevURL}}<a href="{{.PrevURL}}" class="btn">&larr; Prev</a>{{else}}<span class="btn" style="opacity: .4; cursor: default;">&larr; Prev</span>{{end}}
+  <span class="text-muted">Page {{.Page}} of {{.TotalPages}}</span>
+  {{if .NextURL}}<a href="{{.NextURL}}" class="btn">Next &rarr;</a>{{else}}<span class="btn" style="opacity: .4; cursor: default;">Next &rarr;</span>{{end}}
+</div>
+{{end}}

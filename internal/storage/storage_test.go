@@ -3,12 +3,14 @@ package storage_test
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 	"time"
 
 	"perimeter/ent/enttest"
 	"perimeter/ent/job"
 	"perimeter/internal/storage"
+	"perimeter/scanner/csp"
 
 	sqlite "modernc.org/sqlite"
 )
@@ -243,5 +245,146 @@ func TestSaveSSLScan(t *testing.T) {
 	}
 	if grade != "A+" {
 		t.Errorf("expected A+, got %s", grade)
+	}
+}
+
+func TestGetSSLScansPage(t *testing.T) {
+	s := newTestStorage(t)
+	ctx := context.Background()
+
+	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
+		t.Fatalf("ImportTargets: %v", err)
+	}
+	targets, _ := s.GetTargets(ctx)
+	targetID := targets[0].ID
+
+	const n = 15
+	for i := 0; i < n; i++ {
+		if err := s.SaveSSLScan(ctx, "example.com", storage.SSLResult{Grade: fmt.Sprintf("G%d", i)}); err != nil {
+			t.Fatalf("SaveSSLScan: %v", err)
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+
+	page1, total, err := s.GetSSLScansPage(ctx, targetID, 10, 0)
+	if err != nil {
+		t.Fatalf("GetSSLScansPage: %v", err)
+	}
+	if total != n {
+		t.Errorf("expected total %d, got %d", n, total)
+	}
+	if len(page1) != 10 {
+		t.Fatalf("expected 10 rows on page 1, got %d", len(page1))
+	}
+	if page1[0].Grade != fmt.Sprintf("G%d", n-1) {
+		t.Errorf("expected newest-first, got %s as first row", page1[0].Grade)
+	}
+
+	page2, total2, err := s.GetSSLScansPage(ctx, targetID, 10, 10)
+	if err != nil {
+		t.Fatalf("GetSSLScansPage page 2: %v", err)
+	}
+	if total2 != n {
+		t.Errorf("expected total %d, got %d", n, total2)
+	}
+	if len(page2) != n-10 {
+		t.Errorf("expected %d rows on page 2, got %d", n-10, len(page2))
+	}
+}
+
+func TestGetCSPScansPage(t *testing.T) {
+	s := newTestStorage(t)
+	ctx := context.Background()
+
+	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
+		t.Fatalf("ImportTargets: %v", err)
+	}
+	targets, _ := s.GetTargets(ctx)
+	targetID := targets[0].ID
+
+	const n = 12
+	for i := 0; i < n; i++ {
+		findings := []csp.Finding{{Directive: fmt.Sprintf("directive-%d", i)}}
+		if err := s.SaveCSPScan(ctx, "example.com", "default-src 'self'", findings); err != nil {
+			t.Fatalf("SaveCSPScan: %v", err)
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+
+	page1, total, err := s.GetCSPScansPage(ctx, targetID, 10, 0)
+	if err != nil {
+		t.Fatalf("GetCSPScansPage: %v", err)
+	}
+	if total != n {
+		t.Errorf("expected total %d, got %d", n, total)
+	}
+	if len(page1) != 10 {
+		t.Fatalf("expected 10 rows on page 1, got %d", len(page1))
+	}
+	if page1[0].Findings[0].Directive != fmt.Sprintf("directive-%d", n-1) {
+		t.Errorf("expected newest-first, got %v as first row", page1[0].Findings)
+	}
+
+	page2, total2, err := s.GetCSPScansPage(ctx, targetID, 10, 10)
+	if err != nil {
+		t.Fatalf("GetCSPScansPage page 2: %v", err)
+	}
+	if total2 != n {
+		t.Errorf("expected total %d, got %d", n, total2)
+	}
+	if len(page2) != n-10 {
+		t.Errorf("expected %d rows on page 2, got %d", n-10, len(page2))
+	}
+}
+
+func TestGetIPScansPage(t *testing.T) {
+	s := newTestStorage(t)
+	ctx := context.Background()
+
+	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
+		t.Fatalf("ImportTargets: %v", err)
+	}
+	if err := s.SaveIPs(ctx, "example.com", []string{"1.2.3.4"}); err != nil {
+		t.Fatalf("SaveIPs: %v", err)
+	}
+
+	targets, _ := s.GetTargets(ctx)
+	target, err := s.GetTarget(ctx, targets[0].ID)
+	if err != nil {
+		t.Fatalf("GetTarget: %v", err)
+	}
+	ipID := target.Edges.Ips[0].ID
+
+	const n = 11
+	for i := 0; i < n; i++ {
+		if err := s.SavePortScan(ctx, "1.2.3.4", []int{80 + i}); err != nil {
+			t.Fatalf("SavePortScan: %v", err)
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+
+	page1, total, err := s.GetIPScansPage(ctx, ipID, 10, 0)
+	if err != nil {
+		t.Fatalf("GetIPScansPage: %v", err)
+	}
+	if total != n {
+		t.Errorf("expected total %d, got %d", n, total)
+	}
+	if len(page1) != 10 {
+		t.Fatalf("expected 10 rows on page 1, got %d", len(page1))
+	}
+	if page1[0].Edges.Ports[0].Number != 80+n-1 {
+		t.Errorf("expected newest-first, got port %d as first row", page1[0].Edges.Ports[0].Number)
+	}
+
+	page2, total2, err := s.GetIPScansPage(ctx, ipID, 10, 10)
+	if err != nil {
+		t.Fatalf("GetIPScansPage page 2: %v", err)
+	}
+	if total2 != n {
+		t.Errorf("expected total %d, got %d", n, total2)
+	}
+	if len(page2) != n-10 {
+		t.Errorf("expected %d rows on page 2, got %d", n-10, len(page2))
 	}
 }
