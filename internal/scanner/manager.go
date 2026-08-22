@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -471,13 +472,24 @@ func (m *Manager) processSSLScan(ctx context.Context, j Job, scanner *ssl.SSLLab
 	}
 }
 
+func fetchCSPHeaders(client http.Client, host string) (enforce string, reportOnly string, err error) {
+	resp, err := client.Get("https://" + host)
+	if err != nil {
+		resp, err = client.Get("http://" + host)
+	}
+	if err != nil {
+		return "", "", err
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, resp.Body)
+	return resp.Header.Get("Content-Security-Policy"),
+		resp.Header.Get("Content-Security-Policy-Report-Only"),
+		nil
+}
+
 func (m *Manager) processCSPScan(ctx context.Context, j Job, client http.Client, evaluator csp.Evaluator) {
 	log.Printf("Worker: CSP Scanning %s", j.Input)
-	var cspHeader string
-	resp, err := client.Head("https://" + j.Input)
-	if err != nil {
-		resp, err = client.Head("http://" + j.Input)
-	}
+	cspHeader, reportOnly, err := fetchCSPHeaders(client, j.Input)
 
 	var findings []csp.Finding
 
@@ -493,16 +505,26 @@ func (m *Manager) processCSPScan(ctx context.Context, j Job, client http.Client,
 		return
 	}
 
-	defer resp.Body.Close()
-	cspHeader = resp.Header.Get("Content-Security-Policy")
-
-	if cspHeader == "" {
+	if cspHeader == "" && reportOnly == "" {
 		findings = append(findings, csp.Finding{
 			Type:        csp.TypeMissingDirectives,
 			Description: "No Content-Security-Policy header found.",
 			Severity:    csp.SeverityHigh,
 			Directive:   "Header",
 		})
+	} else if cspHeader == "" {
+		findings = append(findings, csp.Finding{
+			Type:        csp.TypeMissingDirectives,
+			Description: "Content-Security-Policy-Report-Only present; no enforcing Content-Security-Policy header.",
+			Severity:    csp.SeverityMedium,
+			Directive:   "Header",
+		})
+		f, evalErr := evaluator.Evaluate(reportOnly)
+		if evalErr != nil {
+			log.Printf("Worker: Error evaluating CSP-Report-Only for %s: %v", j.Input, evalErr)
+		}
+		findings = append(findings, f...)
+		cspHeader = reportOnly
 	} else {
 		f, err := evaluator.Evaluate(cspHeader)
 		if err != nil {
