@@ -117,7 +117,9 @@ func (s *EntStorage) GetTargets(ctx context.Context) ([]*ent.Target, error) {
 		WithSslScans(func(q *ent.SSLScanQuery) {
 			q.Order(ent.Desc(sslscan.FieldScannedAt), ent.Desc(sslscan.FieldID))
 		}).
-		WithCspScans().
+		WithCspScans(func(q *ent.CSPScanQuery) {
+			q.Order(ent.Desc(cspscan.FieldScannedAt), ent.Desc(cspscan.FieldID))
+		}).
 		WithTags().
 		All(ctx)
 }
@@ -134,7 +136,9 @@ func (s *EntStorage) GetTarget(ctx context.Context, id int) (*ent.Target, error)
 		WithSslScans(func(q *ent.SSLScanQuery) {
 			q.Order(ent.Desc(sslscan.FieldScannedAt), ent.Desc(sslscan.FieldID))
 		}).
-		WithCspScans().
+		WithCspScans(func(q *ent.CSPScanQuery) {
+			q.Order(ent.Desc(cspscan.FieldScannedAt), ent.Desc(cspscan.FieldID))
+		}).
 		WithTags().
 		Only(ctx)
 }
