@@ -114,7 +114,9 @@ func (s *EntStorage) GetTargets(ctx context.Context) ([]*ent.Target, error) {
 					WithPorts()
 			})
 		}).
-		WithSslScans().
+		WithSslScans(func(q *ent.SSLScanQuery) {
+			q.Order(ent.Desc(sslscan.FieldScannedAt), ent.Desc(sslscan.FieldID))
+		}).
 		WithCspScans().
 		WithTags().
 		All(ctx)
@@ -129,7 +131,9 @@ func (s *EntStorage) GetTarget(ctx context.Context, id int) (*ent.Target, error)
 					WithPorts()
 			})
 		}).
-		WithSslScans().
+		WithSslScans(func(q *ent.SSLScanQuery) {
+			q.Order(ent.Desc(sslscan.FieldScannedAt), ent.Desc(sslscan.FieldID))
+		}).
 		WithCspScans().
 		WithTags().
 		Only(ctx)
