@@ -110,7 +110,8 @@ func (s *EntStorage) GetTargets(ctx context.Context) ([]*ent.Target, error) {
 	return s.client.Target.Query().
 		WithIps(func(q *ent.IPQuery) {
 			q.WithScans(func(sq *ent.PortScanQuery) {
-				sq.WithPorts()
+				sq.Order(ent.Desc(portscan.FieldScannedAt), ent.Desc(portscan.FieldID)).
+					WithPorts()
 			})
 		}).
 		WithSslScans().
@@ -124,7 +125,8 @@ func (s *EntStorage) GetTarget(ctx context.Context, id int) (*ent.Target, error)
 		Where(target.ID(id)).
 		WithIps(func(q *ent.IPQuery) {
 			q.WithScans(func(sq *ent.PortScanQuery) {
-				sq.WithPorts()
+				sq.Order(ent.Desc(portscan.FieldScannedAt), ent.Desc(portscan.FieldID)).
+					WithPorts()
 			})
 		}).
 		WithSslScans().
