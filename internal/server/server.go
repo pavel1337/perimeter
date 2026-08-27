@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -350,9 +351,17 @@ type pagination struct {
 	NextURL    string
 }
 
+// portScanView decorates a stored scan with the change that started it, so the
+// history reads as a change log rather than a list of samples.
+type portScanView struct {
+	*ent.PortScan
+	Added   []int
+	Removed []int
+}
+
 type ipScanRow struct {
 	IP         *ent.IP
-	Scans      []*ent.PortScan
+	Scans      []portScanView
 	Pagination pagination
 }
 
@@ -433,18 +442,68 @@ func (s *Server) cspHistoryData(ctx context.Context, c *fiber.Ctx, targetID int)
 
 func (s *Server) ipHistoryData(ctx context.Context, c *fiber.Ctx, i *ent.IP) (ipScanRow, error) {
 	page := parsePage(c, ipPageKey(i.ID))
-	items, total, err := s.storage.GetIPScansPage(ctx, i.ID, scanPageSize, (page-1)*scanPageSize)
+	// One row past the page so the oldest row on it can still be diffed.
+	items, total, err := s.storage.GetIPScansPage(ctx, i.ID, scanPageSize+1, (page-1)*scanPageSize)
 	if err != nil {
 		return ipScanRow{}, err
 	}
 	if settled := clampPage(page, total); settled != page {
-		items, _, err = s.storage.GetIPScansPage(ctx, i.ID, scanPageSize, (settled-1)*scanPageSize)
+		items, _, err = s.storage.GetIPScansPage(ctx, i.ID, scanPageSize+1, (settled-1)*scanPageSize)
 		if err != nil {
 			return ipScanRow{}, err
 		}
 		page = settled
 	}
-	return ipScanRow{IP: i, Scans: items, Pagination: buildPagination(c, ipPageKey(i.ID), page, total)}, nil
+	return ipScanRow{IP: i, Scans: diffPortScans(items), Pagination: buildPagination(c, ipPageKey(i.ID), page, total)}, nil
+}
+
+// diffPortScans annotates each row with the ports gained and lost relative to
+// the row before it. Rows arrive newest first; the trailing lookahead row is
+// dropped after it has been used as a baseline.
+func diffPortScans(items []*ent.PortScan) []portScanView {
+	views := make([]portScanView, 0, len(items))
+	for n, scan := range items {
+		v := portScanView{PortScan: scan}
+		if n+1 < len(items) {
+			v.Added, v.Removed = portDelta(scanPorts(items[n+1]), scanPorts(scan))
+		}
+		views = append(views, v)
+	}
+	if len(views) > scanPageSize {
+		views = views[:scanPageSize]
+	}
+	return views
+}
+
+func scanPorts(scan *ent.PortScan) []int {
+	numbers := make([]int, 0, len(scan.Edges.Ports))
+	for _, p := range scan.Edges.Ports {
+		numbers = append(numbers, p.Number)
+	}
+	return numbers
+}
+
+// portDelta returns the ports in curr but not prev, and the reverse.
+func portDelta(prev, curr []int) (added, removed []int) {
+	was := make(map[int]bool, len(prev))
+	for _, p := range prev {
+		was[p] = true
+	}
+	now := make(map[int]bool, len(curr))
+	for _, p := range curr {
+		now[p] = true
+		if !was[p] {
+			added = append(added, p)
+		}
+	}
+	for _, p := range prev {
+		if !now[p] {
+			removed = append(removed, p)
+		}
+	}
+	slices.Sort(added)
+	slices.Sort(removed)
+	return added, removed
 }
 
 func (s *Server) handleTargetDetails(c *fiber.Ctx) error {

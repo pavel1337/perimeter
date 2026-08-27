@@ -520,3 +520,132 @@ func TestGetOutdatedIPsOrdersByOldestScan(t *testing.T) {
 		t.Errorf("limit 1 returned %v, want the never-scanned IP", ips)
 	}
 }
+
+func TestSavePortScanCollapsesIdenticalResults(t *testing.T) {
+	s := newTestStorage(t)
+	ctx := context.Background()
+
+	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
+		t.Fatalf("ImportTargets: %v", err)
+	}
+	if err := s.SaveIPs(ctx, "example.com", []string{"1.2.3.4"}); err != nil {
+		t.Fatalf("SaveIPs: %v", err)
+	}
+
+	for range 3 {
+		if err := s.SavePortScan(ctx, "1.2.3.4", []int{443, 80}); err != nil {
+			t.Fatalf("SavePortScan: %v", err)
+		}
+	}
+
+	ips, err := s.GetOutdatedIPs(ctx, 10, 0)
+	if err != nil {
+		t.Fatalf("GetOutdatedIPs: %v", err)
+	}
+	scans, total, err := s.GetIPScansPage(ctx, ips[0].ID, 10, 0)
+	if err != nil {
+		t.Fatalf("GetIPScansPage: %v", err)
+	}
+	if total != 1 {
+		t.Fatalf("expected 1 row for 3 identical scans, got %d", total)
+	}
+	if scans[0].CheckCount != 3 {
+		t.Errorf("check_count = %d, want 3", scans[0].CheckCount)
+	}
+	if !scans[0].LastSeenAt.After(scans[0].ScannedAt) && !scans[0].LastSeenAt.Equal(scans[0].ScannedAt) {
+		t.Errorf("last_seen_at %v is before scanned_at %v", scans[0].LastSeenAt, scans[0].ScannedAt)
+	}
+
+	// A changed result starts a new row.
+	if err := s.SavePortScan(ctx, "1.2.3.4", []int{80, 443, 8080}); err != nil {
+		t.Fatalf("SavePortScan: %v", err)
+	}
+	_, total, err = s.GetIPScansPage(ctx, ips[0].ID, 10, 0)
+	if err != nil {
+		t.Fatalf("GetIPScansPage: %v", err)
+	}
+	if total != 2 {
+		t.Errorf("expected 2 rows after change, got %d", total)
+	}
+}
+
+func TestSaveSSLScanCollapsesIdenticalResults(t *testing.T) {
+	s := newTestStorage(t)
+	ctx := context.Background()
+
+	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
+		t.Fatalf("ImportTargets: %v", err)
+	}
+	targets, err := s.GetTargets(ctx)
+	if err != nil {
+		t.Fatalf("GetTargets: %v", err)
+	}
+
+	res := storage.SSLResult{Grade: "A+", Status: "Ready", Protocols: []string{"TLS 1.3"}}
+	for range 3 {
+		if err := s.SaveSSLScan(ctx, "example.com", res); err != nil {
+			t.Fatalf("SaveSSLScan: %v", err)
+		}
+	}
+
+	scans, total, err := s.GetSSLScansPage(ctx, targets[0].ID, 10, 0)
+	if err != nil {
+		t.Fatalf("GetSSLScansPage: %v", err)
+	}
+	if total != 1 {
+		t.Fatalf("expected 1 row for 3 identical scans, got %d", total)
+	}
+	if scans[0].CheckCount != 3 {
+		t.Errorf("check_count = %d, want 3", scans[0].CheckCount)
+	}
+
+	res.Grade = "B"
+	if err := s.SaveSSLScan(ctx, "example.com", res); err != nil {
+		t.Fatalf("SaveSSLScan: %v", err)
+	}
+	if _, total, err = s.GetSSLScansPage(ctx, targets[0].ID, 10, 0); err != nil {
+		t.Fatalf("GetSSLScansPage: %v", err)
+	} else if total != 2 {
+		t.Errorf("expected 2 rows after grade change, got %d", total)
+	}
+}
+
+func TestSaveCSPScanCollapsesIdenticalResults(t *testing.T) {
+	s := newTestStorage(t)
+	ctx := context.Background()
+
+	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
+		t.Fatalf("ImportTargets: %v", err)
+	}
+	targets, err := s.GetTargets(ctx)
+	if err != nil {
+		t.Fatalf("GetTargets: %v", err)
+	}
+
+	findings := []csp.Finding{{Directive: "script-src", Description: "unsafe-inline"}}
+	for range 3 {
+		if err := s.SaveCSPScan(ctx, "example.com", "default-src 'self'", findings); err != nil {
+			t.Fatalf("SaveCSPScan: %v", err)
+		}
+	}
+
+	scans, total, err := s.GetCSPScansPage(ctx, targets[0].ID, 10, 0)
+	if err != nil {
+		t.Fatalf("GetCSPScansPage: %v", err)
+	}
+	if total != 1 {
+		t.Fatalf("expected 1 row for 3 identical scans, got %d", total)
+	}
+	if scans[0].CheckCount != 3 {
+		t.Errorf("check_count = %d, want 3", scans[0].CheckCount)
+	}
+
+	if err := s.SaveCSPScan(ctx, "example.com", "default-src 'none'", findings); err != nil {
+		t.Fatalf("SaveCSPScan: %v", err)
+	}
+	if _, total, err = s.GetCSPScansPage(ctx, targets[0].ID, 10, 0); err != nil {
+		t.Fatalf("GetCSPScansPage: %v", err)
+	} else if total != 2 {
+		t.Errorf("expected 2 rows after header change, got %d", total)
+	}
+}

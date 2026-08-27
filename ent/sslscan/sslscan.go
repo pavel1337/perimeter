@@ -14,6 +14,10 @@ const (
 	FieldID = "id"
 	// FieldScannedAt holds the string denoting the scanned_at field in the database.
 	FieldScannedAt = "scanned_at"
+	// FieldLastSeenAt holds the string denoting the last_seen_at field in the database.
+	FieldLastSeenAt = "last_seen_at"
+	// FieldCheckCount holds the string denoting the check_count field in the database.
+	FieldCheckCount = "check_count"
 	// FieldGrade holds the string denoting the grade field in the database.
 	FieldGrade = "grade"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -45,6 +49,8 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldScannedAt,
+	FieldLastSeenAt,
+	FieldCheckCount,
 	FieldGrade,
 	FieldStatus,
 	FieldCertIssuer,
@@ -75,6 +81,11 @@ func ValidColumn(column string) bool {
 	return false
 }
 
+var (
+	// DefaultCheckCount holds the default value on creation for the "check_count" field.
+	DefaultCheckCount int
+)
+
 // OrderOption defines the ordering options for the SSLScan queries.
 type OrderOption func(*sql.Selector)
 
@@ -86,6 +97,16 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByScannedAt orders the results by the scanned_at field.
 func ByScannedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldScannedAt, opts...).ToFunc()
+}
+
+// ByLastSeenAt orders the results by the last_seen_at field.
+func ByLastSeenAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastSeenAt, opts...).ToFunc()
+}
+
+// ByCheckCount orders the results by the check_count field.
+func ByCheckCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCheckCount, opts...).ToFunc()
 }
 
 // ByGrade orders the results by the grade field.

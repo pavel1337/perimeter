@@ -28,6 +28,34 @@ func (_c *CSPScanCreate) SetScannedAt(v time.Time) *CSPScanCreate {
 	return _c
 }
 
+// SetLastSeenAt sets the "last_seen_at" field.
+func (_c *CSPScanCreate) SetLastSeenAt(v time.Time) *CSPScanCreate {
+	_c.mutation.SetLastSeenAt(v)
+	return _c
+}
+
+// SetNillableLastSeenAt sets the "last_seen_at" field if the given value is not nil.
+func (_c *CSPScanCreate) SetNillableLastSeenAt(v *time.Time) *CSPScanCreate {
+	if v != nil {
+		_c.SetLastSeenAt(*v)
+	}
+	return _c
+}
+
+// SetCheckCount sets the "check_count" field.
+func (_c *CSPScanCreate) SetCheckCount(v int) *CSPScanCreate {
+	_c.mutation.SetCheckCount(v)
+	return _c
+}
+
+// SetNillableCheckCount sets the "check_count" field if the given value is not nil.
+func (_c *CSPScanCreate) SetNillableCheckCount(v *int) *CSPScanCreate {
+	if v != nil {
+		_c.SetCheckCount(*v)
+	}
+	return _c
+}
+
 // SetCspHeader sets the "csp_header" field.
 func (_c *CSPScanCreate) SetCspHeader(v string) *CSPScanCreate {
 	_c.mutation.SetCspHeader(v)
@@ -58,6 +86,7 @@ func (_c *CSPScanCreate) Mutation() *CSPScanMutation {
 
 // Save creates the CSPScan in the database.
 func (_c *CSPScanCreate) Save(ctx context.Context) (*CSPScan, error) {
+	_c.defaults()
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -83,10 +112,21 @@ func (_c *CSPScanCreate) ExecX(ctx context.Context) {
 	}
 }
 
+// defaults sets the default values of the builder before save.
+func (_c *CSPScanCreate) defaults() {
+	if _, ok := _c.mutation.CheckCount(); !ok {
+		v := cspscan.DefaultCheckCount
+		_c.mutation.SetCheckCount(v)
+	}
+}
+
 // check runs all checks and user-defined validators on the builder.
 func (_c *CSPScanCreate) check() error {
 	if _, ok := _c.mutation.ScannedAt(); !ok {
 		return &ValidationError{Name: "scanned_at", err: errors.New(`ent: missing required field "CSPScan.scanned_at"`)}
+	}
+	if _, ok := _c.mutation.CheckCount(); !ok {
+		return &ValidationError{Name: "check_count", err: errors.New(`ent: missing required field "CSPScan.check_count"`)}
 	}
 	if _, ok := _c.mutation.CspHeader(); !ok {
 		return &ValidationError{Name: "csp_header", err: errors.New(`ent: missing required field "CSPScan.csp_header"`)}
@@ -123,6 +163,14 @@ func (_c *CSPScanCreate) createSpec() (*CSPScan, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ScannedAt(); ok {
 		_spec.SetField(cspscan.FieldScannedAt, field.TypeTime, value)
 		_node.ScannedAt = value
+	}
+	if value, ok := _c.mutation.LastSeenAt(); ok {
+		_spec.SetField(cspscan.FieldLastSeenAt, field.TypeTime, value)
+		_node.LastSeenAt = value
+	}
+	if value, ok := _c.mutation.CheckCount(); ok {
+		_spec.SetField(cspscan.FieldCheckCount, field.TypeInt, value)
+		_node.CheckCount = value
 	}
 	if value, ok := _c.mutation.CspHeader(); ok {
 		_spec.SetField(cspscan.FieldCspHeader, field.TypeString, value)
@@ -170,6 +218,7 @@ func (_c *CSPScanCreateBulk) Save(ctx context.Context) ([]*CSPScan, error) {
 	for i := range _c.builders {
 		func(i int, root context.Context) {
 			builder := _c.builders[i]
+			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
 				mutation, ok := m.(*CSPScanMutation)
 				if !ok {

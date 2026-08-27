@@ -27,6 +27,34 @@ func (_c *SSLScanCreate) SetScannedAt(v time.Time) *SSLScanCreate {
 	return _c
 }
 
+// SetLastSeenAt sets the "last_seen_at" field.
+func (_c *SSLScanCreate) SetLastSeenAt(v time.Time) *SSLScanCreate {
+	_c.mutation.SetLastSeenAt(v)
+	return _c
+}
+
+// SetNillableLastSeenAt sets the "last_seen_at" field if the given value is not nil.
+func (_c *SSLScanCreate) SetNillableLastSeenAt(v *time.Time) *SSLScanCreate {
+	if v != nil {
+		_c.SetLastSeenAt(*v)
+	}
+	return _c
+}
+
+// SetCheckCount sets the "check_count" field.
+func (_c *SSLScanCreate) SetCheckCount(v int) *SSLScanCreate {
+	_c.mutation.SetCheckCount(v)
+	return _c
+}
+
+// SetNillableCheckCount sets the "check_count" field if the given value is not nil.
+func (_c *SSLScanCreate) SetNillableCheckCount(v *int) *SSLScanCreate {
+	if v != nil {
+		_c.SetCheckCount(*v)
+	}
+	return _c
+}
+
 // SetGrade sets the "grade" field.
 func (_c *SSLScanCreate) SetGrade(v string) *SSLScanCreate {
 	_c.mutation.SetGrade(v)
@@ -111,6 +139,7 @@ func (_c *SSLScanCreate) Mutation() *SSLScanMutation {
 
 // Save creates the SSLScan in the database.
 func (_c *SSLScanCreate) Save(ctx context.Context) (*SSLScan, error) {
+	_c.defaults()
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -136,10 +165,21 @@ func (_c *SSLScanCreate) ExecX(ctx context.Context) {
 	}
 }
 
+// defaults sets the default values of the builder before save.
+func (_c *SSLScanCreate) defaults() {
+	if _, ok := _c.mutation.CheckCount(); !ok {
+		v := sslscan.DefaultCheckCount
+		_c.mutation.SetCheckCount(v)
+	}
+}
+
 // check runs all checks and user-defined validators on the builder.
 func (_c *SSLScanCreate) check() error {
 	if _, ok := _c.mutation.ScannedAt(); !ok {
 		return &ValidationError{Name: "scanned_at", err: errors.New(`ent: missing required field "SSLScan.scanned_at"`)}
+	}
+	if _, ok := _c.mutation.CheckCount(); !ok {
+		return &ValidationError{Name: "check_count", err: errors.New(`ent: missing required field "SSLScan.check_count"`)}
 	}
 	if _, ok := _c.mutation.Grade(); !ok {
 		return &ValidationError{Name: "grade", err: errors.New(`ent: missing required field "SSLScan.grade"`)}
@@ -179,6 +219,14 @@ func (_c *SSLScanCreate) createSpec() (*SSLScan, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ScannedAt(); ok {
 		_spec.SetField(sslscan.FieldScannedAt, field.TypeTime, value)
 		_node.ScannedAt = value
+	}
+	if value, ok := _c.mutation.LastSeenAt(); ok {
+		_spec.SetField(sslscan.FieldLastSeenAt, field.TypeTime, value)
+		_node.LastSeenAt = value
+	}
+	if value, ok := _c.mutation.CheckCount(); ok {
+		_spec.SetField(sslscan.FieldCheckCount, field.TypeInt, value)
+		_node.CheckCount = value
 	}
 	if value, ok := _c.mutation.Grade(); ok {
 		_spec.SetField(sslscan.FieldGrade, field.TypeString, value)
@@ -246,6 +294,7 @@ func (_c *SSLScanCreateBulk) Save(ctx context.Context) ([]*SSLScan, error) {
 	for i := range _c.builders {
 		func(i int, root context.Context) {
 			builder := _c.builders[i]
+			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
 				mutation, ok := m.(*SSLScanMutation)
 				if !ok {

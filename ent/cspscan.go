@@ -22,6 +22,10 @@ type CSPScan struct {
 	ID int `json:"id,omitempty"`
 	// ScannedAt holds the value of the "scanned_at" field.
 	ScannedAt time.Time `json:"scanned_at,omitempty"`
+	// LastSeenAt holds the value of the "last_seen_at" field.
+	LastSeenAt time.Time `json:"last_seen_at,omitempty"`
+	// CheckCount holds the value of the "check_count" field.
+	CheckCount int `json:"check_count,omitempty"`
 	// CspHeader holds the value of the "csp_header" field.
 	CspHeader string `json:"csp_header,omitempty"`
 	// Findings holds the value of the "findings" field.
@@ -60,11 +64,11 @@ func (*CSPScan) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case cspscan.FieldFindings:
 			values[i] = new([]byte)
-		case cspscan.FieldID:
+		case cspscan.FieldID, cspscan.FieldCheckCount:
 			values[i] = new(sql.NullInt64)
 		case cspscan.FieldCspHeader:
 			values[i] = new(sql.NullString)
-		case cspscan.FieldScannedAt:
+		case cspscan.FieldScannedAt, cspscan.FieldLastSeenAt:
 			values[i] = new(sql.NullTime)
 		case cspscan.ForeignKeys[0]: // target_csp_scans
 			values[i] = new(sql.NullInt64)
@@ -94,6 +98,18 @@ func (_m *CSPScan) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field scanned_at", values[i])
 			} else if value.Valid {
 				_m.ScannedAt = value.Time
+			}
+		case cspscan.FieldLastSeenAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field last_seen_at", values[i])
+			} else if value.Valid {
+				_m.LastSeenAt = value.Time
+			}
+		case cspscan.FieldCheckCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field check_count", values[i])
+			} else if value.Valid {
+				_m.CheckCount = int(value.Int64)
 			}
 		case cspscan.FieldCspHeader:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -159,6 +175,12 @@ func (_m *CSPScan) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("scanned_at=")
 	builder.WriteString(_m.ScannedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("last_seen_at=")
+	builder.WriteString(_m.LastSeenAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("check_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CheckCount))
 	builder.WriteString(", ")
 	builder.WriteString("csp_header=")
 	builder.WriteString(_m.CspHeader)

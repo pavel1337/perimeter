@@ -45,6 +45,47 @@ func (_u *CSPScanUpdate) SetNillableScannedAt(v *time.Time) *CSPScanUpdate {
 	return _u
 }
 
+// SetLastSeenAt sets the "last_seen_at" field.
+func (_u *CSPScanUpdate) SetLastSeenAt(v time.Time) *CSPScanUpdate {
+	_u.mutation.SetLastSeenAt(v)
+	return _u
+}
+
+// SetNillableLastSeenAt sets the "last_seen_at" field if the given value is not nil.
+func (_u *CSPScanUpdate) SetNillableLastSeenAt(v *time.Time) *CSPScanUpdate {
+	if v != nil {
+		_u.SetLastSeenAt(*v)
+	}
+	return _u
+}
+
+// ClearLastSeenAt clears the value of the "last_seen_at" field.
+func (_u *CSPScanUpdate) ClearLastSeenAt() *CSPScanUpdate {
+	_u.mutation.ClearLastSeenAt()
+	return _u
+}
+
+// SetCheckCount sets the "check_count" field.
+func (_u *CSPScanUpdate) SetCheckCount(v int) *CSPScanUpdate {
+	_u.mutation.ResetCheckCount()
+	_u.mutation.SetCheckCount(v)
+	return _u
+}
+
+// SetNillableCheckCount sets the "check_count" field if the given value is not nil.
+func (_u *CSPScanUpdate) SetNillableCheckCount(v *int) *CSPScanUpdate {
+	if v != nil {
+		_u.SetCheckCount(*v)
+	}
+	return _u
+}
+
+// AddCheckCount adds value to the "check_count" field.
+func (_u *CSPScanUpdate) AddCheckCount(v int) *CSPScanUpdate {
+	_u.mutation.AddCheckCount(v)
+	return _u
+}
+
 // SetCspHeader sets the "csp_header" field.
 func (_u *CSPScanUpdate) SetCspHeader(v string) *CSPScanUpdate {
 	_u.mutation.SetCspHeader(v)
@@ -149,6 +190,18 @@ func (_u *CSPScanUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.ScannedAt(); ok {
 		_spec.SetField(cspscan.FieldScannedAt, field.TypeTime, value)
 	}
+	if value, ok := _u.mutation.LastSeenAt(); ok {
+		_spec.SetField(cspscan.FieldLastSeenAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastSeenAtCleared() {
+		_spec.ClearField(cspscan.FieldLastSeenAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.CheckCount(); ok {
+		_spec.SetField(cspscan.FieldCheckCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCheckCount(); ok {
+		_spec.AddField(cspscan.FieldCheckCount, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.CspHeader(); ok {
 		_spec.SetField(cspscan.FieldCspHeader, field.TypeString, value)
 	}
@@ -223,6 +276,47 @@ func (_u *CSPScanUpdateOne) SetNillableScannedAt(v *time.Time) *CSPScanUpdateOne
 	if v != nil {
 		_u.SetScannedAt(*v)
 	}
+	return _u
+}
+
+// SetLastSeenAt sets the "last_seen_at" field.
+func (_u *CSPScanUpdateOne) SetLastSeenAt(v time.Time) *CSPScanUpdateOne {
+	_u.mutation.SetLastSeenAt(v)
+	return _u
+}
+
+// SetNillableLastSeenAt sets the "last_seen_at" field if the given value is not nil.
+func (_u *CSPScanUpdateOne) SetNillableLastSeenAt(v *time.Time) *CSPScanUpdateOne {
+	if v != nil {
+		_u.SetLastSeenAt(*v)
+	}
+	return _u
+}
+
+// ClearLastSeenAt clears the value of the "last_seen_at" field.
+func (_u *CSPScanUpdateOne) ClearLastSeenAt() *CSPScanUpdateOne {
+	_u.mutation.ClearLastSeenAt()
+	return _u
+}
+
+// SetCheckCount sets the "check_count" field.
+func (_u *CSPScanUpdateOne) SetCheckCount(v int) *CSPScanUpdateOne {
+	_u.mutation.ResetCheckCount()
+	_u.mutation.SetCheckCount(v)
+	return _u
+}
+
+// SetNillableCheckCount sets the "check_count" field if the given value is not nil.
+func (_u *CSPScanUpdateOne) SetNillableCheckCount(v *int) *CSPScanUpdateOne {
+	if v != nil {
+		_u.SetCheckCount(*v)
+	}
+	return _u
+}
+
+// AddCheckCount adds value to the "check_count" field.
+func (_u *CSPScanUpdateOne) AddCheckCount(v int) *CSPScanUpdateOne {
+	_u.mutation.AddCheckCount(v)
 	return _u
 }
 
@@ -359,6 +453,18 @@ func (_u *CSPScanUpdateOne) sqlSave(ctx context.Context) (_node *CSPScan, err er
 	}
 	if value, ok := _u.mutation.ScannedAt(); ok {
 		_spec.SetField(cspscan.FieldScannedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.LastSeenAt(); ok {
+		_spec.SetField(cspscan.FieldLastSeenAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastSeenAtCleared() {
+		_spec.ClearField(cspscan.FieldLastSeenAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.CheckCount(); ok {
+		_spec.SetField(cspscan.FieldCheckCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCheckCount(); ok {
+		_spec.AddField(cspscan.FieldCheckCount, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.CspHeader(); ok {
 		_spec.SetField(cspscan.FieldCspHeader, field.TypeString, value)

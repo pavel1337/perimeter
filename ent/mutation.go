@@ -59,6 +59,9 @@ type CSPScanMutation struct {
 	typ            string
 	id             *int
 	scanned_at     *time.Time
+	last_seen_at   *time.Time
+	check_count    *int
+	addcheck_count *int
 	csp_header     *string
 	findings       *[]csp.Finding
 	appendfindings []csp.Finding
@@ -202,6 +205,111 @@ func (m *CSPScanMutation) OldScannedAt(ctx context.Context) (v time.Time, err er
 // ResetScannedAt resets all changes to the "scanned_at" field.
 func (m *CSPScanMutation) ResetScannedAt() {
 	m.scanned_at = nil
+}
+
+// SetLastSeenAt sets the "last_seen_at" field.
+func (m *CSPScanMutation) SetLastSeenAt(t time.Time) {
+	m.last_seen_at = &t
+}
+
+// LastSeenAt returns the value of the "last_seen_at" field in the mutation.
+func (m *CSPScanMutation) LastSeenAt() (r time.Time, exists bool) {
+	v := m.last_seen_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastSeenAt returns the old "last_seen_at" field's value of the CSPScan entity.
+// If the CSPScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CSPScanMutation) OldLastSeenAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastSeenAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastSeenAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastSeenAt: %w", err)
+	}
+	return oldValue.LastSeenAt, nil
+}
+
+// ClearLastSeenAt clears the value of the "last_seen_at" field.
+func (m *CSPScanMutation) ClearLastSeenAt() {
+	m.last_seen_at = nil
+	m.clearedFields[cspscan.FieldLastSeenAt] = struct{}{}
+}
+
+// LastSeenAtCleared returns if the "last_seen_at" field was cleared in this mutation.
+func (m *CSPScanMutation) LastSeenAtCleared() bool {
+	_, ok := m.clearedFields[cspscan.FieldLastSeenAt]
+	return ok
+}
+
+// ResetLastSeenAt resets all changes to the "last_seen_at" field.
+func (m *CSPScanMutation) ResetLastSeenAt() {
+	m.last_seen_at = nil
+	delete(m.clearedFields, cspscan.FieldLastSeenAt)
+}
+
+// SetCheckCount sets the "check_count" field.
+func (m *CSPScanMutation) SetCheckCount(i int) {
+	m.check_count = &i
+	m.addcheck_count = nil
+}
+
+// CheckCount returns the value of the "check_count" field in the mutation.
+func (m *CSPScanMutation) CheckCount() (r int, exists bool) {
+	v := m.check_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCheckCount returns the old "check_count" field's value of the CSPScan entity.
+// If the CSPScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CSPScanMutation) OldCheckCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCheckCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCheckCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCheckCount: %w", err)
+	}
+	return oldValue.CheckCount, nil
+}
+
+// AddCheckCount adds i to the "check_count" field.
+func (m *CSPScanMutation) AddCheckCount(i int) {
+	if m.addcheck_count != nil {
+		*m.addcheck_count += i
+	} else {
+		m.addcheck_count = &i
+	}
+}
+
+// AddedCheckCount returns the value that was added to the "check_count" field in this mutation.
+func (m *CSPScanMutation) AddedCheckCount() (r int, exists bool) {
+	v := m.addcheck_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCheckCount resets all changes to the "check_count" field.
+func (m *CSPScanMutation) ResetCheckCount() {
+	m.check_count = nil
+	m.addcheck_count = nil
 }
 
 // SetCspHeader sets the "csp_header" field.
@@ -378,9 +486,15 @@ func (m *CSPScanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CSPScanMutation) Fields() []string {
-	fields := make([]string, 0, 3)
+	fields := make([]string, 0, 5)
 	if m.scanned_at != nil {
 		fields = append(fields, cspscan.FieldScannedAt)
+	}
+	if m.last_seen_at != nil {
+		fields = append(fields, cspscan.FieldLastSeenAt)
+	}
+	if m.check_count != nil {
+		fields = append(fields, cspscan.FieldCheckCount)
 	}
 	if m.csp_header != nil {
 		fields = append(fields, cspscan.FieldCspHeader)
@@ -398,6 +512,10 @@ func (m *CSPScanMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case cspscan.FieldScannedAt:
 		return m.ScannedAt()
+	case cspscan.FieldLastSeenAt:
+		return m.LastSeenAt()
+	case cspscan.FieldCheckCount:
+		return m.CheckCount()
 	case cspscan.FieldCspHeader:
 		return m.CspHeader()
 	case cspscan.FieldFindings:
@@ -413,6 +531,10 @@ func (m *CSPScanMutation) OldField(ctx context.Context, name string) (ent.Value,
 	switch name {
 	case cspscan.FieldScannedAt:
 		return m.OldScannedAt(ctx)
+	case cspscan.FieldLastSeenAt:
+		return m.OldLastSeenAt(ctx)
+	case cspscan.FieldCheckCount:
+		return m.OldCheckCount(ctx)
 	case cspscan.FieldCspHeader:
 		return m.OldCspHeader(ctx)
 	case cspscan.FieldFindings:
@@ -432,6 +554,20 @@ func (m *CSPScanMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetScannedAt(v)
+		return nil
+	case cspscan.FieldLastSeenAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastSeenAt(v)
+		return nil
+	case cspscan.FieldCheckCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCheckCount(v)
 		return nil
 	case cspscan.FieldCspHeader:
 		v, ok := value.(string)
@@ -454,13 +590,21 @@ func (m *CSPScanMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *CSPScanMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.addcheck_count != nil {
+		fields = append(fields, cspscan.FieldCheckCount)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *CSPScanMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case cspscan.FieldCheckCount:
+		return m.AddedCheckCount()
+	}
 	return nil, false
 }
 
@@ -469,6 +613,13 @@ func (m *CSPScanMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *CSPScanMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case cspscan.FieldCheckCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCheckCount(v)
+		return nil
 	}
 	return fmt.Errorf("unknown CSPScan numeric field %s", name)
 }
@@ -477,6 +628,9 @@ func (m *CSPScanMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *CSPScanMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(cspscan.FieldLastSeenAt) {
+		fields = append(fields, cspscan.FieldLastSeenAt)
+	}
 	if m.FieldCleared(cspscan.FieldFindings) {
 		fields = append(fields, cspscan.FieldFindings)
 	}
@@ -494,6 +648,9 @@ func (m *CSPScanMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *CSPScanMutation) ClearField(name string) error {
 	switch name {
+	case cspscan.FieldLastSeenAt:
+		m.ClearLastSeenAt()
+		return nil
 	case cspscan.FieldFindings:
 		m.ClearFindings()
 		return nil
@@ -507,6 +664,12 @@ func (m *CSPScanMutation) ResetField(name string) error {
 	switch name {
 	case cspscan.FieldScannedAt:
 		m.ResetScannedAt()
+		return nil
+	case cspscan.FieldLastSeenAt:
+		m.ResetLastSeenAt()
+		return nil
+	case cspscan.FieldCheckCount:
+		m.ResetCheckCount()
 		return nil
 	case cspscan.FieldCspHeader:
 		m.ResetCspHeader()
@@ -4533,19 +4696,22 @@ func (m *PortMutation) ResetEdge(name string) error {
 // PortScanMutation represents an operation that mutates the PortScan nodes in the graph.
 type PortScanMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	scanned_at    *time.Time
-	clearedFields map[string]struct{}
-	ip            *int
-	clearedip     bool
-	ports         map[int]struct{}
-	removedports  map[int]struct{}
-	clearedports  bool
-	done          bool
-	oldValue      func(context.Context) (*PortScan, error)
-	predicates    []predicate.PortScan
+	op             Op
+	typ            string
+	id             *int
+	scanned_at     *time.Time
+	last_seen_at   *time.Time
+	check_count    *int
+	addcheck_count *int
+	clearedFields  map[string]struct{}
+	ip             *int
+	clearedip      bool
+	ports          map[int]struct{}
+	removedports   map[int]struct{}
+	clearedports   bool
+	done           bool
+	oldValue       func(context.Context) (*PortScan, error)
+	predicates     []predicate.PortScan
 }
 
 var _ ent.Mutation = (*PortScanMutation)(nil)
@@ -4682,6 +4848,111 @@ func (m *PortScanMutation) ResetScannedAt() {
 	m.scanned_at = nil
 }
 
+// SetLastSeenAt sets the "last_seen_at" field.
+func (m *PortScanMutation) SetLastSeenAt(t time.Time) {
+	m.last_seen_at = &t
+}
+
+// LastSeenAt returns the value of the "last_seen_at" field in the mutation.
+func (m *PortScanMutation) LastSeenAt() (r time.Time, exists bool) {
+	v := m.last_seen_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastSeenAt returns the old "last_seen_at" field's value of the PortScan entity.
+// If the PortScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PortScanMutation) OldLastSeenAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastSeenAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastSeenAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastSeenAt: %w", err)
+	}
+	return oldValue.LastSeenAt, nil
+}
+
+// ClearLastSeenAt clears the value of the "last_seen_at" field.
+func (m *PortScanMutation) ClearLastSeenAt() {
+	m.last_seen_at = nil
+	m.clearedFields[portscan.FieldLastSeenAt] = struct{}{}
+}
+
+// LastSeenAtCleared returns if the "last_seen_at" field was cleared in this mutation.
+func (m *PortScanMutation) LastSeenAtCleared() bool {
+	_, ok := m.clearedFields[portscan.FieldLastSeenAt]
+	return ok
+}
+
+// ResetLastSeenAt resets all changes to the "last_seen_at" field.
+func (m *PortScanMutation) ResetLastSeenAt() {
+	m.last_seen_at = nil
+	delete(m.clearedFields, portscan.FieldLastSeenAt)
+}
+
+// SetCheckCount sets the "check_count" field.
+func (m *PortScanMutation) SetCheckCount(i int) {
+	m.check_count = &i
+	m.addcheck_count = nil
+}
+
+// CheckCount returns the value of the "check_count" field in the mutation.
+func (m *PortScanMutation) CheckCount() (r int, exists bool) {
+	v := m.check_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCheckCount returns the old "check_count" field's value of the PortScan entity.
+// If the PortScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PortScanMutation) OldCheckCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCheckCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCheckCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCheckCount: %w", err)
+	}
+	return oldValue.CheckCount, nil
+}
+
+// AddCheckCount adds i to the "check_count" field.
+func (m *PortScanMutation) AddCheckCount(i int) {
+	if m.addcheck_count != nil {
+		*m.addcheck_count += i
+	} else {
+		m.addcheck_count = &i
+	}
+}
+
+// AddedCheckCount returns the value that was added to the "check_count" field in this mutation.
+func (m *PortScanMutation) AddedCheckCount() (r int, exists bool) {
+	v := m.addcheck_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCheckCount resets all changes to the "check_count" field.
+func (m *PortScanMutation) ResetCheckCount() {
+	m.check_count = nil
+	m.addcheck_count = nil
+}
+
 // SetIPID sets the "ip" edge to the IP entity by id.
 func (m *PortScanMutation) SetIPID(id int) {
 	m.ip = &id
@@ -4809,9 +5080,15 @@ func (m *PortScanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PortScanMutation) Fields() []string {
-	fields := make([]string, 0, 1)
+	fields := make([]string, 0, 3)
 	if m.scanned_at != nil {
 		fields = append(fields, portscan.FieldScannedAt)
+	}
+	if m.last_seen_at != nil {
+		fields = append(fields, portscan.FieldLastSeenAt)
+	}
+	if m.check_count != nil {
+		fields = append(fields, portscan.FieldCheckCount)
 	}
 	return fields
 }
@@ -4823,6 +5100,10 @@ func (m *PortScanMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case portscan.FieldScannedAt:
 		return m.ScannedAt()
+	case portscan.FieldLastSeenAt:
+		return m.LastSeenAt()
+	case portscan.FieldCheckCount:
+		return m.CheckCount()
 	}
 	return nil, false
 }
@@ -4834,6 +5115,10 @@ func (m *PortScanMutation) OldField(ctx context.Context, name string) (ent.Value
 	switch name {
 	case portscan.FieldScannedAt:
 		return m.OldScannedAt(ctx)
+	case portscan.FieldLastSeenAt:
+		return m.OldLastSeenAt(ctx)
+	case portscan.FieldCheckCount:
+		return m.OldCheckCount(ctx)
 	}
 	return nil, fmt.Errorf("unknown PortScan field %s", name)
 }
@@ -4850,6 +5135,20 @@ func (m *PortScanMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetScannedAt(v)
 		return nil
+	case portscan.FieldLastSeenAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastSeenAt(v)
+		return nil
+	case portscan.FieldCheckCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCheckCount(v)
+		return nil
 	}
 	return fmt.Errorf("unknown PortScan field %s", name)
 }
@@ -4857,13 +5156,21 @@ func (m *PortScanMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *PortScanMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.addcheck_count != nil {
+		fields = append(fields, portscan.FieldCheckCount)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *PortScanMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case portscan.FieldCheckCount:
+		return m.AddedCheckCount()
+	}
 	return nil, false
 }
 
@@ -4872,6 +5179,13 @@ func (m *PortScanMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *PortScanMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case portscan.FieldCheckCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCheckCount(v)
+		return nil
 	}
 	return fmt.Errorf("unknown PortScan numeric field %s", name)
 }
@@ -4879,7 +5193,11 @@ func (m *PortScanMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *PortScanMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(portscan.FieldLastSeenAt) {
+		fields = append(fields, portscan.FieldLastSeenAt)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -4892,6 +5210,11 @@ func (m *PortScanMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *PortScanMutation) ClearField(name string) error {
+	switch name {
+	case portscan.FieldLastSeenAt:
+		m.ClearLastSeenAt()
+		return nil
+	}
 	return fmt.Errorf("unknown PortScan nullable field %s", name)
 }
 
@@ -4901,6 +5224,12 @@ func (m *PortScanMutation) ResetField(name string) error {
 	switch name {
 	case portscan.FieldScannedAt:
 		m.ResetScannedAt()
+		return nil
+	case portscan.FieldLastSeenAt:
+		m.ResetLastSeenAt()
+		return nil
+	case portscan.FieldCheckCount:
+		m.ResetCheckCount()
 		return nil
 	}
 	return fmt.Errorf("unknown PortScan field %s", name)
@@ -5015,6 +5344,9 @@ type SSLScanMutation struct {
 	typ                   string
 	id                    *int
 	scanned_at            *time.Time
+	last_seen_at          *time.Time
+	check_count           *int
+	addcheck_count        *int
 	grade                 *string
 	status                *string
 	cert_issuer           *string
@@ -5164,6 +5496,111 @@ func (m *SSLScanMutation) OldScannedAt(ctx context.Context) (v time.Time, err er
 // ResetScannedAt resets all changes to the "scanned_at" field.
 func (m *SSLScanMutation) ResetScannedAt() {
 	m.scanned_at = nil
+}
+
+// SetLastSeenAt sets the "last_seen_at" field.
+func (m *SSLScanMutation) SetLastSeenAt(t time.Time) {
+	m.last_seen_at = &t
+}
+
+// LastSeenAt returns the value of the "last_seen_at" field in the mutation.
+func (m *SSLScanMutation) LastSeenAt() (r time.Time, exists bool) {
+	v := m.last_seen_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastSeenAt returns the old "last_seen_at" field's value of the SSLScan entity.
+// If the SSLScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SSLScanMutation) OldLastSeenAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastSeenAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastSeenAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastSeenAt: %w", err)
+	}
+	return oldValue.LastSeenAt, nil
+}
+
+// ClearLastSeenAt clears the value of the "last_seen_at" field.
+func (m *SSLScanMutation) ClearLastSeenAt() {
+	m.last_seen_at = nil
+	m.clearedFields[sslscan.FieldLastSeenAt] = struct{}{}
+}
+
+// LastSeenAtCleared returns if the "last_seen_at" field was cleared in this mutation.
+func (m *SSLScanMutation) LastSeenAtCleared() bool {
+	_, ok := m.clearedFields[sslscan.FieldLastSeenAt]
+	return ok
+}
+
+// ResetLastSeenAt resets all changes to the "last_seen_at" field.
+func (m *SSLScanMutation) ResetLastSeenAt() {
+	m.last_seen_at = nil
+	delete(m.clearedFields, sslscan.FieldLastSeenAt)
+}
+
+// SetCheckCount sets the "check_count" field.
+func (m *SSLScanMutation) SetCheckCount(i int) {
+	m.check_count = &i
+	m.addcheck_count = nil
+}
+
+// CheckCount returns the value of the "check_count" field in the mutation.
+func (m *SSLScanMutation) CheckCount() (r int, exists bool) {
+	v := m.check_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCheckCount returns the old "check_count" field's value of the SSLScan entity.
+// If the SSLScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SSLScanMutation) OldCheckCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCheckCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCheckCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCheckCount: %w", err)
+	}
+	return oldValue.CheckCount, nil
+}
+
+// AddCheckCount adds i to the "check_count" field.
+func (m *SSLScanMutation) AddCheckCount(i int) {
+	if m.addcheck_count != nil {
+		*m.addcheck_count += i
+	} else {
+		m.addcheck_count = &i
+	}
+}
+
+// AddedCheckCount returns the value that was added to the "check_count" field in this mutation.
+func (m *SSLScanMutation) AddedCheckCount() (r int, exists bool) {
+	v := m.addcheck_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCheckCount resets all changes to the "check_count" field.
+func (m *SSLScanMutation) ResetCheckCount() {
+	m.check_count = nil
+	m.addcheck_count = nil
 }
 
 // SetGrade sets the "grade" field.
@@ -5588,9 +6025,15 @@ func (m *SSLScanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SSLScanMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 10)
 	if m.scanned_at != nil {
 		fields = append(fields, sslscan.FieldScannedAt)
+	}
+	if m.last_seen_at != nil {
+		fields = append(fields, sslscan.FieldLastSeenAt)
+	}
+	if m.check_count != nil {
+		fields = append(fields, sslscan.FieldCheckCount)
 	}
 	if m.grade != nil {
 		fields = append(fields, sslscan.FieldGrade)
@@ -5623,6 +6066,10 @@ func (m *SSLScanMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case sslscan.FieldScannedAt:
 		return m.ScannedAt()
+	case sslscan.FieldLastSeenAt:
+		return m.LastSeenAt()
+	case sslscan.FieldCheckCount:
+		return m.CheckCount()
 	case sslscan.FieldGrade:
 		return m.Grade()
 	case sslscan.FieldStatus:
@@ -5648,6 +6095,10 @@ func (m *SSLScanMutation) OldField(ctx context.Context, name string) (ent.Value,
 	switch name {
 	case sslscan.FieldScannedAt:
 		return m.OldScannedAt(ctx)
+	case sslscan.FieldLastSeenAt:
+		return m.OldLastSeenAt(ctx)
+	case sslscan.FieldCheckCount:
+		return m.OldCheckCount(ctx)
 	case sslscan.FieldGrade:
 		return m.OldGrade(ctx)
 	case sslscan.FieldStatus:
@@ -5677,6 +6128,20 @@ func (m *SSLScanMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetScannedAt(v)
+		return nil
+	case sslscan.FieldLastSeenAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastSeenAt(v)
+		return nil
+	case sslscan.FieldCheckCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCheckCount(v)
 		return nil
 	case sslscan.FieldGrade:
 		v, ok := value.(string)
@@ -5734,13 +6199,21 @@ func (m *SSLScanMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *SSLScanMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.addcheck_count != nil {
+		fields = append(fields, sslscan.FieldCheckCount)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *SSLScanMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case sslscan.FieldCheckCount:
+		return m.AddedCheckCount()
+	}
 	return nil, false
 }
 
@@ -5749,6 +6222,13 @@ func (m *SSLScanMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *SSLScanMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case sslscan.FieldCheckCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCheckCount(v)
+		return nil
 	}
 	return fmt.Errorf("unknown SSLScan numeric field %s", name)
 }
@@ -5757,6 +6237,9 @@ func (m *SSLScanMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *SSLScanMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(sslscan.FieldLastSeenAt) {
+		fields = append(fields, sslscan.FieldLastSeenAt)
+	}
 	if m.FieldCleared(sslscan.FieldCertIssuer) {
 		fields = append(fields, sslscan.FieldCertIssuer)
 	}
@@ -5786,6 +6269,9 @@ func (m *SSLScanMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *SSLScanMutation) ClearField(name string) error {
 	switch name {
+	case sslscan.FieldLastSeenAt:
+		m.ClearLastSeenAt()
+		return nil
 	case sslscan.FieldCertIssuer:
 		m.ClearCertIssuer()
 		return nil
@@ -5811,6 +6297,12 @@ func (m *SSLScanMutation) ResetField(name string) error {
 	switch name {
 	case sslscan.FieldScannedAt:
 		m.ResetScannedAt()
+		return nil
+	case sslscan.FieldLastSeenAt:
+		m.ResetLastSeenAt()
+		return nil
+	case sslscan.FieldCheckCount:
+		m.ResetCheckCount()
 		return nil
 	case sslscan.FieldGrade:
 		m.ResetGrade()

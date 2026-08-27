@@ -150,6 +150,12 @@ func main() {
 
 	store := storage.NewEntStorage(client)
 
+	// Collapse pre-existing duplicate scan history. Blocking: the scanner and
+	// the UI both read the collapsed shape.
+	if err := store.CollapseScanHistory(context.Background()); err != nil {
+		log.Fatalf("failed collapsing scan history: %v", err)
+	}
+
 	// 3. Import Targets if provided
 	if targetFile != "" {
 		ctx := context.Background()

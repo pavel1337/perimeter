@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"perimeter/ent/cspscan"
 	"perimeter/ent/importerconfig"
 	"perimeter/ent/invite"
 	"perimeter/ent/ip"
@@ -11,6 +12,7 @@ import (
 	"perimeter/ent/portscan"
 	"perimeter/ent/schema"
 	"perimeter/ent/session"
+	"perimeter/ent/sslscan"
 	"perimeter/ent/tag"
 	"perimeter/ent/target"
 	"perimeter/ent/user"
@@ -21,6 +23,12 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	cspscanFields := schema.CSPScan{}.Fields()
+	_ = cspscanFields
+	// cspscanDescCheckCount is the schema descriptor for check_count field.
+	cspscanDescCheckCount := cspscanFields[2].Descriptor()
+	// cspscan.DefaultCheckCount holds the default value on creation for the check_count field.
+	cspscan.DefaultCheckCount = cspscanDescCheckCount.Default.(int)
 	ipMixin := schema.IP{}.Mixin()
 	ipMixinFields0 := ipMixin[0].Fields()
 	_ = ipMixinFields0
@@ -126,6 +134,16 @@ func init() {
 	portscanDescScannedAt := portscanFields[0].Descriptor()
 	// portscan.DefaultScannedAt holds the default value on creation for the scanned_at field.
 	portscan.DefaultScannedAt = portscanDescScannedAt.Default.(func() time.Time)
+	// portscanDescCheckCount is the schema descriptor for check_count field.
+	portscanDescCheckCount := portscanFields[2].Descriptor()
+	// portscan.DefaultCheckCount holds the default value on creation for the check_count field.
+	portscan.DefaultCheckCount = portscanDescCheckCount.Default.(int)
+	sslscanFields := schema.SSLScan{}.Fields()
+	_ = sslscanFields
+	// sslscanDescCheckCount is the schema descriptor for check_count field.
+	sslscanDescCheckCount := sslscanFields[2].Descriptor()
+	// sslscan.DefaultCheckCount holds the default value on creation for the check_count field.
+	sslscan.DefaultCheckCount = sslscanDescCheckCount.Default.(int)
 	sessionMixin := schema.Session{}.Mixin()
 	sessionMixinFields0 := sessionMixin[0].Fields()
 	_ = sessionMixinFields0

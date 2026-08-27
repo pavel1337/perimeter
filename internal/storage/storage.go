@@ -260,12 +260,12 @@ func (s *EntStorage) GetOldestOutdatedTarget(ctx context.Context, scanType ScanT
 	case ScanTypeSSL:
 		query.Where(target.Or(
 			target.Not(target.HasSslScans()),
-			target.Not(target.HasSslScansWith(sslscan.ScannedAtGTE(cutoff))),
+			target.Not(target.HasSslScansWith(sslscan.LastSeenAtGTE(cutoff))),
 		))
 	case ScanTypeCSP:
 		query.Where(target.Or(
 			target.Not(target.HasCspScans()),
-			target.Not(target.HasCspScansWith(cspscan.ScannedAtGTE(cutoff))),
+			target.Not(target.HasCspScansWith(cspscan.LastSeenAtGTE(cutoff))),
 		))
 	default:
 		return nil, fmt.Errorf("scan type %s not supported for Targets (use GetOutdatedIPs for ports)", scanType)
@@ -289,26 +289,27 @@ func (s *EntStorage) GetOutdatedIPs(ctx context.Context, limit int, threshold ti
 	return s.client.IP.Query().
 		Where(ip.Or(
 			ip.Not(ip.HasScans()),
-			ip.Not(ip.HasScansWith(portscan.ScannedAtGTE(cutoff))),
+			ip.Not(ip.HasScansWith(portscan.LastSeenAtGTE(cutoff))),
 		)).
 		Order(ip.ByScans(oldestScanFirst())).
 		Limit(limit).
 		All(ctx)
 }
 
-// oldestScanFirst orders IPs by their newest port scan, oldest first, with
+// oldestScanFirst orders IPs by their least recently checked port scan, oldest
+// first, with
 // never-scanned IPs ahead of the rest. Ent has no MAX() ordering helper, so the
 // aggregate is spelled out; nulls-first is explicit because Postgres and SQLite
 // disagree on where NULLs land by default.
 func oldestScanFirst() *sql.OrderExprTerm {
 	return &sql.OrderExprTerm{
 		OrderTermOptions: *sql.NewOrderTermOptions(
-			sql.OrderAs("max_scanned_at"),
+			sql.OrderAs("max_last_seen_at"),
 			sql.OrderAsc(),
 			sql.OrderNullsFirst(),
 		),
 		Expr: func(s *sql.Selector) sql.Querier {
-			return sql.Raw(fmt.Sprintf("MAX(%s)", s.C(portscan.FieldScannedAt)))
+			return sql.Raw(fmt.Sprintf("MAX(%s)", s.C(portscan.FieldLastSeenAt)))
 		},
 	}
 }
@@ -399,15 +400,37 @@ func (s *EntStorage) SaveIPs(ctx context.Context, targetInput string, ipAddresse
 	return nil
 }
 
+// SavePortScan records a port scan result. Identical consecutive results are
+// collapsed onto the current row instead of inserting a new one (issue #4):
+// history is a change log, not a sample log.
 func (s *EntStorage) SavePortScan(ctx context.Context, ipAddress string, openPorts []int) error {
 	i, err := s.client.IP.Query().Where(ip.Address(ipAddress)).First(ctx)
 	if err != nil {
 		return err
 	}
 
+	now := time.Now()
+
+	latest, err := s.client.PortScan.Query().
+		Where(portscan.HasIPWith(ip.IDEQ(i.ID))).
+		Order(ent.Desc(portscan.FieldScannedAt), ent.Desc(portscan.FieldID)).
+		WithPorts().
+		First(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return err
+	}
+	if latest != nil && samePorts(scanPorts(latest), openPorts) {
+		return s.client.PortScan.UpdateOne(latest).
+			SetLastSeenAt(now).
+			AddCheckCount(1).
+			Exec(ctx)
+	}
+
 	scan, err := s.client.PortScan.Create().
 		SetIP(i).
-		SetScannedAt(time.Now()).
+		SetScannedAt(now).
+		SetLastSeenAt(now).
+		SetCheckCount(1).
 		Save(ctx)
 	if err != nil {
 		return err
@@ -432,9 +455,27 @@ func (s *EntStorage) SaveSSLScan(ctx context.Context, input string, res SSLResul
 		return err
 	}
 
+	now := time.Now()
+
+	latest, err := s.client.SSLScan.Query().
+		Where(sslscan.HasTargetWith(target.IDEQ(t.ID))).
+		Order(ent.Desc(sslscan.FieldScannedAt), ent.Desc(sslscan.FieldID)).
+		First(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return err
+	}
+	if latest != nil && sameSSL(latest, res) {
+		return s.client.SSLScan.UpdateOne(latest).
+			SetLastSeenAt(now).
+			AddCheckCount(1).
+			Exec(ctx)
+	}
+
 	_, err = s.client.SSLScan.Create().
 		SetTarget(t).
-		SetScannedAt(time.Now()).
+		SetScannedAt(now).
+		SetLastSeenAt(now).
+		SetCheckCount(1).
 		SetGrade(res.Grade).
 		SetStatus(res.Status).
 		SetCertIssuer(res.CertIssuer).
@@ -452,9 +493,27 @@ func (s *EntStorage) SaveCSPScan(ctx context.Context, input string, header strin
 		return err
 	}
 
+	now := time.Now()
+
+	latest, err := s.client.CSPScan.Query().
+		Where(cspscan.HasTargetWith(target.IDEQ(t.ID))).
+		Order(ent.Desc(cspscan.FieldScannedAt), ent.Desc(cspscan.FieldID)).
+		First(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return err
+	}
+	if latest != nil && sameCSP(latest, header, findings) {
+		return s.client.CSPScan.UpdateOne(latest).
+			SetLastSeenAt(now).
+			AddCheckCount(1).
+			Exec(ctx)
+	}
+
 	_, err = s.client.CSPScan.Create().
 		SetTarget(t).
-		SetScannedAt(time.Now()).
+		SetScannedAt(now).
+		SetLastSeenAt(now).
+		SetCheckCount(1).
 		SetCspHeader(header).
 		SetFindings(findings).
 		Save(ctx)

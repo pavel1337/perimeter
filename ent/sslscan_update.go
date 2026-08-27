@@ -44,6 +44,47 @@ func (_u *SSLScanUpdate) SetNillableScannedAt(v *time.Time) *SSLScanUpdate {
 	return _u
 }
 
+// SetLastSeenAt sets the "last_seen_at" field.
+func (_u *SSLScanUpdate) SetLastSeenAt(v time.Time) *SSLScanUpdate {
+	_u.mutation.SetLastSeenAt(v)
+	return _u
+}
+
+// SetNillableLastSeenAt sets the "last_seen_at" field if the given value is not nil.
+func (_u *SSLScanUpdate) SetNillableLastSeenAt(v *time.Time) *SSLScanUpdate {
+	if v != nil {
+		_u.SetLastSeenAt(*v)
+	}
+	return _u
+}
+
+// ClearLastSeenAt clears the value of the "last_seen_at" field.
+func (_u *SSLScanUpdate) ClearLastSeenAt() *SSLScanUpdate {
+	_u.mutation.ClearLastSeenAt()
+	return _u
+}
+
+// SetCheckCount sets the "check_count" field.
+func (_u *SSLScanUpdate) SetCheckCount(v int) *SSLScanUpdate {
+	_u.mutation.ResetCheckCount()
+	_u.mutation.SetCheckCount(v)
+	return _u
+}
+
+// SetNillableCheckCount sets the "check_count" field if the given value is not nil.
+func (_u *SSLScanUpdate) SetNillableCheckCount(v *int) *SSLScanUpdate {
+	if v != nil {
+		_u.SetCheckCount(*v)
+	}
+	return _u
+}
+
+// AddCheckCount adds value to the "check_count" field.
+func (_u *SSLScanUpdate) AddCheckCount(v int) *SSLScanUpdate {
+	_u.mutation.AddCheckCount(v)
+	return _u
+}
+
 // SetGrade sets the "grade" field.
 func (_u *SSLScanUpdate) SetGrade(v string) *SSLScanUpdate {
 	_u.mutation.SetGrade(v)
@@ -240,6 +281,18 @@ func (_u *SSLScanUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.ScannedAt(); ok {
 		_spec.SetField(sslscan.FieldScannedAt, field.TypeTime, value)
 	}
+	if value, ok := _u.mutation.LastSeenAt(); ok {
+		_spec.SetField(sslscan.FieldLastSeenAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastSeenAtCleared() {
+		_spec.ClearField(sslscan.FieldLastSeenAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.CheckCount(); ok {
+		_spec.SetField(sslscan.FieldCheckCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCheckCount(); ok {
+		_spec.AddField(sslscan.FieldCheckCount, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.Grade(); ok {
 		_spec.SetField(sslscan.FieldGrade, field.TypeString, value)
 	}
@@ -346,6 +399,47 @@ func (_u *SSLScanUpdateOne) SetNillableScannedAt(v *time.Time) *SSLScanUpdateOne
 	if v != nil {
 		_u.SetScannedAt(*v)
 	}
+	return _u
+}
+
+// SetLastSeenAt sets the "last_seen_at" field.
+func (_u *SSLScanUpdateOne) SetLastSeenAt(v time.Time) *SSLScanUpdateOne {
+	_u.mutation.SetLastSeenAt(v)
+	return _u
+}
+
+// SetNillableLastSeenAt sets the "last_seen_at" field if the given value is not nil.
+func (_u *SSLScanUpdateOne) SetNillableLastSeenAt(v *time.Time) *SSLScanUpdateOne {
+	if v != nil {
+		_u.SetLastSeenAt(*v)
+	}
+	return _u
+}
+
+// ClearLastSeenAt clears the value of the "last_seen_at" field.
+func (_u *SSLScanUpdateOne) ClearLastSeenAt() *SSLScanUpdateOne {
+	_u.mutation.ClearLastSeenAt()
+	return _u
+}
+
+// SetCheckCount sets the "check_count" field.
+func (_u *SSLScanUpdateOne) SetCheckCount(v int) *SSLScanUpdateOne {
+	_u.mutation.ResetCheckCount()
+	_u.mutation.SetCheckCount(v)
+	return _u
+}
+
+// SetNillableCheckCount sets the "check_count" field if the given value is not nil.
+func (_u *SSLScanUpdateOne) SetNillableCheckCount(v *int) *SSLScanUpdateOne {
+	if v != nil {
+		_u.SetCheckCount(*v)
+	}
+	return _u
+}
+
+// AddCheckCount adds value to the "check_count" field.
+func (_u *SSLScanUpdateOne) AddCheckCount(v int) *SSLScanUpdateOne {
+	_u.mutation.AddCheckCount(v)
 	return _u
 }
 
@@ -574,6 +668,18 @@ func (_u *SSLScanUpdateOne) sqlSave(ctx context.Context) (_node *SSLScan, err er
 	}
 	if value, ok := _u.mutation.ScannedAt(); ok {
 		_spec.SetField(sslscan.FieldScannedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.LastSeenAt(); ok {
+		_spec.SetField(sslscan.FieldLastSeenAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastSeenAtCleared() {
+		_spec.ClearField(sslscan.FieldLastSeenAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.CheckCount(); ok {
+		_spec.SetField(sslscan.FieldCheckCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCheckCount(); ok {
+		_spec.AddField(sslscan.FieldCheckCount, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.Grade(); ok {
 		_spec.SetField(sslscan.FieldGrade, field.TypeString, value)
