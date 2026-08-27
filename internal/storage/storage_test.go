@@ -430,3 +430,93 @@ func TestClaimJobIsExclusive(t *testing.T) {
 		t.Errorf("job claimed by %d workers, want exactly 1", n)
 	}
 }
+
+func TestGetOutdatedIPs(t *testing.T) {
+	s := newTestStorage(t)
+	ctx := context.Background()
+
+	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
+		t.Fatalf("ImportTargets: %v", err)
+	}
+	if err := s.SaveIPs(ctx, "example.com", []string{"1.2.3.4", "5.6.7.8", "9.10.11.12"}); err != nil {
+		t.Fatalf("SaveIPs: %v", err)
+	}
+
+	// Never-scanned IPs are outdated, and more than one comes back per call:
+	// that is what keeps the worker pool busy (issue #10).
+	ips, err := s.GetOutdatedIPs(ctx, 10, time.Hour)
+	if err != nil {
+		t.Fatalf("GetOutdatedIPs: %v", err)
+	}
+	if len(ips) != 3 {
+		t.Fatalf("got %d outdated IPs, want 3", len(ips))
+	}
+
+	if ips, err = s.GetOutdatedIPs(ctx, 2, time.Hour); err != nil {
+		t.Fatalf("GetOutdatedIPs: %v", err)
+	} else if len(ips) != 2 {
+		t.Errorf("got %d IPs with limit 2, want 2", len(ips))
+	}
+
+	// A fresh scan drops that IP out of the result.
+	if err := s.SavePortScan(ctx, "1.2.3.4", []int{80}); err != nil {
+		t.Fatalf("SavePortScan: %v", err)
+	}
+	ips, err = s.GetOutdatedIPs(ctx, 10, time.Hour)
+	if err != nil {
+		t.Fatalf("GetOutdatedIPs: %v", err)
+	}
+	if len(ips) != 2 {
+		t.Fatalf("got %d outdated IPs after a scan, want 2", len(ips))
+	}
+	for _, i := range ips {
+		if i.Address == "1.2.3.4" {
+			t.Errorf("just-scanned IP 1.2.3.4 still reported outdated")
+		}
+	}
+}
+
+func TestGetOutdatedIPsOrdersByOldestScan(t *testing.T) {
+	s := newTestStorage(t)
+	ctx := context.Background()
+
+	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
+		t.Fatalf("ImportTargets: %v", err)
+	}
+	// Insertion order is deliberately the reverse of the expected scan order,
+	// so an ordering that fell back on the IP row's own timestamps would fail.
+	if err := s.SaveIPs(ctx, "example.com", []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"}); err != nil {
+		t.Fatalf("SaveIPs: %v", err)
+	}
+	for _, addr := range []string{"3.3.3.3", "2.2.2.2"} {
+		if err := s.SavePortScan(ctx, addr, []int{80}); err != nil {
+			t.Fatalf("SavePortScan(%s): %v", addr, err)
+		}
+	}
+
+	// Threshold 0: every scan is already in the past, so all three are due.
+	ips, err := s.GetOutdatedIPs(ctx, 10, 0)
+	if err != nil {
+		t.Fatalf("GetOutdatedIPs: %v", err)
+	}
+	var got []string
+	for _, i := range ips {
+		got = append(got, i.Address)
+	}
+	want := []string{"1.1.1.1", "3.3.3.3", "2.2.2.2"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for idx := range want {
+		if got[idx] != want[idx] {
+			t.Fatalf("got %v, want %v (never-scanned first, then oldest scan)", got, want)
+		}
+	}
+
+	// The limit has to cut from the tail of that order, not an arbitrary one.
+	if ips, err = s.GetOutdatedIPs(ctx, 1, 0); err != nil {
+		t.Fatalf("GetOutdatedIPs: %v", err)
+	} else if len(ips) != 1 || ips[0].Address != "1.1.1.1" {
+		t.Errorf("limit 1 returned %v, want the never-scanned IP", ips)
+	}
+}
