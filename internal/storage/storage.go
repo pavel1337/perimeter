@@ -40,7 +40,7 @@ type Storage interface {
 
 	// Scanning Logic
 	GetOldestOutdatedTarget(ctx context.Context, scanType ScanType, threshold time.Duration) (*ent.Target, error)
-	GetOldestOutdatedIP(ctx context.Context, threshold time.Duration) (*ent.IP, error)
+	GetOutdatedIPs(ctx context.Context, limit int, threshold time.Duration) ([]*ent.IP, error)
 	GetUnresolvedTargets(ctx context.Context, limit int, threshold time.Duration) ([]*ent.Target, error)
 	RecordResolveFailure(ctx context.Context, input, msg string) error
 	TouchTarget(ctx context.Context, input string) error
@@ -266,7 +266,7 @@ func (s *EntStorage) GetOldestOutdatedTarget(ctx context.Context, scanType ScanT
 			target.Not(target.HasCspScansWith(cspscan.ScannedAtGTE(cutoff))),
 		))
 	default:
-		return nil, fmt.Errorf("scan type %s not supported for Targets (use GetOldestOutdatedIP for ports)", scanType)
+		return nil, fmt.Errorf("scan type %s not supported for Targets (use GetOutdatedIPs for ports)", scanType)
 	}
 
 	t, err := query.Order(ent.Asc(target.FieldUpdateTime)).First(ctx)
@@ -276,22 +276,24 @@ func (s *EntStorage) GetOldestOutdatedTarget(ctx context.Context, scanType ScanT
 	return t, nil
 }
 
-func (s *EntStorage) GetOldestOutdatedIP(ctx context.Context, threshold time.Duration) (*ent.IP, error) {
+// GetOutdatedIPs returns up to limit IPs whose newest port scan is older than
+// threshold (or that were never scanned), oldest first. An IP stays outdated
+// until its scan row is written, so returning one row at a time capped the
+// whole port pipeline at one scan in flight regardless of WORKER_COUNT
+// (issue #10).
+func (s *EntStorage) GetOutdatedIPs(ctx context.Context, limit int, threshold time.Duration) ([]*ent.IP, error) {
 	cutoff := time.Now().Add(-threshold)
 
-	i, err := s.client.IP.Query().
+	return s.client.IP.Query().
 		Where(ip.Or(
 			ip.Not(ip.HasScans()),
 			ip.Not(ip.HasScansWith(portscan.ScannedAtGTE(cutoff))),
 		)).
 		Order(ent.Asc(ip.FieldUpdateTime)).
-		First(ctx)
-
-	if err != nil && !ent.IsNotFound(err) {
-		return nil, err
-	}
-	return i, nil
+		Limit(limit).
+		All(ctx)
 }
+
 
 // GetUnresolvedTargets returns up to limit targets with no IPs, oldest-attempt
 // first. The caller applies per-target backoff (see scanner.resolveBackoff);

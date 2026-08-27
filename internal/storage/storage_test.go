@@ -430,3 +430,48 @@ func TestClaimJobIsExclusive(t *testing.T) {
 		t.Errorf("job claimed by %d workers, want exactly 1", n)
 	}
 }
+
+func TestGetOutdatedIPs(t *testing.T) {
+	s := newTestStorage(t)
+	ctx := context.Background()
+
+	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
+		t.Fatalf("ImportTargets: %v", err)
+	}
+	if err := s.SaveIPs(ctx, "example.com", []string{"1.2.3.4", "5.6.7.8", "9.10.11.12"}); err != nil {
+		t.Fatalf("SaveIPs: %v", err)
+	}
+
+	// Never-scanned IPs are outdated, and more than one comes back per call:
+	// that is what keeps the worker pool busy (issue #10).
+	ips, err := s.GetOutdatedIPs(ctx, 10, time.Hour)
+	if err != nil {
+		t.Fatalf("GetOutdatedIPs: %v", err)
+	}
+	if len(ips) != 3 {
+		t.Fatalf("got %d outdated IPs, want 3", len(ips))
+	}
+
+	if ips, err = s.GetOutdatedIPs(ctx, 2, time.Hour); err != nil {
+		t.Fatalf("GetOutdatedIPs: %v", err)
+	} else if len(ips) != 2 {
+		t.Errorf("got %d IPs with limit 2, want 2", len(ips))
+	}
+
+	// A fresh scan drops that IP out of the result.
+	if err := s.SavePortScan(ctx, "1.2.3.4", []int{80}); err != nil {
+		t.Fatalf("SavePortScan: %v", err)
+	}
+	ips, err = s.GetOutdatedIPs(ctx, 10, time.Hour)
+	if err != nil {
+		t.Fatalf("GetOutdatedIPs: %v", err)
+	}
+	if len(ips) != 2 {
+		t.Fatalf("got %d outdated IPs after a scan, want 2", len(ips))
+	}
+	for _, i := range ips {
+		if i.Address == "1.2.3.4" {
+			t.Errorf("just-scanned IP 1.2.3.4 still reported outdated")
+		}
+	}
+}

@@ -269,22 +269,39 @@ func (m *Manager) runResolutionProducer() {
 	}
 }
 
+// portScanBatchSize is how many outdated IPs the producer pulls per round. An
+// IP is only marked scanned once its result is stored, so the batch has to be
+// at least as wide as the worker pool or the workers starve.
+func (m *Manager) portScanBatchSize() int {
+	if m.config.WorkerCount > 1 {
+		return m.config.WorkerCount
+	}
+	return 1
+}
+
 func (m *Manager) runIPScanProducer() {
 	log.Println("Starting IP Port Scan Producer")
 	ctx := context.Background()
 	for {
-		ipEntity, err := m.storage.GetOldestOutdatedIP(ctx, m.config.PortScanInterval)
+		ips, err := m.storage.GetOutdatedIPs(ctx, m.portScanBatchSize(), m.config.PortScanInterval)
 		if err != nil {
-			log.Printf("Producer: Error fetching IP: %v", err)
+			log.Printf("Producer: Error fetching IPs: %v", err)
 			time.Sleep(10 * time.Second)
 			continue
 		}
-		if ipEntity == nil {
+		if len(ips) == 0 {
 			time.Sleep(10 * time.Second)
 			continue
 		}
 
-		if !m.enqueue(ctx, Job{Type: JobTypePortScan, Address: ipEntity.Address}) {
+		queued := 0
+		for _, ipEntity := range ips {
+			if m.enqueue(ctx, Job{Type: JobTypePortScan, Address: ipEntity.Address}) {
+				queued++
+			}
+		}
+		if queued == 0 {
+			// Whole batch is still in flight; don't spin on it.
 			time.Sleep(1 * time.Second)
 		}
 		time.Sleep(100 * time.Millisecond)
