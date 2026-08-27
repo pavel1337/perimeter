@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -386,5 +387,46 @@ func TestGetIPScansPage(t *testing.T) {
 	}
 	if len(page2) != n-10 {
 		t.Errorf("expected %d rows on page 2, got %d", n-10, len(page2))
+	}
+}
+
+// A single pending job must be handed to exactly one worker. Without a
+// compare-and-swap on the status column, concurrent ClaimJob calls can each
+// read the row as pending before any of them commits the update, and the same
+// scan then runs several times (issue #6).
+func TestClaimJobIsExclusive(t *testing.T) {
+	s := newTestStorage(t)
+	ctx := context.Background()
+
+	if _, err := s.CreateJob(ctx, job.TypePortScan, map[string]any{"address": "1.2.3.4"}); err != nil {
+		t.Fatalf("CreateJob: %v", err)
+	}
+
+	const workers = 8
+	var wg sync.WaitGroup
+	claimed := make([]int, workers)
+	for i := range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			j, err := s.ClaimJob(ctx, 5*time.Minute)
+			if err != nil {
+				return
+			}
+			if j != nil {
+				claimed[i] = j.ID
+			}
+		}()
+	}
+	wg.Wait()
+
+	n := 0
+	for _, id := range claimed {
+		if id != 0 {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Errorf("job claimed by %d workers, want exactly 1", n)
 	}
 }

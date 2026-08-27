@@ -1,10 +1,13 @@
 package scanner
 
 import (
+	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync"
 	"testing"
 	"time"
 )
@@ -76,5 +79,118 @@ func TestFetchCSPHeadersReadsReportOnly(t *testing.T) {
 	}
 	if enforce != "" || reportOnly != "default-src 'none'" {
 		t.Fatalf("got enforce=%q reportOnly=%q", enforce, reportOnly)
+	}
+}
+
+// flakyQueue fails the first failUntil dequeues, then blocks until ctx is done.
+type flakyQueue struct {
+	failUntil int
+	mu        sync.Mutex
+	calls     int
+	settled   chan struct{}
+}
+
+func (q *flakyQueue) Enqueue(context.Context, Job) error { return nil }
+
+func (q *flakyQueue) Dequeue(ctx context.Context) (Job, error) {
+	q.mu.Lock()
+	q.calls++
+	n := q.calls
+	q.mu.Unlock()
+
+	if n <= q.failUntil {
+		return Job{}, errors.New("connection reset by peer")
+	}
+	close(q.settled)
+	<-ctx.Done()
+	return Job{}, ctx.Err()
+}
+
+// A transient queue error must not kill the worker; nothing restarts it, so
+// scanning would silently stop after one hiccup.
+func TestWorkerSurvivesQueueErrors(t *testing.T) {
+	old := queueErrorBackoff
+	queueErrorBackoff = time.Millisecond
+	t.Cleanup(func() { queueErrorBackoff = old })
+
+	q := &flakyQueue{failUntil: 3, settled: make(chan struct{})}
+	m := &Manager{queue: q, inFlight: make(map[string]struct{})}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go m.runWorker(ctx, 0)
+
+	select {
+	case <-q.settled:
+	case <-time.After(2 * time.Second):
+		q.mu.Lock()
+		defer q.mu.Unlock()
+		t.Fatalf("worker stopped after %d dequeues, want it to keep polling", q.calls)
+	}
+}
+
+// A cancelled context stops the worker rather than spinning on the error.
+func TestWorkerStopsOnContextCancel(t *testing.T) {
+	q := &flakyQueue{settled: make(chan struct{})}
+	m := &Manager{queue: q, inFlight: make(map[string]struct{})}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { m.runWorker(ctx, 0); close(done) }()
+
+	<-q.settled
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("worker did not stop after context cancel")
+	}
+}
+
+type failingQueue struct{ enqueued int }
+
+func (q *failingQueue) Enqueue(context.Context, Job) error {
+	q.enqueued++
+	return errors.New("queue full")
+}
+func (q *failingQueue) Dequeue(ctx context.Context) (Job, error) {
+	<-ctx.Done()
+	return Job{}, ctx.Err()
+}
+
+// canEnqueue registers the in-flight key as a side effect. If the push then
+// fails and the key is not released, that target is never scanned again for
+// the lifetime of the process.
+func TestEnqueueReleasesInFlightOnFailure(t *testing.T) {
+	q := &failingQueue{}
+	m := &Manager{queue: q, inFlight: make(map[string]struct{})}
+	ctx := context.Background()
+
+	if m.enqueue(ctx, Job{Type: JobTypePortScan, Address: "1.2.3.4"}) {
+		t.Fatal("enqueue reported success despite a queue error")
+	}
+	m.inFlightMu.Lock()
+	n := len(m.inFlight)
+	m.inFlightMu.Unlock()
+	if n != 0 {
+		t.Errorf("inFlight holds %d keys after a failed push, want 0", n)
+	}
+
+	// The address must still be enqueueable on the next producer pass.
+	if m.enqueue(ctx, Job{Type: JobTypePortScan, Address: "1.2.3.4"}); q.enqueued != 2 {
+		t.Errorf("second attempt reached the queue %d times, want 2", q.enqueued)
+	}
+}
+
+// A job already in flight is not queued twice.
+func TestEnqueueSkipsInFlightDuplicate(t *testing.T) {
+	m := &Manager{queue: NewInMemoryQueue(4), inFlight: make(map[string]struct{})}
+	ctx := context.Background()
+
+	if !m.enqueue(ctx, Job{Type: JobTypeCSPScan, Input: "example.com"}) {
+		t.Fatal("first enqueue failed")
+	}
+	if m.enqueue(ctx, Job{Type: JobTypeCSPScan, Input: "example.com"}) {
+		t.Error("duplicate job was queued while the first is still in flight")
 	}
 }
