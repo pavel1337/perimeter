@@ -1,10 +1,13 @@
 package scanner
 
 import (
+	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync"
 	"testing"
 	"time"
 )
@@ -76,5 +79,70 @@ func TestFetchCSPHeadersReadsReportOnly(t *testing.T) {
 	}
 	if enforce != "" || reportOnly != "default-src 'none'" {
 		t.Fatalf("got enforce=%q reportOnly=%q", enforce, reportOnly)
+	}
+}
+
+// flakyQueue fails the first failUntil dequeues, then blocks until ctx is done.
+type flakyQueue struct {
+	failUntil int
+	mu        sync.Mutex
+	calls     int
+	settled   chan struct{}
+}
+
+func (q *flakyQueue) Enqueue(context.Context, Job) error { return nil }
+
+func (q *flakyQueue) Dequeue(ctx context.Context) (Job, error) {
+	q.mu.Lock()
+	q.calls++
+	n := q.calls
+	q.mu.Unlock()
+
+	if n <= q.failUntil {
+		return Job{}, errors.New("connection reset by peer")
+	}
+	close(q.settled)
+	<-ctx.Done()
+	return Job{}, ctx.Err()
+}
+
+// A transient queue error must not kill the worker; nothing restarts it, so
+// scanning would silently stop after one hiccup.
+func TestWorkerSurvivesQueueErrors(t *testing.T) {
+	old := queueErrorBackoff
+	queueErrorBackoff = time.Millisecond
+	t.Cleanup(func() { queueErrorBackoff = old })
+
+	q := &flakyQueue{failUntil: 3, settled: make(chan struct{})}
+	m := &Manager{queue: q, inFlight: make(map[string]struct{})}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go m.runWorker(ctx, 0)
+
+	select {
+	case <-q.settled:
+	case <-time.After(2 * time.Second):
+		q.mu.Lock()
+		defer q.mu.Unlock()
+		t.Fatalf("worker stopped after %d dequeues, want it to keep polling", q.calls)
+	}
+}
+
+// A cancelled context stops the worker rather than spinning on the error.
+func TestWorkerStopsOnContextCancel(t *testing.T) {
+	q := &flakyQueue{settled: make(chan struct{})}
+	m := &Manager{queue: q, inFlight: make(map[string]struct{})}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { m.runWorker(ctx, 0); close(done) }()
+
+	<-q.settled
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("worker did not stop after context cancel")
 	}
 }

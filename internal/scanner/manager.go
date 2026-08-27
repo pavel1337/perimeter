@@ -85,7 +85,7 @@ func (m *Manager) Start() {
 	// Start Workers
 	log.Printf("Starting %d workers", m.config.WorkerCount)
 	for i := range m.config.WorkerCount {
-		go m.runWorker(i)
+		go m.runWorker(context.Background(), i)
 	}
 }
 
@@ -152,6 +152,10 @@ func (m *Manager) failJob(ctx context.Context, j Job, errMsg string) {
 	}
 }
 
+// queueErrorBackoff is how long a worker waits after a queue error before
+// polling again. Variable so tests need not sleep.
+var queueErrorBackoff = 2 * time.Second
+
 func (m *Manager) runStaleJobRecovery() {
 	for {
 		time.Sleep(30 * time.Second)
@@ -165,9 +169,8 @@ func (m *Manager) runStaleJobRecovery() {
 	}
 }
 
-func (m *Manager) runWorker(id int) {
+func (m *Manager) runWorker(ctx context.Context, id int) {
 	log.Printf("Worker %d started", id)
-	ctx := context.Background()
 
 	portScanner := ports.NewSimpleScanner(100, 50, 3, 1, 1000)
 
@@ -182,8 +185,15 @@ func (m *Manager) runWorker(id int) {
 	for {
 		j, err := m.queue.Dequeue(ctx)
 		if err != nil {
+			if ctx.Err() != nil {
+				log.Printf("Worker %d: stopping: %v", id, err)
+				return
+			}
+			// Transient DB errors must not take the worker down: nothing
+			// restarts it, so scanning would quietly stop for good.
 			log.Printf("Worker %d: Queue error: %v", id, err)
-			return
+			time.Sleep(queueErrorBackoff)
+			continue
 		}
 
 		key := string(j.Type) + ":" + j.Input
