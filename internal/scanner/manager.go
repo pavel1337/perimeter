@@ -127,6 +127,27 @@ func (m *Manager) canEnqueue(ctx context.Context, jobType string, key string) bo
 	return true
 }
 
+// enqueue marks the job in-flight and pushes it onto the queue. It reports
+// whether the job was queued: false means an identical job is already in
+// flight, or the push failed. canEnqueue registers the key as a side effect,
+// so a failed push has to release it again or the key blocks that target for
+// the lifetime of the process.
+func (m *Manager) enqueue(ctx context.Context, j Job) bool {
+	key := j.Input
+	if j.Type == JobTypePortScan {
+		key = j.Address
+	}
+	if !m.canEnqueue(ctx, string(j.Type), key) {
+		return false
+	}
+	if err := m.queue.Enqueue(ctx, j); err != nil {
+		log.Printf("Producer: failed to enqueue %s for %s: %v", j.Type, key, err)
+		m.removeInFlight(string(j.Type) + ":" + key)
+		return false
+	}
+	return true
+}
+
 func (m *Manager) removeInFlight(key string) {
 	if m.config.UseDBQueue {
 		return // DB queue handles this via job status
@@ -242,11 +263,7 @@ func (m *Manager) runResolutionProducer() {
 			if now.Sub(t.UpdateTime) < resolveBackoff(t.ResolveAttempts, m.config.ResolutionInterval) {
 				continue
 			}
-			if m.canEnqueue(ctx, string(JobTypeResolution), t.Input) {
-				if err := m.queue.Enqueue(ctx, Job{Type: JobTypeResolution, Input: t.Input}); err != nil {
-					log.Printf("Producer: failed to enqueue resolution for %s: %v", t.Input, err)
-				}
-			}
+			m.enqueue(ctx, Job{Type: JobTypeResolution, Input: t.Input})
 		}
 		time.Sleep(1 * time.Second)
 	}
@@ -267,10 +284,8 @@ func (m *Manager) runIPScanProducer() {
 			continue
 		}
 
-		if !m.canEnqueue(ctx, string(JobTypePortScan), ipEntity.Address) {
+		if !m.enqueue(ctx, Job{Type: JobTypePortScan, Address: ipEntity.Address}) {
 			time.Sleep(1 * time.Second)
-		} else if err := m.queue.Enqueue(ctx, Job{Type: JobTypePortScan, Address: ipEntity.Address}); err != nil {
-			log.Printf("Producer: failed to enqueue port scan for %s: %v", ipEntity.Address, err)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -294,10 +309,8 @@ func (m *Manager) runSSLScanProducer() {
 			continue
 		}
 
-		if !m.canEnqueue(ctx, string(JobTypeSSLScan), t.Input) {
+		if !m.enqueue(ctx, Job{Type: JobTypeSSLScan, Input: t.Input}) {
 			time.Sleep(1 * time.Second)
-		} else if err := m.queue.Enqueue(ctx, Job{Type: JobTypeSSLScan, Input: t.Input}); err != nil {
-			log.Printf("Producer: failed to enqueue SSL scan for %s: %v", t.Input, err)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -318,10 +331,8 @@ func (m *Manager) runCSPScanProducer() {
 			continue
 		}
 
-		if !m.canEnqueue(ctx, string(JobTypeCSPScan), t.Input) {
+		if !m.enqueue(ctx, Job{Type: JobTypeCSPScan, Input: t.Input}) {
 			time.Sleep(1 * time.Second)
-		} else if err := m.queue.Enqueue(ctx, Job{Type: JobTypeCSPScan, Input: t.Input}); err != nil {
-			log.Printf("Producer: failed to enqueue CSP scan for %s: %v", t.Input, err)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}

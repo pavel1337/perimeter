@@ -146,3 +146,51 @@ func TestWorkerStopsOnContextCancel(t *testing.T) {
 		t.Fatal("worker did not stop after context cancel")
 	}
 }
+
+type failingQueue struct{ enqueued int }
+
+func (q *failingQueue) Enqueue(context.Context, Job) error {
+	q.enqueued++
+	return errors.New("queue full")
+}
+func (q *failingQueue) Dequeue(ctx context.Context) (Job, error) {
+	<-ctx.Done()
+	return Job{}, ctx.Err()
+}
+
+// canEnqueue registers the in-flight key as a side effect. If the push then
+// fails and the key is not released, that target is never scanned again for
+// the lifetime of the process.
+func TestEnqueueReleasesInFlightOnFailure(t *testing.T) {
+	q := &failingQueue{}
+	m := &Manager{queue: q, inFlight: make(map[string]struct{})}
+	ctx := context.Background()
+
+	if m.enqueue(ctx, Job{Type: JobTypePortScan, Address: "1.2.3.4"}) {
+		t.Fatal("enqueue reported success despite a queue error")
+	}
+	m.inFlightMu.Lock()
+	n := len(m.inFlight)
+	m.inFlightMu.Unlock()
+	if n != 0 {
+		t.Errorf("inFlight holds %d keys after a failed push, want 0", n)
+	}
+
+	// The address must still be enqueueable on the next producer pass.
+	if m.enqueue(ctx, Job{Type: JobTypePortScan, Address: "1.2.3.4"}); q.enqueued != 2 {
+		t.Errorf("second attempt reached the queue %d times, want 2", q.enqueued)
+	}
+}
+
+// A job already in flight is not queued twice.
+func TestEnqueueSkipsInFlightDuplicate(t *testing.T) {
+	m := &Manager{queue: NewInMemoryQueue(4), inFlight: make(map[string]struct{})}
+	ctx := context.Background()
+
+	if !m.enqueue(ctx, Job{Type: JobTypeCSPScan, Input: "example.com"}) {
+		t.Fatal("first enqueue failed")
+	}
+	if m.enqueue(ctx, Job{Type: JobTypeCSPScan, Input: "example.com"}) {
+		t.Error("duplicate job was queued while the first is still in flight")
+	}
+}
