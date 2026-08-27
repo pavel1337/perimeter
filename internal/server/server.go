@@ -36,10 +36,17 @@ type Server struct {
 	client           *ent.Client
 	registry         *importer.Registry
 	notifierRegistry *notifier.Registry
+	// certExpiryWindow is how close to expiry a certificate has to be before
+	// the dashboard calls it out.
+	certExpiryWindow time.Duration
 }
 
-func New(s storage.Storage, a *auth.Auth, client *ent.Client, registry *importer.Registry, notifierReg *notifier.Registry, viewsFS fs.FS) *Server {
+func New(s storage.Storage, a *auth.Auth, client *ent.Client, registry *importer.Registry, notifierReg *notifier.Registry, viewsFS fs.FS, certExpiryWindow time.Duration) *Server {
 	engine := html.NewFileSystem(http.FS(viewsFS), ".html")
+	// Whole days until a certificate expires; negative once it has.
+	engine.AddFunc("daysUntil", func(t time.Time) int {
+		return int(time.Until(t).Hours() / 24)
+	})
 	engine.AddFunc("hasTag", func(tags []*ent.Tag, id int) bool {
 		for _, t := range tags {
 			if t.ID == id {
@@ -60,6 +67,7 @@ func New(s storage.Storage, a *auth.Auth, client *ent.Client, registry *importer
 		client:           client,
 		registry:         registry,
 		notifierRegistry: notifierReg,
+		certExpiryWindow: certExpiryWindow,
 	}
 
 	srv.setupRoutes()
@@ -318,7 +326,7 @@ func (s *Server) handleIndex(c *fiber.Ctx) error {
 		if len(t.Edges.SslScans) > 0 {
 			latest := t.Edges.SslScans[0]
 			untilExpiry := time.Until(latest.CertExpiry)
-			if !latest.CertExpiry.IsZero() && untilExpiry > 0 && untilExpiry < 30*24*time.Hour {
+			if !latest.CertExpiry.IsZero() && untilExpiry > 0 && untilExpiry < s.certExpiryWindow {
 				expiringCerts++
 			}
 		}
@@ -339,6 +347,8 @@ func (s *Server) handleIndex(c *fiber.Ctx) error {
 		"TotalOpenPorts": totalOpenPorts,
 		"ExpiringCerts":  expiringCerts,
 		"CSPIssues":      cspIssues,
+		// Days, so the template can compare it against daysUntil.
+		"CertExpiryDays": int(s.certExpiryWindow.Hours() / 24),
 	}), "views/layouts/main")
 }
 

@@ -108,19 +108,40 @@ func (s *EntStorage) ImportTargets(ctx context.Context, lines []string) (int, er
 	return count, nil
 }
 
+// latestPerParent keeps only the newest scan row per parent, for callers that
+// want current state rather than history.
+//
+// MAX(id) picks the newest row: scan rows are only ever appended per parent, in
+// time order, which is the same assumption the (scanned_at, id) ordering used
+// everywhere else relies on.
+func latestPerParent(table, parentCol string) func(*sql.Selector) {
+	return func(s *sql.Selector) {
+		t := sql.Table(table)
+		newest := sql.Select(sql.Max(t.C("id"))).From(t).GroupBy(t.C(parentCol))
+		s.Where(sql.In(s.C("id"), newest))
+	}
+}
+
+// GetTargets loads every target with its current state only: the newest port
+// scan per IP and the newest SSL and CSP scan per target.
+//
+// Scan history is unbounded, and the dashboard reduces it to one row per parent
+// anyway, so loading all of it was pure waste — several hundred targets meant
+// tens of thousands of rows on every render.  Callers that need the history
+// (the export handler) use GetTarget.
 func (s *EntStorage) GetTargets(ctx context.Context) ([]*ent.Target, error) {
 	return s.client.Target.Query().
 		WithIps(func(q *ent.IPQuery) {
 			q.WithScans(func(sq *ent.PortScanQuery) {
-				sq.Order(ent.Desc(portscan.FieldScannedAt), ent.Desc(portscan.FieldID)).
+				sq.Where(latestPerParent(portscan.Table, portscan.IPColumn)).
 					WithPorts()
 			})
 		}).
 		WithSslScans(func(q *ent.SSLScanQuery) {
-			q.Order(ent.Desc(sslscan.FieldScannedAt), ent.Desc(sslscan.FieldID))
+			q.Where(latestPerParent(sslscan.Table, sslscan.TargetColumn))
 		}).
 		WithCspScans(func(q *ent.CSPScanQuery) {
-			q.Order(ent.Desc(cspscan.FieldScannedAt), ent.Desc(cspscan.FieldID))
+			q.Where(latestPerParent(cspscan.Table, cspscan.TargetColumn))
 		}).
 		WithTags().
 		All(ctx)
