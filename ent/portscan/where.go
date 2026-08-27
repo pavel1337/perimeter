@@ -60,6 +60,16 @@ func ScannedAt(v time.Time) predicate.PortScan {
 	return predicate.PortScan(sql.FieldEQ(FieldScannedAt, v))
 }
 
+// LastSeenAt applies equality check predicate on the "last_seen_at" field. It's identical to LastSeenAtEQ.
+func LastSeenAt(v time.Time) predicate.PortScan {
+	return predicate.PortScan(sql.FieldEQ(FieldLastSeenAt, v))
+}
+
+// CheckCount applies equality check predicate on the "check_count" field. It's identical to CheckCountEQ.
+func CheckCount(v int) predicate.PortScan {
+	return predicate.PortScan(sql.FieldEQ(FieldCheckCount, v))
+}
+
 // ScannedAtEQ applies the EQ predicate on the "scanned_at" field.
 func ScannedAtEQ(v time.Time) predicate.PortScan {
 	return predicate.PortScan(sql.FieldEQ(FieldScannedAt, v))
@@ -98,6 +108,96 @@ func ScannedAtLT(v time.Time) predicate.PortScan {
 // ScannedAtLTE applies the LTE predicate on the "scanned_at" field.
 func ScannedAtLTE(v time.Time) predicate.PortScan {
 	return predicate.PortScan(sql.FieldLTE(FieldScannedAt, v))
+}
+
+// LastSeenAtEQ applies the EQ predicate on the "last_seen_at" field.
+func LastSeenAtEQ(v time.Time) predicate.PortScan {
+	return predicate.PortScan(sql.FieldEQ(FieldLastSeenAt, v))
+}
+
+// LastSeenAtNEQ applies the NEQ predicate on the "last_seen_at" field.
+func LastSeenAtNEQ(v time.Time) predicate.PortScan {
+	return predicate.PortScan(sql.FieldNEQ(FieldLastSeenAt, v))
+}
+
+// LastSeenAtIn applies the In predicate on the "last_seen_at" field.
+func LastSeenAtIn(vs ...time.Time) predicate.PortScan {
+	return predicate.PortScan(sql.FieldIn(FieldLastSeenAt, vs...))
+}
+
+// LastSeenAtNotIn applies the NotIn predicate on the "last_seen_at" field.
+func LastSeenAtNotIn(vs ...time.Time) predicate.PortScan {
+	return predicate.PortScan(sql.FieldNotIn(FieldLastSeenAt, vs...))
+}
+
+// LastSeenAtGT applies the GT predicate on the "last_seen_at" field.
+func LastSeenAtGT(v time.Time) predicate.PortScan {
+	return predicate.PortScan(sql.FieldGT(FieldLastSeenAt, v))
+}
+
+// LastSeenAtGTE applies the GTE predicate on the "last_seen_at" field.
+func LastSeenAtGTE(v time.Time) predicate.PortScan {
+	return predicate.PortScan(sql.FieldGTE(FieldLastSeenAt, v))
+}
+
+// LastSeenAtLT applies the LT predicate on the "last_seen_at" field.
+func LastSeenAtLT(v time.Time) predicate.PortScan {
+	return predicate.PortScan(sql.FieldLT(FieldLastSeenAt, v))
+}
+
+// LastSeenAtLTE applies the LTE predicate on the "last_seen_at" field.
+func LastSeenAtLTE(v time.Time) predicate.PortScan {
+	return predicate.PortScan(sql.FieldLTE(FieldLastSeenAt, v))
+}
+
+// LastSeenAtIsNil applies the IsNil predicate on the "last_seen_at" field.
+func LastSeenAtIsNil() predicate.PortScan {
+	return predicate.PortScan(sql.FieldIsNull(FieldLastSeenAt))
+}
+
+// LastSeenAtNotNil applies the NotNil predicate on the "last_seen_at" field.
+func LastSeenAtNotNil() predicate.PortScan {
+	return predicate.PortScan(sql.FieldNotNull(FieldLastSeenAt))
+}
+
+// CheckCountEQ applies the EQ predicate on the "check_count" field.
+func CheckCountEQ(v int) predicate.PortScan {
+	return predicate.PortScan(sql.FieldEQ(FieldCheckCount, v))
+}
+
+// CheckCountNEQ applies the NEQ predicate on the "check_count" field.
+func CheckCountNEQ(v int) predicate.PortScan {
+	return predicate.PortScan(sql.FieldNEQ(FieldCheckCount, v))
+}
+
+// CheckCountIn applies the In predicate on the "check_count" field.
+func CheckCountIn(vs ...int) predicate.PortScan {
+	return predicate.PortScan(sql.FieldIn(FieldCheckCount, vs...))
+}
+
+// CheckCountNotIn applies the NotIn predicate on the "check_count" field.
+func CheckCountNotIn(vs ...int) predicate.PortScan {
+	return predicate.PortScan(sql.FieldNotIn(FieldCheckCount, vs...))
+}
+
+// CheckCountGT applies the GT predicate on the "check_count" field.
+func CheckCountGT(v int) predicate.PortScan {
+	return predicate.PortScan(sql.FieldGT(FieldCheckCount, v))
+}
+
+// CheckCountGTE applies the GTE predicate on the "check_count" field.
+func CheckCountGTE(v int) predicate.PortScan {
+	return predicate.PortScan(sql.FieldGTE(FieldCheckCount, v))
+}
+
+// CheckCountLT applies the LT predicate on the "check_count" field.
+func CheckCountLT(v int) predicate.PortScan {
+	return predicate.PortScan(sql.FieldLT(FieldCheckCount, v))
+}
+
+// CheckCountLTE applies the LTE predicate on the "check_count" field.
+func CheckCountLTE(v int) predicate.PortScan {
+	return predicate.PortScan(sql.FieldLTE(FieldCheckCount, v))
 }
 
 // HasIP applies the HasEdge predicate on the "ip" edge.

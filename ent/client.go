@@ -12,6 +12,7 @@ import (
 	"perimeter/ent/migrate"
 
 	"perimeter/ent/cspscan"
+	"perimeter/ent/datamigration"
 	"perimeter/ent/importerconfig"
 	"perimeter/ent/invite"
 	"perimeter/ent/ip"
@@ -38,6 +39,8 @@ type Client struct {
 	Schema *migrate.Schema
 	// CSPScan is the client for interacting with the CSPScan builders.
 	CSPScan *CSPScanClient
+	// DataMigration is the client for interacting with the DataMigration builders.
+	DataMigration *DataMigrationClient
 	// IP is the client for interacting with the IP builders.
 	IP *IPClient
 	// ImporterConfig is the client for interacting with the ImporterConfig builders.
@@ -74,6 +77,7 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.CSPScan = NewCSPScanClient(c.config)
+	c.DataMigration = NewDataMigrationClient(c.config)
 	c.IP = NewIPClient(c.config)
 	c.ImporterConfig = NewImporterConfigClient(c.config)
 	c.Invite = NewInviteClient(c.config)
@@ -179,6 +183,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ctx:            ctx,
 		config:         cfg,
 		CSPScan:        NewCSPScanClient(cfg),
+		DataMigration:  NewDataMigrationClient(cfg),
 		IP:             NewIPClient(cfg),
 		ImporterConfig: NewImporterConfigClient(cfg),
 		Invite:         NewInviteClient(cfg),
@@ -211,6 +216,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ctx:            ctx,
 		config:         cfg,
 		CSPScan:        NewCSPScanClient(cfg),
+		DataMigration:  NewDataMigrationClient(cfg),
 		IP:             NewIPClient(cfg),
 		ImporterConfig: NewImporterConfigClient(cfg),
 		Invite:         NewInviteClient(cfg),
@@ -252,8 +258,9 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.CSPScan, c.IP, c.ImporterConfig, c.Invite, c.Job, c.NotifierConfig, c.Port,
-		c.PortScan, c.SSLScan, c.Session, c.Tag, c.Target, c.User,
+		c.CSPScan, c.DataMigration, c.IP, c.ImporterConfig, c.Invite, c.Job,
+		c.NotifierConfig, c.Port, c.PortScan, c.SSLScan, c.Session, c.Tag, c.Target,
+		c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -263,8 +270,9 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.CSPScan, c.IP, c.ImporterConfig, c.Invite, c.Job, c.NotifierConfig, c.Port,
-		c.PortScan, c.SSLScan, c.Session, c.Tag, c.Target, c.User,
+		c.CSPScan, c.DataMigration, c.IP, c.ImporterConfig, c.Invite, c.Job,
+		c.NotifierConfig, c.Port, c.PortScan, c.SSLScan, c.Session, c.Tag, c.Target,
+		c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -275,6 +283,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *CSPScanMutation:
 		return c.CSPScan.mutate(ctx, m)
+	case *DataMigrationMutation:
+		return c.DataMigration.mutate(ctx, m)
 	case *IPMutation:
 		return c.IP.mutate(ctx, m)
 	case *ImporterConfigMutation:
@@ -450,6 +460,139 @@ func (c *CSPScanClient) mutate(ctx context.Context, m *CSPScanMutation) (Value, 
 		return (&CSPScanDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown CSPScan mutation op: %q", m.Op())
+	}
+}
+
+// DataMigrationClient is a client for the DataMigration schema.
+type DataMigrationClient struct {
+	config
+}
+
+// NewDataMigrationClient returns a client for the DataMigration from the given config.
+func NewDataMigrationClient(c config) *DataMigrationClient {
+	return &DataMigrationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `datamigration.Hooks(f(g(h())))`.
+func (c *DataMigrationClient) Use(hooks ...Hook) {
+	c.hooks.DataMigration = append(c.hooks.DataMigration, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `datamigration.Intercept(f(g(h())))`.
+func (c *DataMigrationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DataMigration = append(c.inters.DataMigration, interceptors...)
+}
+
+// Create returns a builder for creating a DataMigration entity.
+func (c *DataMigrationClient) Create() *DataMigrationCreate {
+	mutation := newDataMigrationMutation(c.config, OpCreate)
+	return &DataMigrationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DataMigration entities.
+func (c *DataMigrationClient) CreateBulk(builders ...*DataMigrationCreate) *DataMigrationCreateBulk {
+	return &DataMigrationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DataMigrationClient) MapCreateBulk(slice any, setFunc func(*DataMigrationCreate, int)) *DataMigrationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DataMigrationCreateBulk{err: fmt.Errorf("calling to DataMigrationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DataMigrationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DataMigrationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DataMigration.
+func (c *DataMigrationClient) Update() *DataMigrationUpdate {
+	mutation := newDataMigrationMutation(c.config, OpUpdate)
+	return &DataMigrationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DataMigrationClient) UpdateOne(_m *DataMigration) *DataMigrationUpdateOne {
+	mutation := newDataMigrationMutation(c.config, OpUpdateOne, withDataMigration(_m))
+	return &DataMigrationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DataMigrationClient) UpdateOneID(id int) *DataMigrationUpdateOne {
+	mutation := newDataMigrationMutation(c.config, OpUpdateOne, withDataMigrationID(id))
+	return &DataMigrationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DataMigration.
+func (c *DataMigrationClient) Delete() *DataMigrationDelete {
+	mutation := newDataMigrationMutation(c.config, OpDelete)
+	return &DataMigrationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DataMigrationClient) DeleteOne(_m *DataMigration) *DataMigrationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DataMigrationClient) DeleteOneID(id int) *DataMigrationDeleteOne {
+	builder := c.Delete().Where(datamigration.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DataMigrationDeleteOne{builder}
+}
+
+// Query returns a query builder for DataMigration.
+func (c *DataMigrationClient) Query() *DataMigrationQuery {
+	return &DataMigrationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDataMigration},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DataMigration entity by its id.
+func (c *DataMigrationClient) Get(ctx context.Context, id int) (*DataMigration, error) {
+	return c.Query().Where(datamigration.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DataMigrationClient) GetX(ctx context.Context, id int) *DataMigration {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *DataMigrationClient) Hooks() []Hook {
+	return c.hooks.DataMigration
+}
+
+// Interceptors returns the client interceptors.
+func (c *DataMigrationClient) Interceptors() []Interceptor {
+	return c.inters.DataMigration
+}
+
+func (c *DataMigrationClient) mutate(ctx context.Context, m *DataMigrationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DataMigrationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DataMigrationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DataMigrationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DataMigrationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DataMigration mutation op: %q", m.Op())
 	}
 }
 
@@ -2324,11 +2467,11 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		CSPScan, IP, ImporterConfig, Invite, Job, NotifierConfig, Port, PortScan,
-		SSLScan, Session, Tag, Target, User []ent.Hook
+		CSPScan, DataMigration, IP, ImporterConfig, Invite, Job, NotifierConfig, Port,
+		PortScan, SSLScan, Session, Tag, Target, User []ent.Hook
 	}
 	inters struct {
-		CSPScan, IP, ImporterConfig, Invite, Job, NotifierConfig, Port, PortScan,
-		SSLScan, Session, Tag, Target, User []ent.Interceptor
+		CSPScan, DataMigration, IP, ImporterConfig, Invite, Job, NotifierConfig, Port,
+		PortScan, SSLScan, Session, Tag, Target, User []ent.Interceptor
 	}
 )

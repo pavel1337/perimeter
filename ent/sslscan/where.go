@@ -60,6 +60,16 @@ func ScannedAt(v time.Time) predicate.SSLScan {
 	return predicate.SSLScan(sql.FieldEQ(FieldScannedAt, v))
 }
 
+// LastSeenAt applies equality check predicate on the "last_seen_at" field. It's identical to LastSeenAtEQ.
+func LastSeenAt(v time.Time) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldEQ(FieldLastSeenAt, v))
+}
+
+// CheckCount applies equality check predicate on the "check_count" field. It's identical to CheckCountEQ.
+func CheckCount(v int) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldEQ(FieldCheckCount, v))
+}
+
 // Grade applies equality check predicate on the "grade" field. It's identical to GradeEQ.
 func Grade(v string) predicate.SSLScan {
 	return predicate.SSLScan(sql.FieldEQ(FieldGrade, v))
@@ -123,6 +133,96 @@ func ScannedAtLT(v time.Time) predicate.SSLScan {
 // ScannedAtLTE applies the LTE predicate on the "scanned_at" field.
 func ScannedAtLTE(v time.Time) predicate.SSLScan {
 	return predicate.SSLScan(sql.FieldLTE(FieldScannedAt, v))
+}
+
+// LastSeenAtEQ applies the EQ predicate on the "last_seen_at" field.
+func LastSeenAtEQ(v time.Time) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldEQ(FieldLastSeenAt, v))
+}
+
+// LastSeenAtNEQ applies the NEQ predicate on the "last_seen_at" field.
+func LastSeenAtNEQ(v time.Time) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldNEQ(FieldLastSeenAt, v))
+}
+
+// LastSeenAtIn applies the In predicate on the "last_seen_at" field.
+func LastSeenAtIn(vs ...time.Time) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldIn(FieldLastSeenAt, vs...))
+}
+
+// LastSeenAtNotIn applies the NotIn predicate on the "last_seen_at" field.
+func LastSeenAtNotIn(vs ...time.Time) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldNotIn(FieldLastSeenAt, vs...))
+}
+
+// LastSeenAtGT applies the GT predicate on the "last_seen_at" field.
+func LastSeenAtGT(v time.Time) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldGT(FieldLastSeenAt, v))
+}
+
+// LastSeenAtGTE applies the GTE predicate on the "last_seen_at" field.
+func LastSeenAtGTE(v time.Time) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldGTE(FieldLastSeenAt, v))
+}
+
+// LastSeenAtLT applies the LT predicate on the "last_seen_at" field.
+func LastSeenAtLT(v time.Time) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldLT(FieldLastSeenAt, v))
+}
+
+// LastSeenAtLTE applies the LTE predicate on the "last_seen_at" field.
+func LastSeenAtLTE(v time.Time) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldLTE(FieldLastSeenAt, v))
+}
+
+// LastSeenAtIsNil applies the IsNil predicate on the "last_seen_at" field.
+func LastSeenAtIsNil() predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldIsNull(FieldLastSeenAt))
+}
+
+// LastSeenAtNotNil applies the NotNil predicate on the "last_seen_at" field.
+func LastSeenAtNotNil() predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldNotNull(FieldLastSeenAt))
+}
+
+// CheckCountEQ applies the EQ predicate on the "check_count" field.
+func CheckCountEQ(v int) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldEQ(FieldCheckCount, v))
+}
+
+// CheckCountNEQ applies the NEQ predicate on the "check_count" field.
+func CheckCountNEQ(v int) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldNEQ(FieldCheckCount, v))
+}
+
+// CheckCountIn applies the In predicate on the "check_count" field.
+func CheckCountIn(vs ...int) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldIn(FieldCheckCount, vs...))
+}
+
+// CheckCountNotIn applies the NotIn predicate on the "check_count" field.
+func CheckCountNotIn(vs ...int) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldNotIn(FieldCheckCount, vs...))
+}
+
+// CheckCountGT applies the GT predicate on the "check_count" field.
+func CheckCountGT(v int) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldGT(FieldCheckCount, v))
+}
+
+// CheckCountGTE applies the GTE predicate on the "check_count" field.
+func CheckCountGTE(v int) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldGTE(FieldCheckCount, v))
+}
+
+// CheckCountLT applies the LT predicate on the "check_count" field.
+func CheckCountLT(v int) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldLT(FieldCheckCount, v))
+}
+
+// CheckCountLTE applies the LTE predicate on the "check_count" field.
+func CheckCountLTE(v int) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldLTE(FieldCheckCount, v))
 }
 
 // GradeEQ applies the EQ predicate on the "grade" field.

@@ -20,6 +20,18 @@ func (f CSPScanFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CSPScanMutation", m)
 }
 
+// The DataMigrationFunc type is an adapter to allow the use of ordinary
+// function as DataMigration mutator.
+type DataMigrationFunc func(context.Context, *ent.DataMigrationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DataMigrationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DataMigrationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DataMigrationMutation", m)
+}
+
 // The IPFunc type is an adapter to allow the use of ordinary
 // function as IP mutator.
 type IPFunc func(context.Context, *ent.IPMutation) (ent.Value, error)

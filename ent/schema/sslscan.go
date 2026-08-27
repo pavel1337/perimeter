@@ -15,6 +15,8 @@ type SSLScan struct {
 func (SSLScan) Fields() []ent.Field {
 	return []ent.Field{
 		field.Time("scanned_at"),
+		field.Time("last_seen_at").Optional(),
+		field.Int("check_count").Default(0),
 		field.String("grade"),
 		field.String("status"),
 		field.String("cert_issuer").Optional(),

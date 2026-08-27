@@ -17,6 +17,8 @@ type CSPScan struct {
 func (CSPScan) Fields() []ent.Field {
 	return []ent.Field{
 		field.Time("scanned_at"),
+		field.Time("last_seen_at").Optional(),
+		field.Int("check_count").Default(0),
 		field.String("csp_header"),
 		field.JSON("findings", []csp.Finding{}).Optional(),
 	}

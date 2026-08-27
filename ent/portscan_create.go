@@ -36,6 +36,34 @@ func (_c *PortScanCreate) SetNillableScannedAt(v *time.Time) *PortScanCreate {
 	return _c
 }
 
+// SetLastSeenAt sets the "last_seen_at" field.
+func (_c *PortScanCreate) SetLastSeenAt(v time.Time) *PortScanCreate {
+	_c.mutation.SetLastSeenAt(v)
+	return _c
+}
+
+// SetNillableLastSeenAt sets the "last_seen_at" field if the given value is not nil.
+func (_c *PortScanCreate) SetNillableLastSeenAt(v *time.Time) *PortScanCreate {
+	if v != nil {
+		_c.SetLastSeenAt(*v)
+	}
+	return _c
+}
+
+// SetCheckCount sets the "check_count" field.
+func (_c *PortScanCreate) SetCheckCount(v int) *PortScanCreate {
+	_c.mutation.SetCheckCount(v)
+	return _c
+}
+
+// SetNillableCheckCount sets the "check_count" field if the given value is not nil.
+func (_c *PortScanCreate) SetNillableCheckCount(v *int) *PortScanCreate {
+	if v != nil {
+		_c.SetCheckCount(*v)
+	}
+	return _c
+}
+
 // SetIPID sets the "ip" edge to the IP entity by ID.
 func (_c *PortScanCreate) SetIPID(id int) *PortScanCreate {
 	_c.mutation.SetIPID(id)
@@ -101,12 +129,19 @@ func (_c *PortScanCreate) defaults() {
 		v := portscan.DefaultScannedAt()
 		_c.mutation.SetScannedAt(v)
 	}
+	if _, ok := _c.mutation.CheckCount(); !ok {
+		v := portscan.DefaultCheckCount
+		_c.mutation.SetCheckCount(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *PortScanCreate) check() error {
 	if _, ok := _c.mutation.ScannedAt(); !ok {
 		return &ValidationError{Name: "scanned_at", err: errors.New(`ent: missing required field "PortScan.scanned_at"`)}
+	}
+	if _, ok := _c.mutation.CheckCount(); !ok {
+		return &ValidationError{Name: "check_count", err: errors.New(`ent: missing required field "PortScan.check_count"`)}
 	}
 	if len(_c.mutation.IPIDs()) == 0 {
 		return &ValidationError{Name: "ip", err: errors.New(`ent: missing required edge "PortScan.ip"`)}
@@ -140,6 +175,14 @@ func (_c *PortScanCreate) createSpec() (*PortScan, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ScannedAt(); ok {
 		_spec.SetField(portscan.FieldScannedAt, field.TypeTime, value)
 		_node.ScannedAt = value
+	}
+	if value, ok := _c.mutation.LastSeenAt(); ok {
+		_spec.SetField(portscan.FieldLastSeenAt, field.TypeTime, value)
+		_node.LastSeenAt = value
+	}
+	if value, ok := _c.mutation.CheckCount(); ok {
+		_spec.SetField(portscan.FieldCheckCount, field.TypeInt, value)
+		_node.CheckCount = value
 	}
 	if nodes := _c.mutation.IPIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

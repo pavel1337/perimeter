@@ -16,6 +16,10 @@ const (
 	FieldID = "id"
 	// FieldScannedAt holds the string denoting the scanned_at field in the database.
 	FieldScannedAt = "scanned_at"
+	// FieldLastSeenAt holds the string denoting the last_seen_at field in the database.
+	FieldLastSeenAt = "last_seen_at"
+	// FieldCheckCount holds the string denoting the check_count field in the database.
+	FieldCheckCount = "check_count"
 	// EdgeIP holds the string denoting the ip edge name in mutations.
 	EdgeIP = "ip"
 	// EdgePorts holds the string denoting the ports edge name in mutations.
@@ -42,6 +46,8 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldScannedAt,
+	FieldLastSeenAt,
+	FieldCheckCount,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "port_scans"
@@ -68,6 +74,8 @@ func ValidColumn(column string) bool {
 var (
 	// DefaultScannedAt holds the default value on creation for the "scanned_at" field.
 	DefaultScannedAt func() time.Time
+	// DefaultCheckCount holds the default value on creation for the "check_count" field.
+	DefaultCheckCount int
 )
 
 // OrderOption defines the ordering options for the PortScan queries.
@@ -81,6 +89,16 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByScannedAt orders the results by the scanned_at field.
 func ByScannedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldScannedAt, opts...).ToFunc()
+}
+
+// ByLastSeenAt orders the results by the last_seen_at field.
+func ByLastSeenAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastSeenAt, opts...).ToFunc()
+}
+
+// ByCheckCount orders the results by the check_count field.
+func ByCheckCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCheckCount, opts...).ToFunc()
 }
 
 // ByIPField orders the results by ip field.

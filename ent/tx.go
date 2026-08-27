@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// CSPScan is the client for interacting with the CSPScan builders.
 	CSPScan *CSPScanClient
+	// DataMigration is the client for interacting with the DataMigration builders.
+	DataMigration *DataMigrationClient
 	// IP is the client for interacting with the IP builders.
 	IP *IPClient
 	// ImporterConfig is the client for interacting with the ImporterConfig builders.
@@ -170,6 +172,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.CSPScan = NewCSPScanClient(tx.config)
+	tx.DataMigration = NewDataMigrationClient(tx.config)
 	tx.IP = NewIPClient(tx.config)
 	tx.ImporterConfig = NewImporterConfigClient(tx.config)
 	tx.Invite = NewInviteClient(tx.config)

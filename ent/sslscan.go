@@ -21,6 +21,10 @@ type SSLScan struct {
 	ID int `json:"id,omitempty"`
 	// ScannedAt holds the value of the "scanned_at" field.
 	ScannedAt time.Time `json:"scanned_at,omitempty"`
+	// LastSeenAt holds the value of the "last_seen_at" field.
+	LastSeenAt time.Time `json:"last_seen_at,omitempty"`
+	// CheckCount holds the value of the "check_count" field.
+	CheckCount int `json:"check_count,omitempty"`
 	// Grade holds the value of the "grade" field.
 	Grade string `json:"grade,omitempty"`
 	// Status holds the value of the "status" field.
@@ -69,11 +73,11 @@ func (*SSLScan) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case sslscan.FieldProtocols, sslscan.FieldVulnerabilities:
 			values[i] = new([]byte)
-		case sslscan.FieldID:
+		case sslscan.FieldID, sslscan.FieldCheckCount:
 			values[i] = new(sql.NullInt64)
 		case sslscan.FieldGrade, sslscan.FieldStatus, sslscan.FieldCertIssuer, sslscan.FieldCertSubject:
 			values[i] = new(sql.NullString)
-		case sslscan.FieldScannedAt, sslscan.FieldCertExpiry:
+		case sslscan.FieldScannedAt, sslscan.FieldLastSeenAt, sslscan.FieldCertExpiry:
 			values[i] = new(sql.NullTime)
 		case sslscan.ForeignKeys[0]: // target_ssl_scans
 			values[i] = new(sql.NullInt64)
@@ -103,6 +107,18 @@ func (_m *SSLScan) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field scanned_at", values[i])
 			} else if value.Valid {
 				_m.ScannedAt = value.Time
+			}
+		case sslscan.FieldLastSeenAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field last_seen_at", values[i])
+			} else if value.Valid {
+				_m.LastSeenAt = value.Time
+			}
+		case sslscan.FieldCheckCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field check_count", values[i])
+			} else if value.Valid {
+				_m.CheckCount = int(value.Int64)
 			}
 		case sslscan.FieldGrade:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -200,6 +216,12 @@ func (_m *SSLScan) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("scanned_at=")
 	builder.WriteString(_m.ScannedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("last_seen_at=")
+	builder.WriteString(_m.LastSeenAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("check_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CheckCount))
 	builder.WriteString(", ")
 	builder.WriteString("grade=")
 	builder.WriteString(_m.Grade)
