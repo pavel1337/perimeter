@@ -73,6 +73,8 @@ var (
 	sslInterval  = getEnvOrDefaultDuration("SSL_INTERVAL", 12*time.Hour)
 	cspInterval  = getEnvOrDefaultDuration("CSP_INTERVAL", 1*time.Hour)
 
+	certExpiryWindow = getEnvOrDefaultDuration("CERT_EXPIRY_WINDOW", 30*24*time.Hour)
+
 	sessionMaxAge    = getEnvOrDefaultDuration("SESSION_MAX_AGE", 720*time.Hour)
 	oidcIssuer       = getEnvOrDefaultStr("OIDC_ISSUER", "")
 	oidcClientID     = getEnvOrDefaultStr("OIDC_CLIENT_ID", "")
@@ -98,6 +100,8 @@ func main() {
 	flag.DurationVar(&portInterval, "portInterval", portInterval, "Interval for port scans")
 	flag.DurationVar(&sslInterval, "sslInterval", sslInterval, "Interval for SSL scans")
 	flag.DurationVar(&cspInterval, "cspInterval", cspInterval, "Interval for CSP scans")
+
+	flag.DurationVar(&certExpiryWindow, "certExpiryWindow", certExpiryWindow, "How close to expiry a certificate is flagged on the dashboard")
 
 	flag.Parse()
 
@@ -223,7 +227,7 @@ func main() {
 	syncLoop.Start()
 
 	// 8. Start Web Server
-	srv := server.New(store, authenticator, client, importerRegistry, notifierRegistry, viewsfs)
+	srv := server.New(store, authenticator, client, importerRegistry, notifierRegistry, viewsfs, certExpiryWindow)
 	log.Printf("Perimeter is running on http://localhost:%s", httpPort)
 	log.Fatal(srv.Listen(":" + httpPort))
 }

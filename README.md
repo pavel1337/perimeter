@@ -42,6 +42,7 @@ Set values in `.env` or pass CLI flags (flags win). Common ones:
 | `PORT_INTERVAL` | `--portInterval` | `1h` | Time between port scans |
 | `SSL_INTERVAL` | `--sslInterval` | `12h` | Time between SSL scans |
 | `CSP_INTERVAL` | `--cspInterval` | `1h` | Time between CSP scans |
+| `CERT_EXPIRY_WINDOW` | `--certExpiryWindow` | `720h` | How close to expiry a certificate is flagged on the dashboard |
 
 SSL Labs needs registration details (`FIRST_NAME`, `LAST_NAME`, `EMAIL`, `ORGANIZATION`). OIDC login is optional (`OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URL`).
 

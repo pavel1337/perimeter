@@ -42,6 +42,7 @@
       <th>CSP</th>
       <th>Open Ports</th>
       <th>SSL</th>
+      <th>Cert Expiry</th>
       <th></th>
     </tr>
   </thead>
@@ -105,11 +106,37 @@
         {{else}}
         {{if .Edges.SslScans}}
         {{$latestSSL := index .Edges.SslScans 0}}
-        <span class="badge badge-blue">{{$latestSSL.Grade}}</span>
-        <span class="text-muted">{{$latestSSL.Status}}</span>
+        {{if $latestSSL.Grade}}
+        <a href="https://www.ssllabs.com/ssltest/analyze.html?d={{.Input}}" target="_blank" rel="noopener noreferrer" title="View the SSL Labs report">
+          <span class="badge badge-blue">{{$latestSSL.Grade}}</span>
+        </a>
+        {{else}}
+        {{/* No grade means SSL Labs could not finish the assessment. That is not
+             a finding about the certificate, so don't render it like one. */}}
+        <span class="text-muted" title="SSL Labs returned no grade: {{$latestSSL.Status}}">inconclusive</span>
+        {{end}}
         {{else}}
         <span class="text-muted">pending</span>
         {{end}}
+        {{end}}
+      </td>
+
+      <td>
+        {{if .IsIP}}
+        <span class="text-muted">—</span>
+        {{else if .Edges.SslScans}}
+        {{$cert := (index .Edges.SslScans 0).CertExpiry}}
+        {{if $cert.IsZero}}
+        <span class="text-muted">—</span>
+        {{else}}
+        {{$days := daysUntil $cert}}
+        <span title="{{$cert.Format "Jan 02, 2006 15:04"}}"
+          {{if le $days $.CertExpiryDays}}class="badge badge-red"{{else}}class="text-muted"{{end}}>
+          {{if lt $days 0}}expired{{else}}{{$days}}d{{end}}
+        </span>
+        {{end}}
+        {{else}}
+        <span class="text-muted">pending</span>
         {{end}}
       </td>
 
@@ -122,7 +149,7 @@
     </tr>
     {{else}}
     <tr>
-      <td colspan="5" class="text-muted" style="text-align:center; padding:24px;">No targets yet. <a href="/import">Import some.</a></td>
+      <td colspan="6" class="text-muted" style="text-align:center; padding:24px;">No targets yet. <a href="/import">Import some.</a></td>
     </tr>
     {{end}}
   </tbody>

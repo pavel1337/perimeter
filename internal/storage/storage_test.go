@@ -649,3 +649,69 @@ func TestSaveCSPScanCollapsesIdenticalResults(t *testing.T) {
 		t.Errorf("expected 2 rows after header change, got %d", total)
 	}
 }
+
+func TestGetTargetsLoadsCurrentStateOnly(t *testing.T) {
+	s := newTestStorage(t)
+	ctx := context.Background()
+
+	if _, err := s.ImportTargets(ctx, []string{"a.example.com", "b.example.com"}); err != nil {
+		t.Fatalf("ImportTargets: %v", err)
+	}
+	for _, host := range []string{"a.example.com", "b.example.com"} {
+		if err := s.SaveIPs(ctx, host, []string{"10.0.0." + host[:1]}); err != nil {
+			t.Fatalf("SaveIPs: %v", err)
+		}
+	}
+
+	// Three distinct results per parent, so nothing collapses and history is
+	// genuinely longer than one row.
+	for n, ports := range [][]int{{80}, {80, 443}, {443}} {
+		for _, host := range []string{"a", "b"} {
+			if err := s.SavePortScan(ctx, "10.0.0."+host, ports); err != nil {
+				t.Fatalf("SavePortScan: %v", err)
+			}
+		}
+		for _, host := range []string{"a.example.com", "b.example.com"} {
+			grade := string(rune('A' + n))
+			if err := s.SaveSSLScan(ctx, host, storage.SSLResult{Grade: grade, Status: "READY"}); err != nil {
+				t.Fatalf("SaveSSLScan: %v", err)
+			}
+			if err := s.SaveCSPScan(ctx, host, "default-src "+grade, nil); err != nil {
+				t.Fatalf("SaveCSPScan: %v", err)
+			}
+		}
+	}
+
+	targets, err := s.GetTargets(ctx)
+	if err != nil {
+		t.Fatalf("GetTargets: %v", err)
+	}
+	if len(targets) != 2 {
+		t.Fatalf("expected 2 targets, got %d", len(targets))
+	}
+
+	for _, tg := range targets {
+		if len(tg.Edges.SslScans) != 1 {
+			t.Fatalf("%s: %d ssl scans, want 1", tg.Input, len(tg.Edges.SslScans))
+		}
+		if got := tg.Edges.SslScans[0].Grade; got != "C" {
+			t.Errorf("%s: ssl grade %q, want the newest (C)", tg.Input, got)
+		}
+		if len(tg.Edges.CspScans) != 1 {
+			t.Fatalf("%s: %d csp scans, want 1", tg.Input, len(tg.Edges.CspScans))
+		}
+		if got := tg.Edges.CspScans[0].CspHeader; got != "default-src C" {
+			t.Errorf("%s: csp header %q, want the newest", tg.Input, got)
+		}
+		if len(tg.Edges.Ips) != 1 {
+			t.Fatalf("%s: %d ips, want 1", tg.Input, len(tg.Edges.Ips))
+		}
+		scans := tg.Edges.Ips[0].Edges.Scans
+		if len(scans) != 1 {
+			t.Fatalf("%s: %d port scans, want 1", tg.Input, len(scans))
+		}
+		if len(scans[0].Edges.Ports) != 1 || scans[0].Edges.Ports[0].Number != 443 {
+			t.Errorf("%s: ports %v, want the newest ([443])", tg.Input, scans[0].Edges.Ports)
+		}
+	}
+}
