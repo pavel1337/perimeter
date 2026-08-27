@@ -20,42 +20,49 @@ func (s *EntStorage) CreateJob(ctx context.Context, jobType entjob.Type, payload
 
 // ClaimJob atomically claims the oldest pending job by setting it to in_progress.
 // Returns nil if no pending jobs are available.
+//
+// Postgres runs READ COMMITTED, so a plain select-then-update lets two workers
+// read the same pending row before either commits and run the same scan twice
+// (issue #6). The update is therefore a compare-and-swap on status: the loser
+// updates zero rows and retries with the next candidate.
 func (s *EntStorage) ClaimJob(ctx context.Context, timeout time.Duration) (*ent.Job, error) {
-	tx, err := s.client.Tx(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	j, err := tx.Job.Query().
-		Where(entjob.StatusEQ(entjob.StatusPending)).
-		Order(ent.Asc(entjob.FieldCreateTime)).
-		Limit(1).
-		First(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			if rerr := tx.Rollback(); rerr != nil {
-				return nil, fmt.Errorf("rollback: %w", rerr)
+	for {
+		j, err := s.client.Job.Query().
+			Where(entjob.StatusEQ(entjob.StatusPending)).
+			Order(ent.Asc(entjob.FieldCreateTime)).
+			Limit(1).
+			First(ctx)
+		if err != nil {
+			if ent.IsNotFound(err) {
+				return nil, nil
 			}
-			return nil, nil
+			return nil, err
 		}
-		return nil, rollback(tx, err)
-	}
 
-	now := time.Now()
-	j, err = tx.Job.UpdateOne(j).
-		SetStatus(entjob.StatusInProgress).
-		SetStartedAt(now).
-		SetTimeoutAt(now.Add(timeout)).
-		Save(ctx)
-	if err != nil {
-		return nil, rollback(tx, err)
-	}
+		now := time.Now()
+		timeoutAt := now.Add(timeout)
+		n, err := s.client.Job.Update().
+			Where(
+				entjob.IDEQ(j.ID),
+				entjob.StatusEQ(entjob.StatusPending),
+			).
+			SetStatus(entjob.StatusInProgress).
+			SetStartedAt(now).
+			SetTimeoutAt(timeoutAt).
+			Save(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if n == 0 {
+			// Another worker claimed it first; look for the next one.
+			continue
+		}
 
-	if err := tx.Commit(); err != nil {
-		return nil, err
+		j.Status = entjob.StatusInProgress
+		j.StartedAt = &now
+		j.TimeoutAt = &timeoutAt
+		return j, nil
 	}
-
-	return j, nil
 }
 
 // CompleteJob marks a job as completed with a result.
