@@ -7,6 +7,8 @@ import (
 	"net"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
+
 	"perimeter/ent"
 	"perimeter/ent/cspscan"
 	"perimeter/ent/ip"
@@ -289,11 +291,27 @@ func (s *EntStorage) GetOutdatedIPs(ctx context.Context, limit int, threshold ti
 			ip.Not(ip.HasScans()),
 			ip.Not(ip.HasScansWith(portscan.ScannedAtGTE(cutoff))),
 		)).
-		Order(ent.Asc(ip.FieldUpdateTime)).
+		Order(ip.ByScans(oldestScanFirst())).
 		Limit(limit).
 		All(ctx)
 }
 
+// oldestScanFirst orders IPs by their newest port scan, oldest first, with
+// never-scanned IPs ahead of the rest. Ent has no MAX() ordering helper, so the
+// aggregate is spelled out; nulls-first is explicit because Postgres and SQLite
+// disagree on where NULLs land by default.
+func oldestScanFirst() *sql.OrderExprTerm {
+	return &sql.OrderExprTerm{
+		OrderTermOptions: *sql.NewOrderTermOptions(
+			sql.OrderAs("max_scanned_at"),
+			sql.OrderAsc(),
+			sql.OrderNullsFirst(),
+		),
+		Expr: func(s *sql.Selector) sql.Querier {
+			return sql.Raw(fmt.Sprintf("MAX(%s)", s.C(portscan.FieldScannedAt)))
+		},
+	}
+}
 
 // GetUnresolvedTargets returns up to limit targets with no IPs, oldest-attempt
 // first. The caller applies per-target backoff (see scanner.resolveBackoff);
