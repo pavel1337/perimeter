@@ -316,7 +316,8 @@ func (s *Server) handleIndex(c *fiber.Ctx) error {
 		}
 		if len(t.Edges.SslScans) > 0 {
 			latest := t.Edges.SslScans[0]
-			if !latest.CertExpiry.IsZero() && time.Until(latest.CertExpiry) < 30*24*time.Hour {
+			untilExpiry := time.Until(latest.CertExpiry)
+			if !latest.CertExpiry.IsZero() && untilExpiry > 0 && untilExpiry < 30*24*time.Hour {
 				expiringCerts++
 			}
 		}

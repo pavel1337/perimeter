@@ -110,11 +110,16 @@ func (s *EntStorage) GetTargets(ctx context.Context) ([]*ent.Target, error) {
 	return s.client.Target.Query().
 		WithIps(func(q *ent.IPQuery) {
 			q.WithScans(func(sq *ent.PortScanQuery) {
-				sq.WithPorts()
+				sq.Order(ent.Desc(portscan.FieldScannedAt), ent.Desc(portscan.FieldID)).
+					WithPorts()
 			})
 		}).
-		WithSslScans().
-		WithCspScans().
+		WithSslScans(func(q *ent.SSLScanQuery) {
+			q.Order(ent.Desc(sslscan.FieldScannedAt), ent.Desc(sslscan.FieldID))
+		}).
+		WithCspScans(func(q *ent.CSPScanQuery) {
+			q.Order(ent.Desc(cspscan.FieldScannedAt), ent.Desc(cspscan.FieldID))
+		}).
 		WithTags().
 		All(ctx)
 }
@@ -124,11 +129,16 @@ func (s *EntStorage) GetTarget(ctx context.Context, id int) (*ent.Target, error)
 		Where(target.ID(id)).
 		WithIps(func(q *ent.IPQuery) {
 			q.WithScans(func(sq *ent.PortScanQuery) {
-				sq.WithPorts()
+				sq.Order(ent.Desc(portscan.FieldScannedAt), ent.Desc(portscan.FieldID)).
+					WithPorts()
 			})
 		}).
-		WithSslScans().
-		WithCspScans().
+		WithSslScans(func(q *ent.SSLScanQuery) {
+			q.Order(ent.Desc(sslscan.FieldScannedAt), ent.Desc(sslscan.FieldID))
+		}).
+		WithCspScans(func(q *ent.CSPScanQuery) {
+			q.Order(ent.Desc(cspscan.FieldScannedAt), ent.Desc(cspscan.FieldID))
+		}).
 		WithTags().
 		Only(ctx)
 }
