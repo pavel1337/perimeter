@@ -4,6 +4,7 @@ package ent
 
 import (
 	"perimeter/ent/cspscan"
+	"perimeter/ent/datamigration"
 	"perimeter/ent/importerconfig"
 	"perimeter/ent/invite"
 	"perimeter/ent/ip"
@@ -29,6 +30,12 @@ func init() {
 	cspscanDescCheckCount := cspscanFields[2].Descriptor()
 	// cspscan.DefaultCheckCount holds the default value on creation for the check_count field.
 	cspscan.DefaultCheckCount = cspscanDescCheckCount.Default.(int)
+	datamigrationFields := schema.DataMigration{}.Fields()
+	_ = datamigrationFields
+	// datamigrationDescAppliedAt is the schema descriptor for applied_at field.
+	datamigrationDescAppliedAt := datamigrationFields[1].Descriptor()
+	// datamigration.DefaultAppliedAt holds the default value on creation for the applied_at field.
+	datamigration.DefaultAppliedAt = datamigrationDescAppliedAt.Default.(func() time.Time)
 	ipMixin := schema.IP{}.Mixin()
 	ipMixinFields0 := ipMixin[0].Fields()
 	_ = ipMixinFields0

@@ -32,6 +32,18 @@ var (
 			},
 		},
 	}
+	// DataMigrationsColumns holds the columns for the "data_migrations" table.
+	DataMigrationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "name", Type: field.TypeString, Unique: true},
+		{Name: "applied_at", Type: field.TypeTime},
+	}
+	// DataMigrationsTable holds the schema information for the "data_migrations" table.
+	DataMigrationsTable = &schema.Table{
+		Name:       "data_migrations",
+		Columns:    DataMigrationsColumns,
+		PrimaryKey: []*schema.Column{DataMigrationsColumns[0]},
+	}
 	// IpsColumns holds the columns for the "ips" table.
 	IpsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -325,6 +337,7 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		CspScansTable,
+		DataMigrationsTable,
 		IpsTable,
 		ImporterConfigsTable,
 		InvitesTable,

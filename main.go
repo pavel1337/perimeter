@@ -18,6 +18,7 @@ import (
 	"perimeter/ent"
 	"perimeter/internal/auth"
 	"perimeter/internal/importer"
+	"perimeter/internal/migrate"
 	"perimeter/internal/notifier"
 	"perimeter/internal/scanner"
 	"perimeter/internal/server"
@@ -148,13 +149,13 @@ func main() {
 		log.Fatalf("failed creating schema resources: %v", err)
 	}
 
-	store := storage.NewEntStorage(client)
-
-	// Collapse pre-existing duplicate scan history. Blocking: the scanner and
-	// the UI both read the collapsed shape.
-	if err := store.CollapseScanHistory(context.Background()); err != nil {
-		log.Fatalf("failed collapsing scan history: %v", err)
+	// Data migrations. Blocking: the scanner and the UI both read the shape
+	// these produce.
+	if err := migrate.Run(context.Background(), client); err != nil {
+		log.Fatalf("failed running data migrations: %v", err)
 	}
+
+	store := storage.NewEntStorage(client)
 
 	// 3. Import Targets if provided
 	if targetFile != "" {
