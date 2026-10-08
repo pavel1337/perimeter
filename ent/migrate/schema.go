@@ -126,9 +126,10 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "create_time", Type: field.TypeTime},
 		{Name: "update_time", Type: field.TypeTime},
-		{Name: "provider", Type: field.TypeEnum, Enums: []string{"webhook"}},
+		{Name: "provider", Type: field.TypeEnum, Enums: []string{"webhook", "email"}},
 		{Name: "config", Type: field.TypeBytes},
 		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "events", Type: field.TypeJSON, Nullable: true},
 	}
 	// NotifierConfigsTable holds the schema information for the "notifier_configs" table.
 	NotifierConfigsTable = &schema.Table{

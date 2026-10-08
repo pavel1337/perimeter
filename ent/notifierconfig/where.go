@@ -224,6 +224,16 @@ func EnabledNEQ(v bool) predicate.NotifierConfig {
 	return predicate.NotifierConfig(sql.FieldNEQ(FieldEnabled, v))
 }
 
+// EventsIsNil applies the IsNil predicate on the "events" field.
+func EventsIsNil() predicate.NotifierConfig {
+	return predicate.NotifierConfig(sql.FieldIsNull(FieldEvents))
+}
+
+// EventsNotNil applies the NotNil predicate on the "events" field.
+func EventsNotNil() predicate.NotifierConfig {
+	return predicate.NotifierConfig(sql.FieldNotNull(FieldEvents))
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.NotifierConfig) predicate.NotifierConfig {
 	return predicate.NotifierConfig(sql.AndPredicates(predicates...))

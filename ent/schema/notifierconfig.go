@@ -12,9 +12,12 @@ type NotifierConfig struct {
 
 func (NotifierConfig) Fields() []ent.Field {
 	return []ent.Field{
-		field.Enum("provider").Values("webhook"),
+		field.Enum("provider").Values("webhook", "email"),
 		field.Bytes("config"),
 		field.Bool("enabled").Default(true),
+		// Event types this notifier receives (issue #20). Empty means every
+		// event, including types added later.
+		field.Strings("events").Optional(),
 	}
 }
 

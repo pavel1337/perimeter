@@ -18,6 +18,7 @@ import (
 	"perimeter/ent"
 	"perimeter/internal/auth"
 	"perimeter/internal/importer"
+	"perimeter/internal/mail"
 	"perimeter/internal/migrate"
 	"perimeter/internal/notifier"
 	"perimeter/internal/scanner"
@@ -202,8 +203,26 @@ func main() {
 	}
 
 	// 5. Start Notifier
+	smtpCfg, err := mail.ConfigFromEnv(os.Getenv)
+	if err != nil {
+		log.Fatalf("failed to read SMTP config: %v", err)
+	}
+	// Leave the sender a nil interface when SMTP is off. Assigning a nil
+	// *SMTPSender would make a non-nil interface that the email factory
+	// cannot detect.
+	var mailSender mail.Sender
+	if smtpCfg.Enabled() {
+		smtpSender, err := mail.NewSMTPSender(smtpCfg)
+		if err != nil {
+			log.Fatalf("failed to initialize SMTP: %v", err)
+		}
+		mailSender = smtpSender
+		log.Printf("SMTP enabled (%s:%d)", smtpCfg.Host, smtpCfg.Port)
+	}
+
 	notifierRegistry := notifier.NewRegistry()
 	notifierRegistry.Register("webhook", notifier.NewWebhookFactory())
+	notifierRegistry.Register("email", notifier.NewEmailFactory(mailSender))
 	dispatcher := notifier.NewDispatcher(client, notifierRegistry)
 
 	// 6. Start Scanners

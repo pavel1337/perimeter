@@ -95,6 +95,7 @@ func newViewEngine(viewsFS fs.FS) *html.Engine {
 	})
 
 	engine.AddFunc("withQuery", withQuery)
+	engine.AddFunc("eventLabel", notifierEventLabel)
 	return engine
 }
 
@@ -943,13 +944,14 @@ func (s *Server) settingsData(c *fiber.Ctx, extra fiber.Map) fiber.Map {
 	notifierProviders := s.notifierRegistry.List()
 
 	data := s.templateData(c, fiber.Map{
-		"Title":             "Settings",
-		"Users":             users,
-		"Importers":         importers,
-		"Notifiers":         notifiers,
-		"Tags":              tags,
-		"Providers":         providers,
-		"NotifierProviders": notifierProviders,
+		"Title":              "Settings",
+		"Users":              users,
+		"Importers":          importers,
+		"Notifiers":          notifiers,
+		"Tags":               tags,
+		"Providers":          providers,
+		"NotifierProviders":  notifierProviders,
+		"NotifierEventTypes": notifier.AllEventTypes(),
 	})
 	for k, v := range extra {
 		data[k] = v
@@ -1079,16 +1081,85 @@ func (s *Server) handleToggleImporter(c *fiber.Ctx) error {
 
 // --- Notifier handlers ---
 
+// notifierEventLabels are the human labels for event types, used by the
+// settings checkboxes and the notifier table.
+var notifierEventLabels = map[string]string{
+	string(notifier.EventNewOpenPorts): "New open ports",
+	string(notifier.EventSSLGradeDrop): "SSL grade drop",
+	string(notifier.EventCertExpiring): "Certificate expiring",
+	string(notifier.EventCSPIssues):    "CSP issues",
+}
+
+// notifierEventLabel is the template func behind eventLabel. It takes any so
+// templates can pass a notifier.EventType or a plain string.
+func notifierEventLabel(v any) string {
+	name := fmt.Sprint(v)
+	if label, ok := notifierEventLabels[name]; ok {
+		return label
+	}
+	return name
+}
+
+// parseNotifierEvents turns the submitted event checkboxes into the list to
+// store. It returns nil when every event type is selected, so the notifier
+// also gets event types added later. Values are normalised to declaration order.
+func parseNotifierEvents(values [][]byte) ([]string, error) {
+	selected := make(map[string]bool, len(values))
+	for _, v := range values {
+		name := string(v)
+		if !slices.ContainsFunc(notifier.AllEventTypes(), func(t notifier.EventType) bool {
+			return string(t) == name
+		}) {
+			return nil, fmt.Errorf("unknown event type: %s", name)
+		}
+		selected[name] = true
+	}
+	if len(selected) == 0 {
+		return nil, errors.New("select at least one event type")
+	}
+
+	all := notifier.AllEventTypes()
+	events := make([]string, 0, len(selected))
+	for _, t := range all {
+		if selected[string(t)] {
+			events = append(events, string(t))
+		}
+	}
+	if len(events) == len(all) {
+		return nil, nil
+	}
+	return events, nil
+}
+
 func (s *Server) handleCreateNotifier(c *fiber.Ctx) error {
 	provider := c.FormValue("provider")
 	config := c.FormValue("config")
 
-	_, err := s.client.NotifierConfig.Create().
+	// The checkboxes share one name, so read every value rather than the first.
+	rawEvents := c.Request().PostArgs().PeekMulti("events")
+	events, err := parseNotifierEvents(rawEvents)
+	if err != nil {
+		return c.Render("views/settings", s.settingsData(c, fiber.Map{
+			"Error": "Invalid notifier events: " + err.Error(),
+		}), "views/layouts/main")
+	}
+
+	// Check the config now so a bad URL or address fails here, not in the
+	// background dispatcher.
+	if _, err := s.notifierRegistry.Get(provider, json.RawMessage(config)); err != nil {
+		return c.Render("views/settings", s.settingsData(c, fiber.Map{
+			"Error": "Invalid notifier config: " + err.Error(),
+		}), "views/layouts/main")
+	}
+
+	create := s.client.NotifierConfig.Create().
 		SetProvider(notifierconfig.Provider(provider)).
 		SetConfig([]byte(config)).
-		SetEnabled(true).
-		Save(c.Context())
-	if err != nil {
+		SetEnabled(true)
+	if events != nil {
+		create.SetEvents(events)
+	}
+	if _, err := create.Save(c.Context()); err != nil {
 		return c.Render("views/settings", s.settingsData(c, fiber.Map{
 			"Error": "Failed to create notifier: " + err.Error(),
 		}), "views/layouts/main")

@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"perimeter/ent/notifierconfig"
 	"strings"
@@ -26,7 +27,9 @@ type NotifierConfig struct {
 	// Config holds the value of the "config" field.
 	Config []byte `json:"config,omitempty"`
 	// Enabled holds the value of the "enabled" field.
-	Enabled      bool `json:"enabled,omitempty"`
+	Enabled bool `json:"enabled,omitempty"`
+	// Events holds the value of the "events" field.
+	Events       []string `json:"events,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -35,7 +38,7 @@ func (*NotifierConfig) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case notifierconfig.FieldConfig:
+		case notifierconfig.FieldConfig, notifierconfig.FieldEvents:
 			values[i] = new([]byte)
 		case notifierconfig.FieldEnabled:
 			values[i] = new(sql.NullBool)
@@ -96,6 +99,14 @@ func (_m *NotifierConfig) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Enabled = value.Bool
 			}
+		case notifierconfig.FieldEvents:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field events", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Events); err != nil {
+					return fmt.Errorf("unmarshal field events: %w", err)
+				}
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -146,6 +157,9 @@ func (_m *NotifierConfig) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Enabled))
+	builder.WriteString(", ")
+	builder.WriteString("events=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Events))
 	builder.WriteByte(')')
 	return builder.String()
 }

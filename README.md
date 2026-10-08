@@ -46,6 +46,8 @@ Set values in `.env` or pass CLI flags (flags win). Common ones:
 
 SSL Labs needs registration details (`FIRST_NAME`, `LAST_NAME`, `EMAIL`, `ORGANIZATION`). OIDC login is optional (`OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URL`).
 
+The email notifier needs an SMTP server: set `SMTP_HOST`, `SMTP_PORT` (default `587`), `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` and `SMTP_TLS` (`starttls` by default, `tls` for implicit TLS on port 465, or `none` for a local relay). Leave `SMTP_HOST` empty to disable email. Notifiers are added on the Settings page, where each one can be limited to some event types.
+
 ## Build
 
 ```bash
