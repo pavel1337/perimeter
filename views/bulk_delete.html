@@ -1,0 +1,33 @@
+{{template "views/partials/header" .}}
+
+<h1>Delete {{.Count}} target{{if ne .Count 1}}s{{end}}?</h1>
+<p class="text-muted" style="margin: -12px 0 20px;">Deleted targets are not scanned. You can restore them from <a href="/targets/deleted">Deleted targets</a>.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Target</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .Targets}}
+    <tr>
+      <td><span class="mono">{{.Input}}</span></td>
+    </tr>
+    {{end}}
+    {{if gt .More 0}}
+    <tr>
+      <td class="text-muted">…and {{.More}} more</td>
+    </tr>
+    {{end}}
+  </tbody>
+</table>
+
+<form method="POST" action="/targets/bulk/delete" style="display: flex; gap: 12px; align-items: center;">
+  {{range .IDs}}<input type="hidden" name="ids" value="{{.}}">{{end}}
+  <input type="hidden" name="confirm" value="1">
+  <button type="submit" class="btn-danger">Delete {{.Count}} target{{if ne .Count 1}}s{{end}}</button>
+  <a href="/">Cancel</a>
+</form>
+
+{{template "views/partials/footer" .}}

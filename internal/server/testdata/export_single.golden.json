@@ -1,0 +1,50 @@
+{
+  "target": "example.com",
+  "is_ip": false,
+  "reachability": "ok",
+  "ips": [
+    {
+      "address": "192.0.2.10",
+      "scans": [
+        {
+          "scanned_at": "2026-01-02T01:04:05Z",
+          "ports": [
+            80,
+            443
+          ]
+        }
+      ]
+    }
+  ],
+  "ssl_scans": [
+    {
+      "scanned_at": "2026-01-02T04:04:05Z",
+      "grade": "B",
+      "status": "READY"
+    },
+    {
+      "scanned_at": "2026-01-02T02:04:05Z",
+      "grade": "A",
+      "status": "READY",
+      "cert_subject": "example.com",
+      "cert_issuer": "Test CA",
+      "cert_expiry": "2026-01-02",
+      "vulnerabilities": [
+        "POODLE"
+      ]
+    }
+  ],
+  "csp_scans": [
+    {
+      "scanned_at": "2026-01-02T06:04:05Z",
+      "csp_header": "",
+      "findings_count": 0,
+      "probe_error": "connection refused"
+    },
+    {
+      "scanned_at": "2026-01-02T05:04:05Z",
+      "csp_header": "default-src 'self'",
+      "findings_count": 1
+    }
+  ]
+}

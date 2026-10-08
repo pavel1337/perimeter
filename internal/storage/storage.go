@@ -61,6 +61,19 @@ type Storage interface {
 	// CSP scans. Live targets cannot be purged: ErrTargetNotFound.
 	PurgeTarget(ctx context.Context, id int) error
 
+	// Bulk actions (issue #18)
+	// TargetIDs returns the ids of every live target matching f, ascending.
+	TargetIDs(ctx context.Context, f TargetFilter) ([]int, error)
+	// DeleteTargets soft-deletes the live targets among ids in one
+	// transaction, so a selection is deleted all or nothing. It returns how many
+	// were deleted; ids that are unknown or already deleted are skipped.
+	DeleteTargets(ctx context.Context, ids []int) (int, error)
+	// EachTargetWithHistory calls fn for every live target among ids, in id
+	// order, loaded like GetTarget (full scan history). Targets are loaded in
+	// batches, so memory stays bounded however many ids there are. An error
+	// from fn stops the iteration and is returned.
+	EachTargetWithHistory(ctx context.Context, ids []int, fn func(*ent.Target) error) error
+
 	// Scanning Logic
 	GetOldestOutdatedTarget(ctx context.Context, scanType ScanType, threshold time.Duration) (*ent.Target, error)
 	GetOutdatedIPs(ctx context.Context, limit int, threshold time.Duration) ([]*ent.IP, error)
@@ -182,22 +195,7 @@ func (s *EntStorage) GetTargets(ctx context.Context, states ...target.Reachabili
 }
 
 func (s *EntStorage) GetTarget(ctx context.Context, id int) (*ent.Target, error) {
-	return s.client.Target.Query().
-		Where(target.ID(id)).
-		WithIps(func(q *ent.IPQuery) {
-			q.WithScans(func(sq *ent.PortScanQuery) {
-				sq.Order(ent.Desc(portscan.FieldScannedAt), ent.Desc(portscan.FieldID)).
-					WithPorts()
-			})
-		}).
-		WithSslScans(func(q *ent.SSLScanQuery) {
-			q.Order(ent.Desc(sslscan.FieldScannedAt), ent.Desc(sslscan.FieldID))
-		}).
-		WithCspScans(func(q *ent.CSPScanQuery) {
-			q.Order(ent.Desc(cspscan.FieldScannedAt), ent.Desc(cspscan.FieldID))
-		}).
-		WithTags().
-		Only(ctx)
+	return withTargetHistory(s.client.Target.Query().Where(target.ID(id))).Only(ctx)
 }
 
 func (s *EntStorage) GetTargetBasic(ctx context.Context, id int) (*ent.Target, error) {
