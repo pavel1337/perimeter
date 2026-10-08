@@ -74,5 +74,6 @@ func (Target) Edges() []ent.Edge {
 func (Target) Mixin() []ent.Mixin {
 	return []ent.Mixin{
 		mixin.Time{}, // Adds created_at, updated_at
+		SoftDeleteMixin{},
 	}
 }

@@ -119,10 +119,14 @@ func (s *Server) setupRoutes() {
 	// Authenticated routes
 	authed := s.app.Group("", auth.RequireAuth(s.auth))
 	authed.Get("/", s.handleIndex)
+	// Registered before /targets/:id so "deleted" is not read as an id.
+	authed.Get("/targets/deleted", s.handleDeletedTargets)
 	authed.Get("/targets/:id", s.handleTargetDetails)
 	authed.Get("/import", s.handleImport)
 	authed.Post("/import", s.handleImportSubmit)
 	authed.Post("/targets/:id/delete", s.handleDeleteTarget)
+	authed.Post("/targets/:id/restore", s.handleRestoreTarget)
+	authed.Post("/targets/:id/purge", s.handlePurgeTarget)
 	authed.Post("/targets/:id/tags", s.handleUpdateTargetTags)
 	authed.Get("/targets/:id/export", s.handleExportTarget)
 
@@ -530,6 +534,11 @@ func (s *Server) handleIndex(c *fiber.Ctx) error {
 
 	allTags, _ := s.client.Tag.Query().All(ctx)
 
+	deletedCount, err := s.storage.CountDeletedTargets(ctx)
+	if err != nil {
+		return c.Status(500).SendString(err.Error())
+	}
+
 	headers, err := sortHeaders(query, sort)
 	if err != nil {
 		return c.Status(500).SendString(err.Error())
@@ -564,6 +573,7 @@ func (s *Server) handleIndex(c *fiber.Ctx) error {
 		"ClearURL":       clearURL,
 		"Pagination":     pag,
 		"TotalTargets":   stats.Total,
+		"DeletedCount":   deletedCount,
 		"TotalOpenPorts": stats.OpenPorts,
 		"ExpiringCerts":  stats.ExpiringCerts,
 		"CSPIssues":      stats.CSPIssues,
@@ -827,13 +837,59 @@ func (s *Server) handleDeleteTarget(c *fiber.Ctx) error {
 
 	err = s.storage.DeleteTarget(c.Context(), id)
 	if err != nil {
-		if ent.IsNotFound(err) {
+		if errors.Is(err, storage.ErrTargetNotFound) || ent.IsNotFound(err) {
 			return c.Status(404).SendString("Target not found")
 		}
 		return c.Status(500).SendString(err.Error())
 	}
 
 	return c.Redirect("/")
+}
+
+func (s *Server) handleDeletedTargets(c *fiber.Ctx) error {
+	targets, err := s.storage.ListDeletedTargets(c.Context())
+	if err != nil {
+		return c.Status(500).SendString(err.Error())
+	}
+
+	return c.Render("views/deleted", s.templateData(c, fiber.Map{
+		"Title":   "Deleted targets",
+		"Targets": targets,
+	}), "views/layouts/main")
+}
+
+func (s *Server) handleRestoreTarget(c *fiber.Ctx) error {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(400).SendString("Invalid ID")
+	}
+
+	err = s.storage.RestoreTarget(c.Context(), id)
+	if err != nil {
+		if errors.Is(err, storage.ErrTargetNotFound) {
+			return c.Status(404).SendString("Target not found")
+		}
+		return c.Status(500).SendString(err.Error())
+	}
+
+	return c.Redirect("/targets/deleted")
+}
+
+func (s *Server) handlePurgeTarget(c *fiber.Ctx) error {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(400).SendString("Invalid ID")
+	}
+
+	err = s.storage.PurgeTarget(c.Context(), id)
+	if err != nil {
+		if errors.Is(err, storage.ErrTargetNotFound) {
+			return c.Status(404).SendString("Target not found")
+		}
+		return c.Status(500).SendString(err.Error())
+	}
+
+	return c.Redirect("/targets/deleted")
 }
 
 func (s *Server) handleImport(c *fiber.Ctx) error {

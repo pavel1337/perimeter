@@ -2,7 +2,249 @@
 
 package runtime
 
-// The schema-stitching logic is generated in perimeter/ent/runtime.go
+import (
+	"perimeter/ent/cspscan"
+	"perimeter/ent/datamigration"
+	"perimeter/ent/importerconfig"
+	"perimeter/ent/invite"
+	"perimeter/ent/ip"
+	"perimeter/ent/job"
+	"perimeter/ent/notifierconfig"
+	"perimeter/ent/portscan"
+	"perimeter/ent/schema"
+	"perimeter/ent/session"
+	"perimeter/ent/sslscan"
+	"perimeter/ent/tag"
+	"perimeter/ent/target"
+	"perimeter/ent/user"
+	"time"
+)
+
+// The init function reads all schema descriptors with runtime code
+// (default values, validators, hooks and policies) and stitches it
+// to their package variables.
+func init() {
+	cspscanFields := schema.CSPScan{}.Fields()
+	_ = cspscanFields
+	// cspscanDescCheckCount is the schema descriptor for check_count field.
+	cspscanDescCheckCount := cspscanFields[2].Descriptor()
+	// cspscan.DefaultCheckCount holds the default value on creation for the check_count field.
+	cspscan.DefaultCheckCount = cspscanDescCheckCount.Default.(int)
+	datamigrationFields := schema.DataMigration{}.Fields()
+	_ = datamigrationFields
+	// datamigrationDescAppliedAt is the schema descriptor for applied_at field.
+	datamigrationDescAppliedAt := datamigrationFields[1].Descriptor()
+	// datamigration.DefaultAppliedAt holds the default value on creation for the applied_at field.
+	datamigration.DefaultAppliedAt = datamigrationDescAppliedAt.Default.(func() time.Time)
+	ipMixin := schema.IP{}.Mixin()
+	ipMixinFields0 := ipMixin[0].Fields()
+	_ = ipMixinFields0
+	ipFields := schema.IP{}.Fields()
+	_ = ipFields
+	// ipDescCreateTime is the schema descriptor for create_time field.
+	ipDescCreateTime := ipMixinFields0[0].Descriptor()
+	// ip.DefaultCreateTime holds the default value on creation for the create_time field.
+	ip.DefaultCreateTime = ipDescCreateTime.Default.(func() time.Time)
+	// ipDescUpdateTime is the schema descriptor for update_time field.
+	ipDescUpdateTime := ipMixinFields0[1].Descriptor()
+	// ip.DefaultUpdateTime holds the default value on creation for the update_time field.
+	ip.DefaultUpdateTime = ipDescUpdateTime.Default.(func() time.Time)
+	// ip.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	ip.UpdateDefaultUpdateTime = ipDescUpdateTime.UpdateDefault.(func() time.Time)
+	// ipDescAddress is the schema descriptor for address field.
+	ipDescAddress := ipFields[0].Descriptor()
+	// ip.AddressValidator is a validator for the "address" field. It is called by the builders before save.
+	ip.AddressValidator = ipDescAddress.Validators[0].(func(string) error)
+	importerconfigMixin := schema.ImporterConfig{}.Mixin()
+	importerconfigMixinFields0 := importerconfigMixin[0].Fields()
+	_ = importerconfigMixinFields0
+	importerconfigFields := schema.ImporterConfig{}.Fields()
+	_ = importerconfigFields
+	// importerconfigDescCreateTime is the schema descriptor for create_time field.
+	importerconfigDescCreateTime := importerconfigMixinFields0[0].Descriptor()
+	// importerconfig.DefaultCreateTime holds the default value on creation for the create_time field.
+	importerconfig.DefaultCreateTime = importerconfigDescCreateTime.Default.(func() time.Time)
+	// importerconfigDescUpdateTime is the schema descriptor for update_time field.
+	importerconfigDescUpdateTime := importerconfigMixinFields0[1].Descriptor()
+	// importerconfig.DefaultUpdateTime holds the default value on creation for the update_time field.
+	importerconfig.DefaultUpdateTime = importerconfigDescUpdateTime.Default.(func() time.Time)
+	// importerconfig.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	importerconfig.UpdateDefaultUpdateTime = importerconfigDescUpdateTime.UpdateDefault.(func() time.Time)
+	// importerconfigDescSyncIntervalSeconds is the schema descriptor for sync_interval_seconds field.
+	importerconfigDescSyncIntervalSeconds := importerconfigFields[2].Descriptor()
+	// importerconfig.DefaultSyncIntervalSeconds holds the default value on creation for the sync_interval_seconds field.
+	importerconfig.DefaultSyncIntervalSeconds = importerconfigDescSyncIntervalSeconds.Default.(int64)
+	// importerconfigDescEnabled is the schema descriptor for enabled field.
+	importerconfigDescEnabled := importerconfigFields[4].Descriptor()
+	// importerconfig.DefaultEnabled holds the default value on creation for the enabled field.
+	importerconfig.DefaultEnabled = importerconfigDescEnabled.Default.(bool)
+	inviteMixin := schema.Invite{}.Mixin()
+	inviteMixinFields0 := inviteMixin[0].Fields()
+	_ = inviteMixinFields0
+	inviteFields := schema.Invite{}.Fields()
+	_ = inviteFields
+	// inviteDescCreateTime is the schema descriptor for create_time field.
+	inviteDescCreateTime := inviteMixinFields0[0].Descriptor()
+	// invite.DefaultCreateTime holds the default value on creation for the create_time field.
+	invite.DefaultCreateTime = inviteDescCreateTime.Default.(func() time.Time)
+	// inviteDescUpdateTime is the schema descriptor for update_time field.
+	inviteDescUpdateTime := inviteMixinFields0[1].Descriptor()
+	// invite.DefaultUpdateTime holds the default value on creation for the update_time field.
+	invite.DefaultUpdateTime = inviteDescUpdateTime.Default.(func() time.Time)
+	// invite.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	invite.UpdateDefaultUpdateTime = inviteDescUpdateTime.UpdateDefault.(func() time.Time)
+	// inviteDescEmail is the schema descriptor for email field.
+	inviteDescEmail := inviteFields[0].Descriptor()
+	// invite.EmailValidator is a validator for the "email" field. It is called by the builders before save.
+	invite.EmailValidator = inviteDescEmail.Validators[0].(func(string) error)
+	// inviteDescTokenHash is the schema descriptor for token_hash field.
+	inviteDescTokenHash := inviteFields[1].Descriptor()
+	// invite.TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
+	invite.TokenHashValidator = inviteDescTokenHash.Validators[0].(func(string) error)
+	jobMixin := schema.Job{}.Mixin()
+	jobMixinFields0 := jobMixin[0].Fields()
+	_ = jobMixinFields0
+	jobFields := schema.Job{}.Fields()
+	_ = jobFields
+	// jobDescCreateTime is the schema descriptor for create_time field.
+	jobDescCreateTime := jobMixinFields0[0].Descriptor()
+	// job.DefaultCreateTime holds the default value on creation for the create_time field.
+	job.DefaultCreateTime = jobDescCreateTime.Default.(func() time.Time)
+	// jobDescUpdateTime is the schema descriptor for update_time field.
+	jobDescUpdateTime := jobMixinFields0[1].Descriptor()
+	// job.DefaultUpdateTime holds the default value on creation for the update_time field.
+	job.DefaultUpdateTime = jobDescUpdateTime.Default.(func() time.Time)
+	// job.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	job.UpdateDefaultUpdateTime = jobDescUpdateTime.UpdateDefault.(func() time.Time)
+	notifierconfigMixin := schema.NotifierConfig{}.Mixin()
+	notifierconfigMixinFields0 := notifierconfigMixin[0].Fields()
+	_ = notifierconfigMixinFields0
+	notifierconfigFields := schema.NotifierConfig{}.Fields()
+	_ = notifierconfigFields
+	// notifierconfigDescCreateTime is the schema descriptor for create_time field.
+	notifierconfigDescCreateTime := notifierconfigMixinFields0[0].Descriptor()
+	// notifierconfig.DefaultCreateTime holds the default value on creation for the create_time field.
+	notifierconfig.DefaultCreateTime = notifierconfigDescCreateTime.Default.(func() time.Time)
+	// notifierconfigDescUpdateTime is the schema descriptor for update_time field.
+	notifierconfigDescUpdateTime := notifierconfigMixinFields0[1].Descriptor()
+	// notifierconfig.DefaultUpdateTime holds the default value on creation for the update_time field.
+	notifierconfig.DefaultUpdateTime = notifierconfigDescUpdateTime.Default.(func() time.Time)
+	// notifierconfig.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	notifierconfig.UpdateDefaultUpdateTime = notifierconfigDescUpdateTime.UpdateDefault.(func() time.Time)
+	// notifierconfigDescEnabled is the schema descriptor for enabled field.
+	notifierconfigDescEnabled := notifierconfigFields[2].Descriptor()
+	// notifierconfig.DefaultEnabled holds the default value on creation for the enabled field.
+	notifierconfig.DefaultEnabled = notifierconfigDescEnabled.Default.(bool)
+	portscanFields := schema.PortScan{}.Fields()
+	_ = portscanFields
+	// portscanDescScannedAt is the schema descriptor for scanned_at field.
+	portscanDescScannedAt := portscanFields[0].Descriptor()
+	// portscan.DefaultScannedAt holds the default value on creation for the scanned_at field.
+	portscan.DefaultScannedAt = portscanDescScannedAt.Default.(func() time.Time)
+	// portscanDescCheckCount is the schema descriptor for check_count field.
+	portscanDescCheckCount := portscanFields[2].Descriptor()
+	// portscan.DefaultCheckCount holds the default value on creation for the check_count field.
+	portscan.DefaultCheckCount = portscanDescCheckCount.Default.(int)
+	sslscanFields := schema.SSLScan{}.Fields()
+	_ = sslscanFields
+	// sslscanDescCheckCount is the schema descriptor for check_count field.
+	sslscanDescCheckCount := sslscanFields[2].Descriptor()
+	// sslscan.DefaultCheckCount holds the default value on creation for the check_count field.
+	sslscan.DefaultCheckCount = sslscanDescCheckCount.Default.(int)
+	sessionMixin := schema.Session{}.Mixin()
+	sessionMixinFields0 := sessionMixin[0].Fields()
+	_ = sessionMixinFields0
+	sessionFields := schema.Session{}.Fields()
+	_ = sessionFields
+	// sessionDescCreateTime is the schema descriptor for create_time field.
+	sessionDescCreateTime := sessionMixinFields0[0].Descriptor()
+	// session.DefaultCreateTime holds the default value on creation for the create_time field.
+	session.DefaultCreateTime = sessionDescCreateTime.Default.(func() time.Time)
+	// sessionDescUpdateTime is the schema descriptor for update_time field.
+	sessionDescUpdateTime := sessionMixinFields0[1].Descriptor()
+	// session.DefaultUpdateTime holds the default value on creation for the update_time field.
+	session.DefaultUpdateTime = sessionDescUpdateTime.Default.(func() time.Time)
+	// session.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	session.UpdateDefaultUpdateTime = sessionDescUpdateTime.UpdateDefault.(func() time.Time)
+	// sessionDescTokenHash is the schema descriptor for token_hash field.
+	sessionDescTokenHash := sessionFields[0].Descriptor()
+	// session.TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
+	session.TokenHashValidator = sessionDescTokenHash.Validators[0].(func(string) error)
+	tagFields := schema.Tag{}.Fields()
+	_ = tagFields
+	// tagDescName is the schema descriptor for name field.
+	tagDescName := tagFields[0].Descriptor()
+	// tag.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	tag.NameValidator = tagDescName.Validators[0].(func(string) error)
+	// tagDescColor is the schema descriptor for color field.
+	tagDescColor := tagFields[1].Descriptor()
+	// tag.DefaultColor holds the default value on creation for the color field.
+	tag.DefaultColor = tagDescColor.Default.(string)
+	targetMixin := schema.Target{}.Mixin()
+	targetMixinInters1 := targetMixin[1].Interceptors()
+	target.Interceptors[0] = targetMixinInters1[0]
+	targetMixinFields0 := targetMixin[0].Fields()
+	_ = targetMixinFields0
+	targetFields := schema.Target{}.Fields()
+	_ = targetFields
+	// targetDescCreateTime is the schema descriptor for create_time field.
+	targetDescCreateTime := targetMixinFields0[0].Descriptor()
+	// target.DefaultCreateTime holds the default value on creation for the create_time field.
+	target.DefaultCreateTime = targetDescCreateTime.Default.(func() time.Time)
+	// targetDescUpdateTime is the schema descriptor for update_time field.
+	targetDescUpdateTime := targetMixinFields0[1].Descriptor()
+	// target.DefaultUpdateTime holds the default value on creation for the update_time field.
+	target.DefaultUpdateTime = targetDescUpdateTime.Default.(func() time.Time)
+	// target.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	target.UpdateDefaultUpdateTime = targetDescUpdateTime.UpdateDefault.(func() time.Time)
+	// targetDescInput is the schema descriptor for input field.
+	targetDescInput := targetFields[0].Descriptor()
+	// target.InputValidator is a validator for the "input" field. It is called by the builders before save.
+	target.InputValidator = targetDescInput.Validators[0].(func(string) error)
+	// targetDescIsIP is the schema descriptor for is_ip field.
+	targetDescIsIP := targetFields[1].Descriptor()
+	// target.DefaultIsIP holds the default value on creation for the is_ip field.
+	target.DefaultIsIP = targetDescIsIP.Default.(bool)
+	// targetDescResolveAttempts is the schema descriptor for resolve_attempts field.
+	targetDescResolveAttempts := targetFields[2].Descriptor()
+	// target.DefaultResolveAttempts holds the default value on creation for the resolve_attempts field.
+	target.DefaultResolveAttempts = targetDescResolveAttempts.Default.(int)
+	// targetDescLatestSslGradeRank is the schema descriptor for latest_ssl_grade_rank field.
+	targetDescLatestSslGradeRank := targetFields[6].Descriptor()
+	// target.DefaultLatestSslGradeRank holds the default value on creation for the latest_ssl_grade_rank field.
+	target.DefaultLatestSslGradeRank = targetDescLatestSslGradeRank.Default.(int)
+	// targetDescOpenPortCount is the schema descriptor for open_port_count field.
+	targetDescOpenPortCount := targetFields[9].Descriptor()
+	// target.DefaultOpenPortCount holds the default value on creation for the open_port_count field.
+	target.DefaultOpenPortCount = targetDescOpenPortCount.Default.(int)
+	userMixin := schema.User{}.Mixin()
+	userMixinFields0 := userMixin[0].Fields()
+	_ = userMixinFields0
+	userFields := schema.User{}.Fields()
+	_ = userFields
+	// userDescCreateTime is the schema descriptor for create_time field.
+	userDescCreateTime := userMixinFields0[0].Descriptor()
+	// user.DefaultCreateTime holds the default value on creation for the create_time field.
+	user.DefaultCreateTime = userDescCreateTime.Default.(func() time.Time)
+	// userDescUpdateTime is the schema descriptor for update_time field.
+	userDescUpdateTime := userMixinFields0[1].Descriptor()
+	// user.DefaultUpdateTime holds the default value on creation for the update_time field.
+	user.DefaultUpdateTime = userDescUpdateTime.Default.(func() time.Time)
+	// user.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	user.UpdateDefaultUpdateTime = userDescUpdateTime.UpdateDefault.(func() time.Time)
+	// userDescEmail is the schema descriptor for email field.
+	userDescEmail := userFields[0].Descriptor()
+	// user.EmailValidator is a validator for the "email" field. It is called by the builders before save.
+	user.EmailValidator = userDescEmail.Validators[0].(func(string) error)
+	// userDescName is the schema descriptor for name field.
+	userDescName := userFields[1].Descriptor()
+	// user.DefaultName holds the default value on creation for the name field.
+	user.DefaultName = userDescName.Default.(string)
+	// userDescConfirmed is the schema descriptor for confirmed field.
+	userDescConfirmed := userFields[3].Descriptor()
+	// user.DefaultConfirmed holds the default value on creation for the confirmed field.
+	user.DefaultConfirmed = userDescConfirmed.Default.(bool)
+}
 
 const (
 	Version = "v0.14.5"                                         // Version of ent codegen.

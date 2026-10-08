@@ -74,6 +74,9 @@
 </form>
 
 <h2>Targets</h2>
+{{if gt .DeletedCount 0}}
+<p style="margin: -4px 0 12px;"><a href="/targets/deleted" class="text-muted">Deleted targets ({{.DeletedCount}})</a></p>
+{{end}}
 
 <table>
   <thead>
@@ -179,7 +182,7 @@
 
       <td>
         <form method="POST" action="/targets/{{.ID}}/delete"
-          onsubmit="return confirm('Delete this target?');" style="display:inline;">
+          onsubmit="return confirm('Delete this target? It can be restored from Deleted targets.');" style="display:inline;">
           <button type="submit" class="btn-danger">Delete</button>
         </form>
       </td>

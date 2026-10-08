@@ -2265,7 +2265,8 @@ func (c *TargetClient) Hooks() []Hook {
 
 // Interceptors returns the client interceptors.
 func (c *TargetClient) Interceptors() []Interceptor {
-	return c.inters.Target
+	inters := c.inters.Target
+	return append(inters[:len(inters):len(inters)], target.Interceptors[:]...)
 }
 
 func (c *TargetClient) mutate(ctx context.Context, m *TargetMutation) (Value, error) {
