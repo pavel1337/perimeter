@@ -53,7 +53,8 @@ func renderIndexCertCells(t *testing.T, targets []*ent.Target) []string {
 var certCellRe = regexp.MustCompile(`(?s)<td>\s*(.*?)\s*</td>`)
 
 // certCellBodies pulls the Cert Expiry column out of each target row. Column
-// 5 (0-based 4) is the cert cell; the rows are identified by the Delete form.
+// 6 (0-based 5) is the cert cell, after the bulk-select checkbox column; the
+// rows are identified by the Delete form.
 func certCellBodies(t *testing.T, html string) []string {
 	t.Helper()
 	var out []string
@@ -62,10 +63,10 @@ func certCellBodies(t *testing.T, html string) []string {
 			continue
 		}
 		tds := certCellRe.FindAllStringSubmatch(row, -1)
-		if len(tds) < 5 {
-			t.Fatalf("expected at least 5 cells in row, got %d", len(tds))
+		if len(tds) < 6 {
+			t.Fatalf("expected at least 6 cells in row, got %d", len(tds))
 		}
-		out = append(out, strings.Join(strings.Fields(tds[4][1]), " "))
+		out = append(out, strings.Join(strings.Fields(tds[5][1]), " "))
 	}
 	return out
 }

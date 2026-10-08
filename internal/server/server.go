@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/csv"
@@ -102,6 +103,10 @@ func (s *Server) Listen(addr string) error {
 }
 
 func (s *Server) setupRoutes() {
+	// Before every route, public ones included: login and setup forms are
+	// CSRF targets too.
+	s.app.Use(crossOriginProtection())
+
 	// Public routes
 	s.app.Get("/setup", s.handleSetupPage)
 	s.app.Post("/setup", s.handleSetup)
@@ -124,6 +129,9 @@ func (s *Server) setupRoutes() {
 	authed.Get("/targets/:id", s.handleTargetDetails)
 	authed.Get("/import", s.handleImport)
 	authed.Post("/import", s.handleImportSubmit)
+	// Registered before /targets/:id/... so "bulk" is not read as an id.
+	authed.Post("/targets/bulk/export", s.handleBulkExport)
+	authed.Post("/targets/bulk/delete", s.handleBulkDelete)
 	authed.Post("/targets/:id/delete", s.handleDeleteTarget)
 	authed.Post("/targets/:id/restore", s.handleRestoreTarget)
 	authed.Post("/targets/:id/purge", s.handlePurgeTarget)
@@ -1230,22 +1238,10 @@ type exportCSP struct {
 	ProbeError string `json:"probe_error,omitempty"`
 }
 
-func (s *Server) handleExportTarget(c *fiber.Ctx) error {
-	id, err := strconv.Atoi(c.Params("id"))
-	if err != nil {
-		return c.Status(400).SendString("Invalid ID")
-	}
-
-	t, err := s.storage.GetTarget(c.Context(), id)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return c.Status(404).SendString("Target not found")
-		}
-		return c.Status(500).SendString(err.Error())
-	}
-
-	format := c.Query("format", "json")
-
+// newExportData gathers the export view of a target. The target must come
+// from a query that loaded its full history (GetTarget or
+// EachTargetWithHistory).
+func newExportData(t *ent.Target) exportData {
 	data := exportData{
 		Target:       t.Input,
 		IsIP:         t.IsIP,
@@ -1291,31 +1287,58 @@ func (s *Server) handleExportTarget(c *fiber.Ctx) error {
 		})
 	}
 
+	return data
+}
+
+// exportCSVRows returns the data rows of a target's CSV export, without the
+// header. Each row is type, timestamp, detail, value.
+func exportCSVRows(d exportData) [][]string {
+	var rows [][]string
+	for _, ip := range d.IPs {
+		for _, scan := range ip.Scans {
+			portStrs := make([]string, len(scan.Ports))
+			for i, p := range scan.Ports {
+				portStrs[i] = strconv.Itoa(p)
+			}
+			rows = append(rows, []string{"port_scan", scan.ScannedAt, ip.Address, strings.Join(portStrs, ";")})
+		}
+	}
+	for _, scan := range d.SSL {
+		rows = append(rows, []string{"ssl_scan", scan.ScannedAt, scan.Grade, scan.Status})
+	}
+	for _, scan := range d.CSP {
+		detail := strconv.Itoa(scan.Findings) + " findings"
+		if scan.ProbeError != "" {
+			detail = "no HTTP response: " + scan.ProbeError
+		}
+		rows = append(rows, []string{"csp_scan", scan.ScannedAt, detail, scan.Header})
+	}
+	return rows
+}
+
+func (s *Server) handleExportTarget(c *fiber.Ctx) error {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(400).SendString("Invalid ID")
+	}
+
+	t, err := s.storage.GetTarget(c.Context(), id)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return c.Status(404).SendString("Target not found")
+		}
+		return c.Status(500).SendString(err.Error())
+	}
+
+	format := c.Query("format", "json")
+	data := newExportData(t)
+
 	switch format {
 	case "csv":
 		c.Set("Content-Type", "text/csv")
 		c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s.csv", t.Input))
 
-		rows := [][]string{{"type", "timestamp", "detail", "value"}}
-		for _, ip := range data.IPs {
-			for _, scan := range ip.Scans {
-				portStrs := make([]string, len(scan.Ports))
-				for i, p := range scan.Ports {
-					portStrs[i] = strconv.Itoa(p)
-				}
-				rows = append(rows, []string{"port_scan", scan.ScannedAt, ip.Address, strings.Join(portStrs, ";")})
-			}
-		}
-		for _, scan := range data.SSL {
-			rows = append(rows, []string{"ssl_scan", scan.ScannedAt, scan.Grade, scan.Status})
-		}
-		for _, scan := range data.CSP {
-			detail := strconv.Itoa(scan.Findings) + " findings"
-			if scan.ProbeError != "" {
-				detail = "no HTTP response: " + scan.ProbeError
-			}
-			rows = append(rows, []string{"csp_scan", scan.ScannedAt, detail, scan.Header})
-		}
+		rows := append([][]string{{"type", "timestamp", "detail", "value"}}, exportCSVRows(data)...)
 
 		var buf bytes.Buffer
 		w := csv.NewWriter(&buf)
@@ -1330,4 +1353,202 @@ func (s *Server) handleExportTarget(c *fiber.Ctx) error {
 		out, _ := json.MarshalIndent(data, "", "  ")
 		return c.Send(out)
 	}
+}
+
+// --- Bulk actions (issue #18) ---
+
+// badRequest is a selection or parameter the client got wrong. The bulk
+// handlers answer it with 400; any other error is a 500.
+type badRequest struct{ msg string }
+
+func (e badRequest) Error() string { return e.msg }
+
+// bulkError writes the response for an error from bulkSelection.
+func bulkError(c *fiber.Ctx, err error) error {
+	var bad badRequest
+	if errors.As(err, &bad) {
+		return c.Status(400).SendString(bad.msg)
+	}
+	return c.Status(500).SendString(err.Error())
+}
+
+// bulkSelection resolves the targets a bulk request acts on. With form value
+// all == "1" the selection is every live target matching the dashboard
+// filter in the form; otherwise it is the ids form values.
+func (s *Server) bulkSelection(c *fiber.Ctx) ([]int, error) {
+	args := c.Request().PostArgs()
+
+	if string(args.Peek("all")) == "1" {
+		q := url.Values{}
+		for _, k := range dashboardParams {
+			if v := args.Peek(k); len(v) > 0 {
+				q.Set(k, string(v))
+			}
+		}
+		filter, _, err := parseDashboardQuery(q)
+		if err != nil {
+			return nil, badRequest{err.Error()}
+		}
+		ids, err := s.storage.TargetIDs(c.Context(), filter)
+		if err != nil {
+			return nil, err
+		}
+		if len(ids) == 0 {
+			return nil, badRequest{"No targets selected"}
+		}
+		return ids, nil
+	}
+
+	var ids []int
+	for _, raw := range args.PeekMulti("ids") {
+		id, err := strconv.Atoi(string(raw))
+		if err != nil || id < 1 {
+			return nil, badRequest{"Invalid target ID"}
+		}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return nil, badRequest{"No targets selected"}
+	}
+	// Duplicates would inflate the count the confirmation page shows.
+	slices.Sort(ids)
+	return slices.Compact(ids), nil
+}
+
+// handleBulkExport streams the selected targets as one JSON array or CSV file.
+// The selection is resolved before the response starts, so a bad request is
+// still a 400. Errors once streaming has begun can only be logged.
+func (s *Server) handleBulkExport(c *fiber.Ctx) error {
+	format := string(c.Request().PostArgs().Peek("format"))
+	if format == "" {
+		format = "json"
+	}
+	if format != "json" && format != "csv" {
+		return c.Status(400).SendString("Invalid format")
+	}
+
+	ids, err := s.bulkSelection(c)
+	if err != nil {
+		return bulkError(c, err)
+	}
+
+	// The stream writer runs after this handler returns, when c has been
+	// recycled, so nothing below may touch c.
+	ctx := context.Background()
+	day := time.Now().UTC().Format("20060102")
+
+	if format == "csv" {
+		c.Set("Content-Type", "text/csv")
+		c.Set("Content-Disposition", "attachment; filename=perimeter-targets-"+day+".csv")
+		c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
+			s.streamBulkCSV(ctx, w, ids)
+		})
+		return nil
+	}
+
+	c.Set("Content-Type", "application/json")
+	c.Set("Content-Disposition", "attachment; filename=perimeter-targets-"+day+".json")
+	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
+		s.streamBulkJSON(ctx, w, ids)
+	})
+	return nil
+}
+
+// streamBulkJSON writes a JSON array with one exportData per target. On error
+// the array is left unclosed, so a truncated download does not parse.
+func (s *Server) streamBulkJSON(ctx context.Context, w *bufio.Writer, ids []int) {
+	if _, err := w.WriteString("[\n"); err != nil {
+		log.Printf("bulk export: %v", err)
+		return
+	}
+	first := true
+	err := s.storage.EachTargetWithHistory(ctx, ids, func(t *ent.Target) error {
+		if !first {
+			if _, err := w.WriteString(",\n"); err != nil {
+				return err
+			}
+		}
+		first = false
+		out, err := json.MarshalIndent(newExportData(t), "  ", "  ")
+		if err != nil {
+			return err
+		}
+		if _, err := w.WriteString("  "); err != nil {
+			return err
+		}
+		_, err = w.Write(out)
+		return err
+	})
+	if err != nil {
+		log.Printf("bulk export: %v", err)
+		return
+	}
+	if _, err := w.WriteString("\n]\n"); err != nil {
+		log.Printf("bulk export: %v", err)
+	}
+}
+
+// streamBulkCSV writes one CSV with a target column in front of each row of
+// the single-target export.
+func (s *Server) streamBulkCSV(ctx context.Context, w *bufio.Writer, ids []int) {
+	cw := csv.NewWriter(w)
+	if err := cw.Write([]string{"target", "type", "timestamp", "detail", "value"}); err != nil {
+		log.Printf("bulk export: %v", err)
+		return
+	}
+	cw.Flush()
+	err := s.storage.EachTargetWithHistory(ctx, ids, func(t *ent.Target) error {
+		d := newExportData(t)
+		for _, row := range exportCSVRows(d) {
+			if err := cw.Write(append([]string{d.Target}, row...)); err != nil {
+				return err
+			}
+		}
+		cw.Flush()
+		return cw.Error()
+	})
+	if err != nil {
+		log.Printf("bulk export: %v", err)
+	}
+}
+
+// bulkDeletePreview is how many targets the delete confirmation names.
+const bulkDeletePreview = 20
+
+// handleBulkDelete asks for confirmation, then soft-deletes the resolved
+// selection. The confirmation form posts the resolved ids, never all=1, so
+// the targets deleted are exactly the ones the user saw counted.
+func (s *Server) handleBulkDelete(c *fiber.Ctx) error {
+	ids, err := s.bulkSelection(c)
+	if err != nil {
+		return bulkError(c, err)
+	}
+
+	if string(c.Request().PostArgs().Peek("confirm")) != "1" {
+		return s.renderBulkDeleteConfirm(c, ids)
+	}
+
+	if _, err := s.storage.DeleteTargets(c.Context(), ids); err != nil {
+		return c.Status(500).SendString(err.Error())
+	}
+	return c.Redirect("/")
+}
+
+func (s *Server) renderBulkDeleteConfirm(c *fiber.Ctx, ids []int) error {
+	preview := ids[:min(bulkDeletePreview, len(ids))]
+	targets, err := s.client.Target.Query().
+		Where(target.IDIn(preview...)).
+		Order(ent.Asc(target.FieldInput)).
+		All(c.Context())
+	if err != nil {
+		return c.Status(500).SendString(err.Error())
+	}
+
+	return c.Render("views/bulk_delete", s.templateData(c, fiber.Map{
+		"Title":   "Delete targets",
+		"IDs":     ids,
+		"Count":   len(ids),
+		"Targets": targets,
+		"More":    len(ids) - len(preview),
+	}), "views/layouts/main")
 }

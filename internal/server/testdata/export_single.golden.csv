@@ -1,0 +1,6 @@
+type,timestamp,detail,value
+port_scan,2026-01-02T01:04:05Z,192.0.2.10,80;443
+ssl_scan,2026-01-02T04:04:05Z,B,READY
+ssl_scan,2026-01-02T02:04:05Z,A,READY
+csp_scan,2026-01-02T06:04:05Z,no HTTP response: connection refused,
+csp_scan,2026-01-02T05:04:05Z,1 findings,default-src 'self'

@@ -199,6 +199,27 @@ func withTargetDetails(q *ent.TargetQuery) *ent.TargetQuery {
 		WithTags()
 }
 
+// withTargetHistory eager-loads everything the target page shows: every IP
+// with its port scans (newest first) and their ports, all SSL and CSP scans
+// (newest first), and tags. GetTarget uses it, so the full history cannot
+// drift from what the detail page expects.
+func withTargetHistory(q *ent.TargetQuery) *ent.TargetQuery {
+	return q.
+		WithIps(func(q *ent.IPQuery) {
+			q.WithScans(func(sq *ent.PortScanQuery) {
+				sq.Order(ent.Desc(portscan.FieldScannedAt), ent.Desc(portscan.FieldID)).
+					WithPorts()
+			})
+		}).
+		WithSslScans(func(q *ent.SSLScanQuery) {
+			q.Order(ent.Desc(sslscan.FieldScannedAt), ent.Desc(sslscan.FieldID))
+		}).
+		WithCspScans(func(q *ent.CSPScanQuery) {
+			q.Order(ent.Desc(cspscan.FieldScannedAt), ent.Desc(cspscan.FieldID))
+		}).
+		WithTags()
+}
+
 // ListTargets returns one page of targets matching f, ordered by s, loaded
 // like GetTargets (IPs with their newest port scan and ports, newest SSL and
 // CSP scan, tags). limit <= 0 means no limit.

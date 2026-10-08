@@ -78,9 +78,27 @@
 <p style="margin: -4px 0 12px;"><a href="/targets/deleted" class="text-muted">Deleted targets ({{.DeletedCount}})</a></p>
 {{end}}
 
+{{if gt .TotalTargets 0}}
+<form id="bulk" method="POST" action="/targets/bulk/delete" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px;">
+  {{range $k, $vs := .Query}}{{range $vs}}<input type="hidden" name="{{$k}}" value="{{.}}">{{end}}{{end}}
+  <input type="hidden" name="all" id="bulk-all" value="">
+  <span id="bulk-count" class="text-muted" style="margin-right: 4px;">0 selected</span>
+  <button type="submit" name="format" value="json" formaction="/targets/bulk/export" disabled>Export JSON</button>
+  <button type="submit" name="format" value="csv" formaction="/targets/bulk/export" disabled>Export CSV</button>
+  <button type="submit" class="btn-danger" disabled>Delete selected</button>
+</form>
+{{if gt .TotalTargets (len .Targets)}}
+<p id="bulk-select-all" class="text-muted" data-total="{{.TotalTargets}}" hidden style="margin: 0 0 12px;">
+  <span id="bulk-page-msg">All {{len .Targets}} on this page are selected. <a href="#" id="bulk-select-all-link">Select all {{.TotalTargets}} matching targets</a></span>
+  <span id="bulk-all-msg" hidden>All {{.TotalTargets}} matching targets selected. <a href="#" id="bulk-clear-link">Clear selection</a></span>
+</p>
+{{end}}
+{{end}}
+
 <table>
   <thead>
     <tr>
+      <th style="width: 32px;"><input type="checkbox" id="bulk-select-page" title="Select all on this page" aria-label="Select all on this page"></th>
       <th>{{with index .SortHeaders "target"}}<a href="{{.URL}}">Target{{.Arrow}}</a>{{end}}</th>
       <th>{{with index .SortHeaders "csp"}}<a href="{{.URL}}">CSP{{.Arrow}}</a>{{end}}</th>
       <th>{{with index .SortHeaders "ports"}}<a href="{{.URL}}">Open Ports{{.Arrow}}</a>{{end}}</th>
@@ -92,6 +110,7 @@
   <tbody>
     {{range .Targets}}
     <tr>
+      <td><input type="checkbox" name="ids" value="{{.ID}}" form="bulk" class="bulk-row" aria-label="Select {{.Input}}"></td>
       <td>
         <a href="/targets/{{.ID}}"><strong>{{.Input}}</strong></a>
         {{range .Edges.Tags}}<span class="badge" style="background: {{.Color}}20; color: {{.Color}}; margin-left: 4px;">{{.Name}}</span>{{end}}
@@ -189,7 +208,7 @@
     </tr>
     {{else}}
     <tr>
-      <td colspan="6" class="text-muted" style="text-align:center; padding:24px;">{{if eq (len .Query) 0}}No targets yet. <a href="/import">Import some.</a>{{else}}No targets match these filters. <a href="{{.ClearURL}}">Clear filters.</a>{{end}}</td>
+      <td colspan="7" class="text-muted" style="text-align:center; padding:24px;">{{if eq (len .Query) 0}}No targets yet. <a href="/import">Import some.</a>{{else}}No targets match these filters. <a href="{{.ClearURL}}">Clear filters.</a>{{end}}</td>
     </tr>
     {{end}}
   </tbody>
@@ -198,3 +217,69 @@
 {{template "views/partials/pagination" .Pagination}}
 
 {{template "views/partials/footer" .}}
+
+<script>
+(function () {
+  var form = document.getElementById('bulk');
+  if (!form) return;
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('input.bulk-row'));
+  var pageBox = document.getElementById('bulk-select-page');
+  var allInput = document.getElementById('bulk-all');
+  var count = document.getElementById('bulk-count');
+  var line = document.getElementById('bulk-select-all');
+  var pageMsg = document.getElementById('bulk-page-msg');
+  var allMsg = document.getElementById('bulk-all-msg');
+  var buttons = Array.prototype.slice.call(form.querySelectorAll('button'));
+
+  function checkedCount() {
+    return boxes.filter(function (b) { return b.checked; }).length;
+  }
+
+  function sync() {
+    var n = checkedCount();
+    var all = allInput.value === '1';
+    var pageFull = boxes.length > 0 && n === boxes.length;
+    var total = line ? line.getAttribute('data-total') : '';
+    pageBox.checked = pageFull;
+    pageBox.indeterminate = n > 0 && !pageFull;
+    if (all) {
+      count.textContent = 'All ' + total + ' matching targets selected';
+    } else {
+      count.textContent = n + ' selected';
+    }
+    if (line) {
+      line.hidden = !(all || pageFull);
+      pageMsg.hidden = all;
+      allMsg.hidden = !all;
+    }
+    buttons.forEach(function (b) { b.disabled = !all && n === 0; });
+  }
+
+  pageBox.addEventListener('change', function () {
+    boxes.forEach(function (b) { b.checked = pageBox.checked; });
+    allInput.value = '';
+    sync();
+  });
+  boxes.forEach(function (b) {
+    b.addEventListener('change', function () {
+      allInput.value = '';
+      sync();
+    });
+  });
+  if (line) {
+    document.getElementById('bulk-select-all-link').addEventListener('click', function (e) {
+      e.preventDefault();
+      allInput.value = '1';
+      sync();
+    });
+    document.getElementById('bulk-clear-link').addEventListener('click', function (e) {
+      e.preventDefault();
+      allInput.value = '';
+      boxes.forEach(function (b) { b.checked = false; });
+      sync();
+    });
+  }
+  window.addEventListener('pageshow', sync);
+  sync();
+})();
+</script>
