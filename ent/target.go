@@ -30,6 +30,8 @@ type Target struct {
 	ResolveAttempts int `json:"resolve_attempts,omitempty"`
 	// ResolveError holds the value of the "resolve_error" field.
 	ResolveError string `json:"resolve_error,omitempty"`
+	// Reachability holds the value of the "reachability" field.
+	Reachability target.Reachability `json:"reachability,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the TargetQuery when eager-loading is set.
 	Edges        TargetEdges `json:"edges"`
@@ -110,7 +112,7 @@ func (*Target) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case target.FieldID, target.FieldResolveAttempts:
 			values[i] = new(sql.NullInt64)
-		case target.FieldInput, target.FieldResolveError:
+		case target.FieldInput, target.FieldResolveError, target.FieldReachability:
 			values[i] = new(sql.NullString)
 		case target.FieldCreateTime, target.FieldUpdateTime:
 			values[i] = new(sql.NullTime)
@@ -172,6 +174,12 @@ func (_m *Target) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field resolve_error", values[i])
 			} else if value.Valid {
 				_m.ResolveError = value.String
+			}
+		case target.FieldReachability:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field reachability", values[i])
+			} else if value.Valid {
+				_m.Reachability = target.Reachability(value.String)
 			}
 		case target.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -258,6 +266,9 @@ func (_m *Target) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("resolve_error=")
 	builder.WriteString(_m.ResolveError)
+	builder.WriteString(", ")
+	builder.WriteString("reachability=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Reachability))
 	builder.WriteByte(')')
 	return builder.String()
 }

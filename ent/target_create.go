@@ -101,6 +101,20 @@ func (_c *TargetCreate) SetNillableResolveError(v *string) *TargetCreate {
 	return _c
 }
 
+// SetReachability sets the "reachability" field.
+func (_c *TargetCreate) SetReachability(v target.Reachability) *TargetCreate {
+	_c.mutation.SetReachability(v)
+	return _c
+}
+
+// SetNillableReachability sets the "reachability" field if the given value is not nil.
+func (_c *TargetCreate) SetNillableReachability(v *target.Reachability) *TargetCreate {
+	if v != nil {
+		_c.SetReachability(*v)
+	}
+	return _c
+}
+
 // AddIPIDs adds the "ips" edge to the IP entity by IDs.
 func (_c *TargetCreate) AddIPIDs(ids ...int) *TargetCreate {
 	_c.mutation.AddIPIDs(ids...)
@@ -231,6 +245,10 @@ func (_c *TargetCreate) defaults() {
 		v := target.DefaultResolveAttempts
 		_c.mutation.SetResolveAttempts(v)
 	}
+	if _, ok := _c.mutation.Reachability(); !ok {
+		v := target.DefaultReachability
+		_c.mutation.SetReachability(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -254,6 +272,14 @@ func (_c *TargetCreate) check() error {
 	}
 	if _, ok := _c.mutation.ResolveAttempts(); !ok {
 		return &ValidationError{Name: "resolve_attempts", err: errors.New(`ent: missing required field "Target.resolve_attempts"`)}
+	}
+	if _, ok := _c.mutation.Reachability(); !ok {
+		return &ValidationError{Name: "reachability", err: errors.New(`ent: missing required field "Target.reachability"`)}
+	}
+	if v, ok := _c.mutation.Reachability(); ok {
+		if err := target.ReachabilityValidator(v); err != nil {
+			return &ValidationError{Name: "reachability", err: fmt.Errorf(`ent: validator failed for field "Target.reachability": %w`, err)}
+		}
 	}
 	return nil
 }
@@ -304,6 +330,10 @@ func (_c *TargetCreate) createSpec() (*Target, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ResolveError(); ok {
 		_spec.SetField(target.FieldResolveError, field.TypeString, value)
 		_node.ResolveError = value
+	}
+	if value, ok := _c.mutation.Reachability(); ok {
+		_spec.SetField(target.FieldReachability, field.TypeEnum, value)
+		_node.Reachability = value
 	}
 	if nodes := _c.mutation.IpsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

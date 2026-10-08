@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"perimeter/ent/job"
@@ -533,10 +534,7 @@ func (m *Manager) processCSPScan(ctx context.Context, j Job, client http.Client,
 
 	if err != nil {
 		log.Printf("Worker: CSP Failed to connect to %s: %v", j.Input, err)
-		if serr := m.storage.SaveCSPScan(ctx, j.Input, "", []csp.Finding{{
-			Description: "Target Unreachable",
-			Severity:    csp.SeverityInfo,
-		}}); serr != nil {
+		if serr := m.storage.SaveCSPUnreachable(ctx, j.Input, probeErrorMessage(err)); serr != nil {
 			log.Printf("Worker: failed to save CSP scan for %s: %v", j.Input, serr)
 		}
 		m.failJob(ctx, j, err.Error())
@@ -627,6 +625,28 @@ func dnsErrorMessage(err error) string {
 		}
 	}
 	return err.Error()
+}
+
+// probeErrorMessage turns an HTTP client error into a short status. It is
+// stored on the scan row, and identical consecutive rows are collapsed, so it
+// must not embed per-attempt detail like addresses or durations.
+func probeErrorMessage(err error) string {
+	var dnsErr *net.DNSError
+	switch {
+	case errors.As(err, &dnsErr):
+		return dnsErrorMessage(err)
+	case errors.Is(err, syscall.ECONNREFUSED):
+		return "connection refused"
+	case errors.Is(err, syscall.EHOSTUNREACH), errors.Is(err, syscall.ENETUNREACH):
+		return "host unreachable"
+	case errors.Is(err, syscall.ECONNRESET):
+		return "connection reset"
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return "timed out"
+	}
+	return "no response"
 }
 
 // resolveBackoff returns how long to wait before the next attempt given the

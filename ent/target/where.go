@@ -355,6 +355,26 @@ func ResolveErrorContainsFold(v string) predicate.Target {
 	return predicate.Target(sql.FieldContainsFold(FieldResolveError, v))
 }
 
+// ReachabilityEQ applies the EQ predicate on the "reachability" field.
+func ReachabilityEQ(v Reachability) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldReachability, v))
+}
+
+// ReachabilityNEQ applies the NEQ predicate on the "reachability" field.
+func ReachabilityNEQ(v Reachability) predicate.Target {
+	return predicate.Target(sql.FieldNEQ(FieldReachability, v))
+}
+
+// ReachabilityIn applies the In predicate on the "reachability" field.
+func ReachabilityIn(vs ...Reachability) predicate.Target {
+	return predicate.Target(sql.FieldIn(FieldReachability, vs...))
+}
+
+// ReachabilityNotIn applies the NotIn predicate on the "reachability" field.
+func ReachabilityNotIn(vs ...Reachability) predicate.Target {
+	return predicate.Target(sql.FieldNotIn(FieldReachability, vs...))
+}
+
 // HasIps applies the HasEdge predicate on the "ips" edge.
 func HasIps() predicate.Target {
 	return predicate.Target(func(s *sql.Selector) {

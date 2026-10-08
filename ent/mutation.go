@@ -67,6 +67,7 @@ type CSPScanMutation struct {
 	csp_header     *string
 	findings       *[]csp.Finding
 	appendfindings []csp.Finding
+	probe_error    *string
 	clearedFields  map[string]struct{}
 	target         *int
 	clearedtarget  bool
@@ -415,6 +416,55 @@ func (m *CSPScanMutation) ResetFindings() {
 	delete(m.clearedFields, cspscan.FieldFindings)
 }
 
+// SetProbeError sets the "probe_error" field.
+func (m *CSPScanMutation) SetProbeError(s string) {
+	m.probe_error = &s
+}
+
+// ProbeError returns the value of the "probe_error" field in the mutation.
+func (m *CSPScanMutation) ProbeError() (r string, exists bool) {
+	v := m.probe_error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProbeError returns the old "probe_error" field's value of the CSPScan entity.
+// If the CSPScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CSPScanMutation) OldProbeError(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProbeError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProbeError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProbeError: %w", err)
+	}
+	return oldValue.ProbeError, nil
+}
+
+// ClearProbeError clears the value of the "probe_error" field.
+func (m *CSPScanMutation) ClearProbeError() {
+	m.probe_error = nil
+	m.clearedFields[cspscan.FieldProbeError] = struct{}{}
+}
+
+// ProbeErrorCleared returns if the "probe_error" field was cleared in this mutation.
+func (m *CSPScanMutation) ProbeErrorCleared() bool {
+	_, ok := m.clearedFields[cspscan.FieldProbeError]
+	return ok
+}
+
+// ResetProbeError resets all changes to the "probe_error" field.
+func (m *CSPScanMutation) ResetProbeError() {
+	m.probe_error = nil
+	delete(m.clearedFields, cspscan.FieldProbeError)
+}
+
 // SetTargetID sets the "target" edge to the Target entity by id.
 func (m *CSPScanMutation) SetTargetID(id int) {
 	m.target = &id
@@ -488,7 +538,7 @@ func (m *CSPScanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CSPScanMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 6)
 	if m.scanned_at != nil {
 		fields = append(fields, cspscan.FieldScannedAt)
 	}
@@ -503,6 +553,9 @@ func (m *CSPScanMutation) Fields() []string {
 	}
 	if m.findings != nil {
 		fields = append(fields, cspscan.FieldFindings)
+	}
+	if m.probe_error != nil {
+		fields = append(fields, cspscan.FieldProbeError)
 	}
 	return fields
 }
@@ -522,6 +575,8 @@ func (m *CSPScanMutation) Field(name string) (ent.Value, bool) {
 		return m.CspHeader()
 	case cspscan.FieldFindings:
 		return m.Findings()
+	case cspscan.FieldProbeError:
+		return m.ProbeError()
 	}
 	return nil, false
 }
@@ -541,6 +596,8 @@ func (m *CSPScanMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldCspHeader(ctx)
 	case cspscan.FieldFindings:
 		return m.OldFindings(ctx)
+	case cspscan.FieldProbeError:
+		return m.OldProbeError(ctx)
 	}
 	return nil, fmt.Errorf("unknown CSPScan field %s", name)
 }
@@ -584,6 +641,13 @@ func (m *CSPScanMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetFindings(v)
+		return nil
+	case cspscan.FieldProbeError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProbeError(v)
 		return nil
 	}
 	return fmt.Errorf("unknown CSPScan field %s", name)
@@ -636,6 +700,9 @@ func (m *CSPScanMutation) ClearedFields() []string {
 	if m.FieldCleared(cspscan.FieldFindings) {
 		fields = append(fields, cspscan.FieldFindings)
 	}
+	if m.FieldCleared(cspscan.FieldProbeError) {
+		fields = append(fields, cspscan.FieldProbeError)
+	}
 	return fields
 }
 
@@ -655,6 +722,9 @@ func (m *CSPScanMutation) ClearField(name string) error {
 		return nil
 	case cspscan.FieldFindings:
 		m.ClearFindings()
+		return nil
+	case cspscan.FieldProbeError:
+		m.ClearProbeError()
 		return nil
 	}
 	return fmt.Errorf("unknown CSPScan nullable field %s", name)
@@ -678,6 +748,9 @@ func (m *CSPScanMutation) ResetField(name string) error {
 		return nil
 	case cspscan.FieldFindings:
 		m.ResetFindings()
+		return nil
+	case cspscan.FieldProbeError:
+		m.ResetProbeError()
 		return nil
 	}
 	return fmt.Errorf("unknown CSPScan field %s", name)
@@ -7826,6 +7899,7 @@ type TargetMutation struct {
 	resolve_attempts    *int
 	addresolve_attempts *int
 	resolve_error       *string
+	reachability        *target.Reachability
 	clearedFields       map[string]struct{}
 	ips                 map[int]struct{}
 	removedips          map[int]struct{}
@@ -8193,6 +8267,42 @@ func (m *TargetMutation) ResetResolveError() {
 	delete(m.clearedFields, target.FieldResolveError)
 }
 
+// SetReachability sets the "reachability" field.
+func (m *TargetMutation) SetReachability(t target.Reachability) {
+	m.reachability = &t
+}
+
+// Reachability returns the value of the "reachability" field in the mutation.
+func (m *TargetMutation) Reachability() (r target.Reachability, exists bool) {
+	v := m.reachability
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReachability returns the old "reachability" field's value of the Target entity.
+// If the Target object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TargetMutation) OldReachability(ctx context.Context) (v target.Reachability, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReachability is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReachability requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReachability: %w", err)
+	}
+	return oldValue.Reachability, nil
+}
+
+// ResetReachability resets all changes to the "reachability" field.
+func (m *TargetMutation) ResetReachability() {
+	m.reachability = nil
+}
+
 // AddIPIDs adds the "ips" edge to the IP entity by ids.
 func (m *TargetMutation) AddIPIDs(ids ...int) {
 	if m.ips == nil {
@@ -8482,7 +8592,7 @@ func (m *TargetMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TargetMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 7)
 	if m.create_time != nil {
 		fields = append(fields, target.FieldCreateTime)
 	}
@@ -8500,6 +8610,9 @@ func (m *TargetMutation) Fields() []string {
 	}
 	if m.resolve_error != nil {
 		fields = append(fields, target.FieldResolveError)
+	}
+	if m.reachability != nil {
+		fields = append(fields, target.FieldReachability)
 	}
 	return fields
 }
@@ -8521,6 +8634,8 @@ func (m *TargetMutation) Field(name string) (ent.Value, bool) {
 		return m.ResolveAttempts()
 	case target.FieldResolveError:
 		return m.ResolveError()
+	case target.FieldReachability:
+		return m.Reachability()
 	}
 	return nil, false
 }
@@ -8542,6 +8657,8 @@ func (m *TargetMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldResolveAttempts(ctx)
 	case target.FieldResolveError:
 		return m.OldResolveError(ctx)
+	case target.FieldReachability:
+		return m.OldReachability(ctx)
 	}
 	return nil, fmt.Errorf("unknown Target field %s", name)
 }
@@ -8592,6 +8709,13 @@ func (m *TargetMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetResolveError(v)
+		return nil
+	case target.FieldReachability:
+		v, ok := value.(target.Reachability)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReachability(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Target field %s", name)
@@ -8683,6 +8807,9 @@ func (m *TargetMutation) ResetField(name string) error {
 		return nil
 	case target.FieldResolveError:
 		m.ResetResolveError()
+		return nil
+	case target.FieldReachability:
+		m.ResetReachability()
 		return nil
 	}
 	return fmt.Errorf("unknown Target field %s", name)

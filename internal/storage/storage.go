@@ -32,7 +32,7 @@ type Storage interface {
 	// General
 	Close() error
 	ImportTargets(ctx context.Context, lines []string) (int, error)
-	GetTargets(ctx context.Context) ([]*ent.Target, error)
+	GetTargets(ctx context.Context, states ...target.Reachability) ([]*ent.Target, error)
 	GetTarget(ctx context.Context, id int) (*ent.Target, error)
 	GetTargetBasic(ctx context.Context, id int) (*ent.Target, error)
 	GetIPScansPage(ctx context.Context, ipID, limit, offset int) ([]*ent.PortScan, int, error)
@@ -52,6 +52,7 @@ type Storage interface {
 	SavePortScan(ctx context.Context, ipAddress string, openPorts []int) error
 	SaveSSLScan(ctx context.Context, input string, result SSLResult) error
 	SaveCSPScan(ctx context.Context, input string, header string, findings []csp.Finding) error
+	SaveCSPUnreachable(ctx context.Context, input string, probeErr string) error
 }
 
 // SSLResult DTO
@@ -129,8 +130,15 @@ func latestPerParent(table, parentCol string) func(*sql.Selector) {
 // anyway, so loading all of it was pure waste — several hundred targets meant
 // tens of thousands of rows on every render.  Callers that need the history
 // (the export handler) use GetTarget.
-func (s *EntStorage) GetTargets(ctx context.Context) ([]*ent.Target, error) {
-	return s.client.Target.Query().
+//
+// With states given, only targets in one of those reachability states are
+// returned.
+func (s *EntStorage) GetTargets(ctx context.Context, states ...target.Reachability) ([]*ent.Target, error) {
+	q := s.client.Target.Query()
+	if len(states) > 0 {
+		q.Where(target.ReachabilityIn(states...))
+	}
+	return q.
 		WithIps(func(q *ent.IPQuery) {
 			q.WithScans(func(sq *ent.PortScanQuery) {
 				sq.Where(latestPerParent(portscan.Table, portscan.IPColumn)).
@@ -349,12 +357,15 @@ func (s *EntStorage) GetUnresolvedTargets(ctx context.Context, limit int, _ time
 // RecordResolveFailure bumps the attempt counter and stores a status message.
 // UpdateTime is the backoff clock, so it is reset to now.
 func (s *EntStorage) RecordResolveFailure(ctx context.Context, input, msg string) error {
-	return s.client.Target.Update().
+	if err := s.client.Target.Update().
 		Where(target.Input(input)).
 		AddResolveAttempts(1).
 		SetResolveError(msg).
 		SetUpdateTime(time.Now()).
-		Exec(ctx)
+		Exec(ctx); err != nil {
+		return err
+	}
+	return refreshReachability(ctx, s.client, target.Input(input))
 }
 
 func (s *EntStorage) TouchTarget(ctx context.Context, input string) error {
@@ -418,6 +429,11 @@ func (s *EntStorage) SaveIPs(ctx context.Context, targetInput string, ipAddresse
 		log.Printf("Failed to update target timestamp for %s: %v", t.Input, err)
 	}
 
+	// New IPs may already have port scans from other targets sharing them.
+	if err := refreshReachability(ctx, s.client, target.ID(t.ID)); err != nil {
+		log.Printf("Failed to update reachability for %s: %v", t.Input, err)
+	}
+
 	return nil
 }
 
@@ -430,6 +446,14 @@ func (s *EntStorage) SavePortScan(ctx context.Context, ipAddress string, openPor
 		return err
 	}
 
+	if err := s.savePortScan(ctx, i, openPorts); err != nil {
+		return err
+	}
+	// An open port makes every target on this IP reachable, domains included.
+	return refreshReachability(ctx, s.client, target.HasIpsWith(ip.ID(i.ID)))
+}
+
+func (s *EntStorage) savePortScan(ctx context.Context, i *ent.IP, openPorts []int) error {
 	now := time.Now()
 
 	latest, err := s.client.PortScan.Query().
@@ -508,37 +532,65 @@ func (s *EntStorage) SaveSSLScan(ctx context.Context, input string, res SSLResul
 	return err
 }
 
+// SaveCSPScan records the CSP evaluation of a target that answered the probe.
 func (s *EntStorage) SaveCSPScan(ctx context.Context, input string, header string, findings []csp.Finding) error {
+	return s.saveCSP(ctx, input, header, findings, "")
+}
+
+// SaveCSPUnreachable records a CSP probe that got no HTTP response. It is
+// stored as a scan row so the producer's interval still applies and history
+// shows when the target went dark, but it carries no findings: being down is
+// not a CSP weakness (issue #15). The target is still ok if a port answers.
+func (s *EntStorage) SaveCSPUnreachable(ctx context.Context, input string, probeErr string) error {
+	if probeErr == "" {
+		probeErr = "no response"
+	}
+	return s.saveCSP(ctx, input, "", nil, probeErr)
+}
+
+func (s *EntStorage) saveCSP(ctx context.Context, input, header string, findings []csp.Finding, probeErr string) error {
 	t, err := s.client.Target.Query().Where(target.Input(input)).First(ctx)
+	if err != nil {
+		return err
+	}
+
+	tx, err := s.client.Tx(ctx)
 	if err != nil {
 		return err
 	}
 
 	now := time.Now()
 
-	latest, err := s.client.CSPScan.Query().
+	latest, err := tx.CSPScan.Query().
 		Where(cspscan.HasTargetWith(target.IDEQ(t.ID))).
 		Order(ent.Desc(cspscan.FieldScannedAt), ent.Desc(cspscan.FieldID)).
 		First(ctx)
 	if err != nil && !ent.IsNotFound(err) {
-		return err
+		return rollback(tx, err)
 	}
-	if latest != nil && sameCSP(latest, header, findings) {
-		return s.client.CSPScan.UpdateOne(latest).
+	if latest != nil && sameCSP(latest, header, findings, probeErr) {
+		err = tx.CSPScan.UpdateOne(latest).
 			SetLastSeenAt(now).
 			AddCheckCount(1).
 			Exec(ctx)
+	} else {
+		err = tx.CSPScan.Create().
+			SetTarget(t).
+			SetScannedAt(now).
+			SetLastSeenAt(now).
+			SetCheckCount(1).
+			SetCspHeader(header).
+			SetFindings(findings).
+			SetProbeError(probeErr).
+			Exec(ctx)
 	}
-
-	_, err = s.client.CSPScan.Create().
-		SetTarget(t).
-		SetScannedAt(now).
-		SetLastSeenAt(now).
-		SetCheckCount(1).
-		SetCspHeader(header).
-		SetFindings(findings).
-		Save(ctx)
-	return err
+	if err != nil {
+		return rollback(tx, err)
+	}
+	if err := refreshReachability(ctx, tx.Client(), target.ID(t.ID)); err != nil {
+		return rollback(tx, err)
+	}
+	return tx.Commit()
 }
 
 // GetPreviousPortCounts returns the set of open ports from the most recent scan for an IP.

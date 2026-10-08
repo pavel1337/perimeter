@@ -22,6 +22,8 @@ const (
 	FieldCspHeader = "csp_header"
 	// FieldFindings holds the string denoting the findings field in the database.
 	FieldFindings = "findings"
+	// FieldProbeError holds the string denoting the probe_error field in the database.
+	FieldProbeError = "probe_error"
 	// EdgeTarget holds the string denoting the target edge name in mutations.
 	EdgeTarget = "target"
 	// Table holds the table name of the cspscan in the database.
@@ -43,6 +45,7 @@ var Columns = []string{
 	FieldCheckCount,
 	FieldCspHeader,
 	FieldFindings,
+	FieldProbeError,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "csp_scans"
@@ -97,6 +100,11 @@ func ByCheckCount(opts ...sql.OrderTermOption) OrderOption {
 // ByCspHeader orders the results by the csp_header field.
 func ByCspHeader(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCspHeader, opts...).ToFunc()
+}
+
+// ByProbeError orders the results by the probe_error field.
+func ByProbeError(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProbeError, opts...).ToFunc()
 }
 
 // ByTargetField orders the results by target field.

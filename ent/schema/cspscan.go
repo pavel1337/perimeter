@@ -21,6 +21,9 @@ func (CSPScan) Fields() []ent.Field {
 		field.Int("check_count").Default(0),
 		field.String("csp_header"),
 		field.JSON("findings", []csp.Finding{}).Optional(),
+		// Why the probe got no HTTP response; empty when it got one. An
+		// unreachable target has no header to evaluate, so it has no findings.
+		field.String("probe_error").Optional(),
 	}
 }
 

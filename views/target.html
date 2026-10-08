@@ -1,7 +1,11 @@
 {{template "views/partials/header" .}}
 
 <p style="margin-bottom: 16px;"><a href="/">&larr; Back</a></p>
-<h1>{{.Target.Input}}</h1>
+<h1>{{.Target.Input}}
+  {{if eq .Target.Reachability "ok"}}<span class="badge badge-green">ok</span>
+  {{else if eq .Target.Reachability "pending"}}<span class="badge badge-gray">pending</span>
+  {{else}}<span class="badge badge-red">{{.Target.Reachability}}</span>{{end}}
+</h1>
 
 <div style="margin-bottom: 20px;">
   {{range .Target.Edges.Tags}}<span class="badge" style="background: {{.Color}}20; color: {{.Color}}; margin-right: 4px;">{{.Name}}</span>{{end}}
@@ -36,7 +40,7 @@
 </div>
 {{end}}
 {{else}}
-<p class="text-muted">{{if .ResolveError}}Unresolved: {{.ResolveError}} (attempt {{.ResolveAttempts}}){{else}}Not yet resolved to any IP addresses.{{end}}</p>
+<p class="text-muted">{{if eq .Target.Reachability "unresolved"}}Unresolved: {{.Target.ResolveError}} (attempt {{.Target.ResolveAttempts}}){{else}}Not yet resolved to any IP addresses.{{end}}</p>
 {{end}}
 
 {{if not .Target.IsIP}}

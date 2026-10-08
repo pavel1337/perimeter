@@ -75,6 +75,11 @@ func CspHeader(v string) predicate.CSPScan {
 	return predicate.CSPScan(sql.FieldEQ(FieldCspHeader, v))
 }
 
+// ProbeError applies equality check predicate on the "probe_error" field. It's identical to ProbeErrorEQ.
+func ProbeError(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldEQ(FieldProbeError, v))
+}
+
 // ScannedAtEQ applies the EQ predicate on the "scanned_at" field.
 func ScannedAtEQ(v time.Time) predicate.CSPScan {
 	return predicate.CSPScan(sql.FieldEQ(FieldScannedAt, v))
@@ -278,6 +283,81 @@ func FindingsIsNil() predicate.CSPScan {
 // FindingsNotNil applies the NotNil predicate on the "findings" field.
 func FindingsNotNil() predicate.CSPScan {
 	return predicate.CSPScan(sql.FieldNotNull(FieldFindings))
+}
+
+// ProbeErrorEQ applies the EQ predicate on the "probe_error" field.
+func ProbeErrorEQ(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldEQ(FieldProbeError, v))
+}
+
+// ProbeErrorNEQ applies the NEQ predicate on the "probe_error" field.
+func ProbeErrorNEQ(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldNEQ(FieldProbeError, v))
+}
+
+// ProbeErrorIn applies the In predicate on the "probe_error" field.
+func ProbeErrorIn(vs ...string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldIn(FieldProbeError, vs...))
+}
+
+// ProbeErrorNotIn applies the NotIn predicate on the "probe_error" field.
+func ProbeErrorNotIn(vs ...string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldNotIn(FieldProbeError, vs...))
+}
+
+// ProbeErrorGT applies the GT predicate on the "probe_error" field.
+func ProbeErrorGT(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldGT(FieldProbeError, v))
+}
+
+// ProbeErrorGTE applies the GTE predicate on the "probe_error" field.
+func ProbeErrorGTE(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldGTE(FieldProbeError, v))
+}
+
+// ProbeErrorLT applies the LT predicate on the "probe_error" field.
+func ProbeErrorLT(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldLT(FieldProbeError, v))
+}
+
+// ProbeErrorLTE applies the LTE predicate on the "probe_error" field.
+func ProbeErrorLTE(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldLTE(FieldProbeError, v))
+}
+
+// ProbeErrorContains applies the Contains predicate on the "probe_error" field.
+func ProbeErrorContains(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldContains(FieldProbeError, v))
+}
+
+// ProbeErrorHasPrefix applies the HasPrefix predicate on the "probe_error" field.
+func ProbeErrorHasPrefix(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldHasPrefix(FieldProbeError, v))
+}
+
+// ProbeErrorHasSuffix applies the HasSuffix predicate on the "probe_error" field.
+func ProbeErrorHasSuffix(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldHasSuffix(FieldProbeError, v))
+}
+
+// ProbeErrorIsNil applies the IsNil predicate on the "probe_error" field.
+func ProbeErrorIsNil() predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldIsNull(FieldProbeError))
+}
+
+// ProbeErrorNotNil applies the NotNil predicate on the "probe_error" field.
+func ProbeErrorNotNil() predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldNotNull(FieldProbeError))
+}
+
+// ProbeErrorEqualFold applies the EqualFold predicate on the "probe_error" field.
+func ProbeErrorEqualFold(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldEqualFold(FieldProbeError, v))
+}
+
+// ProbeErrorContainsFold applies the ContainsFold predicate on the "probe_error" field.
+func ProbeErrorContainsFold(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldContainsFold(FieldProbeError, v))
 }
 
 // HasTarget applies the HasEdge predicate on the "target" edge.

@@ -36,6 +36,12 @@ var migrations = []Migration{
 			return storage.NewEntStorage(client).CollapseScanHistory(ctx)
 		},
 	},
+	{
+		Name: "0002_target_reachability",
+		Run: func(ctx context.Context, client *ent.Client) error {
+			return storage.NewEntStorage(client).BackfillReachability(ctx)
+		},
+	},
 }
 
 // Run applies every migration that has not been applied yet. Call it after

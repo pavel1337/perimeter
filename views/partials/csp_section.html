@@ -14,7 +14,9 @@
         {{if not .LastSeenAt.IsZero}}<div><small>last checked {{.LastSeenAt.Format "Jan 02 15:04"}} &middot; {{.CheckCount}} checks</small></div>{{end}}
       </td>
       <td>
-        {{if .Findings}}
+        {{if .ProbeError}}
+        <span class="badge badge-gray">no HTTP response</span> <span class="text-muted">{{.ProbeError}}</span>
+        {{else if .Findings}}
         {{range .Findings}}
         <div style="margin-bottom: 4px;">
           {{if ge .Severity 40}}<span class="badge badge-red">high</span>{{else}}<span class="badge badge-gray">info</span>{{end}}
@@ -28,6 +30,8 @@
       <td>
         {{if .CspHeader}}
         <div class="mono" style="max-width: 350px; overflow-wrap: break-word;">{{.CspHeader}}</div>
+        {{else if .ProbeError}}
+        <span class="text-muted">—</span>
         {{else}}
         <span class="badge badge-red">missing</span>
         {{end}}

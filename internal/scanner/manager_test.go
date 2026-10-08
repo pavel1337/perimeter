@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -192,5 +195,23 @@ func TestEnqueueSkipsInFlightDuplicate(t *testing.T) {
 	}
 	if m.enqueue(ctx, Job{Type: JobTypeCSPScan, Input: "example.com"}) {
 		t.Error("duplicate job was queued while the first is still in flight")
+	}
+}
+
+func TestProbeErrorMessage(t *testing.T) {
+	refused := &url.Error{Op: "Get", URL: "http://x", Err: &net.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)}}
+	timeout := &url.Error{Op: "Get", URL: "http://x", Err: &net.OpError{Op: "dial", Net: "tcp", Err: os.ErrDeadlineExceeded}}
+	nxdomain := &url.Error{Op: "Get", URL: "http://x", Err: &net.OpError{Op: "dial", Net: "tcp", Err: &net.DNSError{Err: "no such host", IsNotFound: true}}}
+
+	cases := map[error]string{
+		refused:                     "connection refused",
+		timeout:                     "timed out",
+		nxdomain:                    "no such host (NXDOMAIN)",
+		errors.New("tls: bad cert"): "no response",
+	}
+	for err, want := range cases {
+		if got := probeErrorMessage(err); got != want {
+			t.Errorf("probeErrorMessage(%v) = %q, want %q", err, got, want)
+		}
 	}
 }

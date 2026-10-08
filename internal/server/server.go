@@ -19,6 +19,7 @@ import (
 	"perimeter/ent/importerconfig"
 	"perimeter/ent/notifierconfig"
 	"perimeter/ent/tag"
+	"perimeter/ent/target"
 	"perimeter/ent/user"
 	"perimeter/internal/auth"
 	"perimeter/internal/importer"
@@ -287,8 +288,26 @@ func (s *Server) createSessionAndRedirect(c *fiber.Ctx, u *ent.User) error {
 
 // --- Existing handlers (now with user context) ---
 
+// reachabilityStates is the dashboard's state filter, in display order.
+var reachabilityStates = []target.Reachability{
+	target.ReachabilityOk,
+	target.ReachabilityUnreachable,
+	target.ReachabilityUnresolved,
+	target.ReachabilityPending,
+}
+
 func (s *Server) handleIndex(c *fiber.Ctx) error {
-	targets, err := s.storage.GetTargets(c.Context())
+	filterState := c.Query("state")
+	var states []target.Reachability
+	if filterState != "" {
+		st := target.Reachability(filterState)
+		if target.ReachabilityValidator(st) != nil {
+			return c.Status(400).SendString("Invalid state")
+		}
+		states = append(states, st)
+	}
+
+	targets, err := s.storage.GetTargets(c.Context(), states...)
 	if err != nil {
 		return c.Status(500).SendString(err.Error())
 	}
@@ -343,6 +362,8 @@ func (s *Server) handleIndex(c *fiber.Ctx) error {
 		"Targets":        targets,
 		"Tags":           allTags,
 		"FilterTag":      filterTag,
+		"FilterState":    filterState,
+		"States":         reachabilityStates,
 		"TotalTargets":   totalTargets,
 		"TotalOpenPorts": totalOpenPorts,
 		"ExpiringCerts":  expiringCerts,
@@ -919,11 +940,12 @@ func (s *Server) handleUpdateTargetTags(c *fiber.Ctx) error {
 // --- Export handler ---
 
 type exportData struct {
-	Target string      `json:"target"`
-	IsIP   bool        `json:"is_ip"`
-	IPs    []exportIP  `json:"ips,omitempty"`
-	SSL    []exportSSL `json:"ssl_scans,omitempty"`
-	CSP    []exportCSP `json:"csp_scans,omitempty"`
+	Target       string      `json:"target"`
+	IsIP         bool        `json:"is_ip"`
+	Reachability string      `json:"reachability"`
+	IPs          []exportIP  `json:"ips,omitempty"`
+	SSL          []exportSSL `json:"ssl_scans,omitempty"`
+	CSP          []exportCSP `json:"csp_scans,omitempty"`
 }
 
 type exportIP struct {
@@ -947,9 +969,10 @@ type exportSSL struct {
 }
 
 type exportCSP struct {
-	ScannedAt string `json:"scanned_at"`
-	Header    string `json:"csp_header"`
-	Findings  int    `json:"findings_count"`
+	ScannedAt  string `json:"scanned_at"`
+	Header     string `json:"csp_header"`
+	Findings   int    `json:"findings_count"`
+	ProbeError string `json:"probe_error,omitempty"`
 }
 
 func (s *Server) handleExportTarget(c *fiber.Ctx) error {
@@ -969,8 +992,9 @@ func (s *Server) handleExportTarget(c *fiber.Ctx) error {
 	format := c.Query("format", "json")
 
 	data := exportData{
-		Target: t.Input,
-		IsIP:   t.IsIP,
+		Target:       t.Input,
+		IsIP:         t.IsIP,
+		Reachability: string(t.Reachability),
 	}
 
 	for _, ip := range t.Edges.Ips {
@@ -1005,9 +1029,10 @@ func (s *Server) handleExportTarget(c *fiber.Ctx) error {
 
 	for _, scan := range t.Edges.CspScans {
 		data.CSP = append(data.CSP, exportCSP{
-			ScannedAt: scan.ScannedAt.Format(time.RFC3339),
-			Header:    scan.CspHeader,
-			Findings:  len(scan.Findings),
+			ScannedAt:  scan.ScannedAt.Format(time.RFC3339),
+			Header:     scan.CspHeader,
+			Findings:   len(scan.Findings),
+			ProbeError: scan.ProbeError,
 		})
 	}
 
@@ -1030,7 +1055,11 @@ func (s *Server) handleExportTarget(c *fiber.Ctx) error {
 			rows = append(rows, []string{"ssl_scan", scan.ScannedAt, scan.Grade, scan.Status})
 		}
 		for _, scan := range data.CSP {
-			rows = append(rows, []string{"csp_scan", scan.ScannedAt, strconv.Itoa(scan.Findings) + " findings", scan.Header})
+			detail := strconv.Itoa(scan.Findings) + " findings"
+			if scan.ProbeError != "" {
+				detail = "no HTTP response: " + scan.ProbeError
+			}
+			rows = append(rows, []string{"csp_scan", scan.ScannedAt, detail, scan.Header})
 		}
 
 		var buf bytes.Buffer
