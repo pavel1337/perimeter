@@ -115,6 +115,76 @@ func (_c *TargetCreate) SetNillableReachability(v *target.Reachability) *TargetC
 	return _c
 }
 
+// SetLatestSslGrade sets the "latest_ssl_grade" field.
+func (_c *TargetCreate) SetLatestSslGrade(v string) *TargetCreate {
+	_c.mutation.SetLatestSslGrade(v)
+	return _c
+}
+
+// SetNillableLatestSslGrade sets the "latest_ssl_grade" field if the given value is not nil.
+func (_c *TargetCreate) SetNillableLatestSslGrade(v *string) *TargetCreate {
+	if v != nil {
+		_c.SetLatestSslGrade(*v)
+	}
+	return _c
+}
+
+// SetLatestSslGradeRank sets the "latest_ssl_grade_rank" field.
+func (_c *TargetCreate) SetLatestSslGradeRank(v int) *TargetCreate {
+	_c.mutation.SetLatestSslGradeRank(v)
+	return _c
+}
+
+// SetNillableLatestSslGradeRank sets the "latest_ssl_grade_rank" field if the given value is not nil.
+func (_c *TargetCreate) SetNillableLatestSslGradeRank(v *int) *TargetCreate {
+	if v != nil {
+		_c.SetLatestSslGradeRank(*v)
+	}
+	return _c
+}
+
+// SetLatestCertExpiry sets the "latest_cert_expiry" field.
+func (_c *TargetCreate) SetLatestCertExpiry(v time.Time) *TargetCreate {
+	_c.mutation.SetLatestCertExpiry(v)
+	return _c
+}
+
+// SetNillableLatestCertExpiry sets the "latest_cert_expiry" field if the given value is not nil.
+func (_c *TargetCreate) SetNillableLatestCertExpiry(v *time.Time) *TargetCreate {
+	if v != nil {
+		_c.SetLatestCertExpiry(*v)
+	}
+	return _c
+}
+
+// SetLatestCspFindingCount sets the "latest_csp_finding_count" field.
+func (_c *TargetCreate) SetLatestCspFindingCount(v int) *TargetCreate {
+	_c.mutation.SetLatestCspFindingCount(v)
+	return _c
+}
+
+// SetNillableLatestCspFindingCount sets the "latest_csp_finding_count" field if the given value is not nil.
+func (_c *TargetCreate) SetNillableLatestCspFindingCount(v *int) *TargetCreate {
+	if v != nil {
+		_c.SetLatestCspFindingCount(*v)
+	}
+	return _c
+}
+
+// SetOpenPortCount sets the "open_port_count" field.
+func (_c *TargetCreate) SetOpenPortCount(v int) *TargetCreate {
+	_c.mutation.SetOpenPortCount(v)
+	return _c
+}
+
+// SetNillableOpenPortCount sets the "open_port_count" field if the given value is not nil.
+func (_c *TargetCreate) SetNillableOpenPortCount(v *int) *TargetCreate {
+	if v != nil {
+		_c.SetOpenPortCount(*v)
+	}
+	return _c
+}
+
 // AddIPIDs adds the "ips" edge to the IP entity by IDs.
 func (_c *TargetCreate) AddIPIDs(ids ...int) *TargetCreate {
 	_c.mutation.AddIPIDs(ids...)
@@ -249,6 +319,14 @@ func (_c *TargetCreate) defaults() {
 		v := target.DefaultReachability
 		_c.mutation.SetReachability(v)
 	}
+	if _, ok := _c.mutation.LatestSslGradeRank(); !ok {
+		v := target.DefaultLatestSslGradeRank
+		_c.mutation.SetLatestSslGradeRank(v)
+	}
+	if _, ok := _c.mutation.OpenPortCount(); !ok {
+		v := target.DefaultOpenPortCount
+		_c.mutation.SetOpenPortCount(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -280,6 +358,12 @@ func (_c *TargetCreate) check() error {
 		if err := target.ReachabilityValidator(v); err != nil {
 			return &ValidationError{Name: "reachability", err: fmt.Errorf(`ent: validator failed for field "Target.reachability": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.LatestSslGradeRank(); !ok {
+		return &ValidationError{Name: "latest_ssl_grade_rank", err: errors.New(`ent: missing required field "Target.latest_ssl_grade_rank"`)}
+	}
+	if _, ok := _c.mutation.OpenPortCount(); !ok {
+		return &ValidationError{Name: "open_port_count", err: errors.New(`ent: missing required field "Target.open_port_count"`)}
 	}
 	return nil
 }
@@ -334,6 +418,26 @@ func (_c *TargetCreate) createSpec() (*Target, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Reachability(); ok {
 		_spec.SetField(target.FieldReachability, field.TypeEnum, value)
 		_node.Reachability = value
+	}
+	if value, ok := _c.mutation.LatestSslGrade(); ok {
+		_spec.SetField(target.FieldLatestSslGrade, field.TypeString, value)
+		_node.LatestSslGrade = value
+	}
+	if value, ok := _c.mutation.LatestSslGradeRank(); ok {
+		_spec.SetField(target.FieldLatestSslGradeRank, field.TypeInt, value)
+		_node.LatestSslGradeRank = value
+	}
+	if value, ok := _c.mutation.LatestCertExpiry(); ok {
+		_spec.SetField(target.FieldLatestCertExpiry, field.TypeTime, value)
+		_node.LatestCertExpiry = &value
+	}
+	if value, ok := _c.mutation.LatestCspFindingCount(); ok {
+		_spec.SetField(target.FieldLatestCspFindingCount, field.TypeInt, value)
+		_node.LatestCspFindingCount = &value
+	}
+	if value, ok := _c.mutation.OpenPortCount(); ok {
+		_spec.SetField(target.FieldOpenPortCount, field.TypeInt, value)
+		_node.OpenPortCount = value
 	}
 	if nodes := _c.mutation.IpsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

@@ -6,16 +6,12 @@ import (
 
 	"perimeter/ent"
 	"perimeter/ent/cspscan"
-	"perimeter/ent/ip"
-	"perimeter/ent/portscan"
-	"perimeter/ent/predicate"
 	"perimeter/ent/target"
 	"perimeter/scanner/csp"
 )
 
-// reachFacts is what reachability is decided from. The write paths and the
-// backfill gather it differently, but both go through decide, so there is one
-// definition of each state.
+// reachFacts is what reachability is decided from, read off the newest scans
+// by loadedFacts as part of summarize.
 type reachFacts struct {
 	isIP          bool
 	resolved      bool // has at least one IP
@@ -48,60 +44,6 @@ func (f reachFacts) decide() target.Reachability {
 	}
 }
 
-// refreshReachability recomputes reachability for the matching targets from
-// their stored scans. Pass a transactional client to keep it in step with the
-// write that triggered it.
-//
-// It queries each target's newest scans directly rather than through
-// latestPerParent: that subquery groups the whole scan table, which is fine
-// for one dashboard load but not on every scan write.
-func refreshReachability(ctx context.Context, client *ent.Client, where ...predicate.Target) error {
-	targets, err := client.Target.Query().Where(where...).WithIps().All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, t := range targets {
-		f := reachFacts{
-			isIP:          t.IsIP,
-			resolved:      len(t.Edges.Ips) > 0,
-			resolveFailed: t.ResolveError != "",
-		}
-		for _, i := range t.Edges.Ips {
-			scan, err := client.PortScan.Query().
-				Where(portscan.HasIPWith(ip.IDEQ(i.ID))).
-				Order(ent.Desc(portscan.FieldScannedAt), ent.Desc(portscan.FieldID)).
-				WithPorts().
-				First(ctx)
-			if ent.IsNotFound(err) {
-				continue
-			}
-			if err != nil {
-				return err
-			}
-			f.portsScanned = true
-			f.portsOpen = f.portsOpen || len(scan.Edges.Ports) > 0
-		}
-		latest, err := client.CSPScan.Query().
-			Where(cspscan.HasTargetWith(target.IDEQ(t.ID))).
-			Order(ent.Desc(cspscan.FieldScannedAt), ent.Desc(cspscan.FieldID)).
-			First(ctx)
-		if err != nil && !ent.IsNotFound(err) {
-			return err
-		}
-		if latest != nil {
-			f.httpProbed = true
-			f.httpAnswered = latest.ProbeError == ""
-		}
-
-		if r := f.decide(); r != t.Reachability {
-			if err := client.Target.UpdateOne(t).SetReachability(r).Exec(ctx); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 // legacyUnreachable is the description of the synthetic finding the CSP
 // scanner used to write when a target did not answer, before issue #15.
 const legacyUnreachable = "Target Unreachable"
@@ -117,50 +59,20 @@ func isLegacyUnreachable(findings []csp.Finding) bool {
 }
 
 // BackfillReachability moves CSP scans off the "Target Unreachable" magic
-// finding onto probe_error, then derives every target's reachability from its
-// current state. Both steps overwrite with values computed from the data, so
-// a rerun after a crash just recomputes them.
+// finding onto probe_error, then rebuilds every target's summary, which
+// includes reachability. Both steps overwrite with values computed from the
+// data, so a rerun after a crash just recomputes them.
 func (s *EntStorage) BackfillReachability(ctx context.Context) error {
 	converted, err := s.convertLegacyUnreachable(ctx)
 	if err != nil {
 		return err
 	}
+	log.Printf("Backfill (reachability): converted %d legacy CSP rows", converted)
 
-	// One pass with latestPerParent, instead of refreshReachability's
-	// per-target queries.
-	targets, err := s.client.Target.Query().
-		WithIps(func(q *ent.IPQuery) {
-			q.WithScans(func(sq *ent.PortScanQuery) {
-				sq.Where(latestPerParent(portscan.Table, portscan.IPColumn)).
-					WithPorts()
-			})
-		}).
-		WithCspScans(func(q *ent.CSPScanQuery) {
-			q.Where(latestPerParent(cspscan.Table, cspscan.TargetColumn))
-		}).
-		All(ctx)
-	if err != nil {
-		return err
-	}
-
-	counts := map[target.Reachability]int{}
-	for _, t := range targets {
-		r := loadedFacts(t).decide()
-		counts[r]++
-		if r == t.Reachability {
-			continue
-		}
-		if err := s.client.Target.UpdateOne(t).SetReachability(r).Exec(ctx); err != nil {
-			return err
-		}
-	}
-
-	log.Printf("Backfill (reachability): converted %d legacy CSP rows; %d targets: %v", converted, len(targets), counts)
-	return nil
+	return s.BackfillSummary(ctx)
 }
 
-// loadedFacts reads reachFacts off a target loaded with its IPs, each IP's
-// newest port scan, and its newest CSP scan.
+// loadedFacts reads reachFacts off a target loaded as summarize expects.
 func loadedFacts(t *ent.Target) reachFacts {
 	f := reachFacts{
 		isIP:          t.IsIP,

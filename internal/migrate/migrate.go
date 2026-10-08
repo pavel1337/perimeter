@@ -42,6 +42,12 @@ var migrations = []Migration{
 			return storage.NewEntStorage(client).BackfillReachability(ctx)
 		},
 	},
+	{
+		Name: "0003_target_summary",
+		Run: func(ctx context.Context, client *ent.Client) error {
+			return storage.NewEntStorage(client).BackfillSummary(ctx)
+		},
+	},
 }
 
 // Run applies every migration that has not been applied yet. Call it after

@@ -85,6 +85,31 @@ func ResolveError(v string) predicate.Target {
 	return predicate.Target(sql.FieldEQ(FieldResolveError, v))
 }
 
+// LatestSslGrade applies equality check predicate on the "latest_ssl_grade" field. It's identical to LatestSslGradeEQ.
+func LatestSslGrade(v string) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldLatestSslGrade, v))
+}
+
+// LatestSslGradeRank applies equality check predicate on the "latest_ssl_grade_rank" field. It's identical to LatestSslGradeRankEQ.
+func LatestSslGradeRank(v int) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldLatestSslGradeRank, v))
+}
+
+// LatestCertExpiry applies equality check predicate on the "latest_cert_expiry" field. It's identical to LatestCertExpiryEQ.
+func LatestCertExpiry(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldLatestCertExpiry, v))
+}
+
+// LatestCspFindingCount applies equality check predicate on the "latest_csp_finding_count" field. It's identical to LatestCspFindingCountEQ.
+func LatestCspFindingCount(v int) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldLatestCspFindingCount, v))
+}
+
+// OpenPortCount applies equality check predicate on the "open_port_count" field. It's identical to OpenPortCountEQ.
+func OpenPortCount(v int) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldOpenPortCount, v))
+}
+
 // CreateTimeEQ applies the EQ predicate on the "create_time" field.
 func CreateTimeEQ(v time.Time) predicate.Target {
 	return predicate.Target(sql.FieldEQ(FieldCreateTime, v))
@@ -373,6 +398,261 @@ func ReachabilityIn(vs ...Reachability) predicate.Target {
 // ReachabilityNotIn applies the NotIn predicate on the "reachability" field.
 func ReachabilityNotIn(vs ...Reachability) predicate.Target {
 	return predicate.Target(sql.FieldNotIn(FieldReachability, vs...))
+}
+
+// LatestSslGradeEQ applies the EQ predicate on the "latest_ssl_grade" field.
+func LatestSslGradeEQ(v string) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldLatestSslGrade, v))
+}
+
+// LatestSslGradeNEQ applies the NEQ predicate on the "latest_ssl_grade" field.
+func LatestSslGradeNEQ(v string) predicate.Target {
+	return predicate.Target(sql.FieldNEQ(FieldLatestSslGrade, v))
+}
+
+// LatestSslGradeIn applies the In predicate on the "latest_ssl_grade" field.
+func LatestSslGradeIn(vs ...string) predicate.Target {
+	return predicate.Target(sql.FieldIn(FieldLatestSslGrade, vs...))
+}
+
+// LatestSslGradeNotIn applies the NotIn predicate on the "latest_ssl_grade" field.
+func LatestSslGradeNotIn(vs ...string) predicate.Target {
+	return predicate.Target(sql.FieldNotIn(FieldLatestSslGrade, vs...))
+}
+
+// LatestSslGradeGT applies the GT predicate on the "latest_ssl_grade" field.
+func LatestSslGradeGT(v string) predicate.Target {
+	return predicate.Target(sql.FieldGT(FieldLatestSslGrade, v))
+}
+
+// LatestSslGradeGTE applies the GTE predicate on the "latest_ssl_grade" field.
+func LatestSslGradeGTE(v string) predicate.Target {
+	return predicate.Target(sql.FieldGTE(FieldLatestSslGrade, v))
+}
+
+// LatestSslGradeLT applies the LT predicate on the "latest_ssl_grade" field.
+func LatestSslGradeLT(v string) predicate.Target {
+	return predicate.Target(sql.FieldLT(FieldLatestSslGrade, v))
+}
+
+// LatestSslGradeLTE applies the LTE predicate on the "latest_ssl_grade" field.
+func LatestSslGradeLTE(v string) predicate.Target {
+	return predicate.Target(sql.FieldLTE(FieldLatestSslGrade, v))
+}
+
+// LatestSslGradeContains applies the Contains predicate on the "latest_ssl_grade" field.
+func LatestSslGradeContains(v string) predicate.Target {
+	return predicate.Target(sql.FieldContains(FieldLatestSslGrade, v))
+}
+
+// LatestSslGradeHasPrefix applies the HasPrefix predicate on the "latest_ssl_grade" field.
+func LatestSslGradeHasPrefix(v string) predicate.Target {
+	return predicate.Target(sql.FieldHasPrefix(FieldLatestSslGrade, v))
+}
+
+// LatestSslGradeHasSuffix applies the HasSuffix predicate on the "latest_ssl_grade" field.
+func LatestSslGradeHasSuffix(v string) predicate.Target {
+	return predicate.Target(sql.FieldHasSuffix(FieldLatestSslGrade, v))
+}
+
+// LatestSslGradeIsNil applies the IsNil predicate on the "latest_ssl_grade" field.
+func LatestSslGradeIsNil() predicate.Target {
+	return predicate.Target(sql.FieldIsNull(FieldLatestSslGrade))
+}
+
+// LatestSslGradeNotNil applies the NotNil predicate on the "latest_ssl_grade" field.
+func LatestSslGradeNotNil() predicate.Target {
+	return predicate.Target(sql.FieldNotNull(FieldLatestSslGrade))
+}
+
+// LatestSslGradeEqualFold applies the EqualFold predicate on the "latest_ssl_grade" field.
+func LatestSslGradeEqualFold(v string) predicate.Target {
+	return predicate.Target(sql.FieldEqualFold(FieldLatestSslGrade, v))
+}
+
+// LatestSslGradeContainsFold applies the ContainsFold predicate on the "latest_ssl_grade" field.
+func LatestSslGradeContainsFold(v string) predicate.Target {
+	return predicate.Target(sql.FieldContainsFold(FieldLatestSslGrade, v))
+}
+
+// LatestSslGradeRankEQ applies the EQ predicate on the "latest_ssl_grade_rank" field.
+func LatestSslGradeRankEQ(v int) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldLatestSslGradeRank, v))
+}
+
+// LatestSslGradeRankNEQ applies the NEQ predicate on the "latest_ssl_grade_rank" field.
+func LatestSslGradeRankNEQ(v int) predicate.Target {
+	return predicate.Target(sql.FieldNEQ(FieldLatestSslGradeRank, v))
+}
+
+// LatestSslGradeRankIn applies the In predicate on the "latest_ssl_grade_rank" field.
+func LatestSslGradeRankIn(vs ...int) predicate.Target {
+	return predicate.Target(sql.FieldIn(FieldLatestSslGradeRank, vs...))
+}
+
+// LatestSslGradeRankNotIn applies the NotIn predicate on the "latest_ssl_grade_rank" field.
+func LatestSslGradeRankNotIn(vs ...int) predicate.Target {
+	return predicate.Target(sql.FieldNotIn(FieldLatestSslGradeRank, vs...))
+}
+
+// LatestSslGradeRankGT applies the GT predicate on the "latest_ssl_grade_rank" field.
+func LatestSslGradeRankGT(v int) predicate.Target {
+	return predicate.Target(sql.FieldGT(FieldLatestSslGradeRank, v))
+}
+
+// LatestSslGradeRankGTE applies the GTE predicate on the "latest_ssl_grade_rank" field.
+func LatestSslGradeRankGTE(v int) predicate.Target {
+	return predicate.Target(sql.FieldGTE(FieldLatestSslGradeRank, v))
+}
+
+// LatestSslGradeRankLT applies the LT predicate on the "latest_ssl_grade_rank" field.
+func LatestSslGradeRankLT(v int) predicate.Target {
+	return predicate.Target(sql.FieldLT(FieldLatestSslGradeRank, v))
+}
+
+// LatestSslGradeRankLTE applies the LTE predicate on the "latest_ssl_grade_rank" field.
+func LatestSslGradeRankLTE(v int) predicate.Target {
+	return predicate.Target(sql.FieldLTE(FieldLatestSslGradeRank, v))
+}
+
+// LatestCertExpiryEQ applies the EQ predicate on the "latest_cert_expiry" field.
+func LatestCertExpiryEQ(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldLatestCertExpiry, v))
+}
+
+// LatestCertExpiryNEQ applies the NEQ predicate on the "latest_cert_expiry" field.
+func LatestCertExpiryNEQ(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldNEQ(FieldLatestCertExpiry, v))
+}
+
+// LatestCertExpiryIn applies the In predicate on the "latest_cert_expiry" field.
+func LatestCertExpiryIn(vs ...time.Time) predicate.Target {
+	return predicate.Target(sql.FieldIn(FieldLatestCertExpiry, vs...))
+}
+
+// LatestCertExpiryNotIn applies the NotIn predicate on the "latest_cert_expiry" field.
+func LatestCertExpiryNotIn(vs ...time.Time) predicate.Target {
+	return predicate.Target(sql.FieldNotIn(FieldLatestCertExpiry, vs...))
+}
+
+// LatestCertExpiryGT applies the GT predicate on the "latest_cert_expiry" field.
+func LatestCertExpiryGT(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldGT(FieldLatestCertExpiry, v))
+}
+
+// LatestCertExpiryGTE applies the GTE predicate on the "latest_cert_expiry" field.
+func LatestCertExpiryGTE(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldGTE(FieldLatestCertExpiry, v))
+}
+
+// LatestCertExpiryLT applies the LT predicate on the "latest_cert_expiry" field.
+func LatestCertExpiryLT(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldLT(FieldLatestCertExpiry, v))
+}
+
+// LatestCertExpiryLTE applies the LTE predicate on the "latest_cert_expiry" field.
+func LatestCertExpiryLTE(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldLTE(FieldLatestCertExpiry, v))
+}
+
+// LatestCertExpiryIsNil applies the IsNil predicate on the "latest_cert_expiry" field.
+func LatestCertExpiryIsNil() predicate.Target {
+	return predicate.Target(sql.FieldIsNull(FieldLatestCertExpiry))
+}
+
+// LatestCertExpiryNotNil applies the NotNil predicate on the "latest_cert_expiry" field.
+func LatestCertExpiryNotNil() predicate.Target {
+	return predicate.Target(sql.FieldNotNull(FieldLatestCertExpiry))
+}
+
+// LatestCspFindingCountEQ applies the EQ predicate on the "latest_csp_finding_count" field.
+func LatestCspFindingCountEQ(v int) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldLatestCspFindingCount, v))
+}
+
+// LatestCspFindingCountNEQ applies the NEQ predicate on the "latest_csp_finding_count" field.
+func LatestCspFindingCountNEQ(v int) predicate.Target {
+	return predicate.Target(sql.FieldNEQ(FieldLatestCspFindingCount, v))
+}
+
+// LatestCspFindingCountIn applies the In predicate on the "latest_csp_finding_count" field.
+func LatestCspFindingCountIn(vs ...int) predicate.Target {
+	return predicate.Target(sql.FieldIn(FieldLatestCspFindingCount, vs...))
+}
+
+// LatestCspFindingCountNotIn applies the NotIn predicate on the "latest_csp_finding_count" field.
+func LatestCspFindingCountNotIn(vs ...int) predicate.Target {
+	return predicate.Target(sql.FieldNotIn(FieldLatestCspFindingCount, vs...))
+}
+
+// LatestCspFindingCountGT applies the GT predicate on the "latest_csp_finding_count" field.
+func LatestCspFindingCountGT(v int) predicate.Target {
+	return predicate.Target(sql.FieldGT(FieldLatestCspFindingCount, v))
+}
+
+// LatestCspFindingCountGTE applies the GTE predicate on the "latest_csp_finding_count" field.
+func LatestCspFindingCountGTE(v int) predicate.Target {
+	return predicate.Target(sql.FieldGTE(FieldLatestCspFindingCount, v))
+}
+
+// LatestCspFindingCountLT applies the LT predicate on the "latest_csp_finding_count" field.
+func LatestCspFindingCountLT(v int) predicate.Target {
+	return predicate.Target(sql.FieldLT(FieldLatestCspFindingCount, v))
+}
+
+// LatestCspFindingCountLTE applies the LTE predicate on the "latest_csp_finding_count" field.
+func LatestCspFindingCountLTE(v int) predicate.Target {
+	return predicate.Target(sql.FieldLTE(FieldLatestCspFindingCount, v))
+}
+
+// LatestCspFindingCountIsNil applies the IsNil predicate on the "latest_csp_finding_count" field.
+func LatestCspFindingCountIsNil() predicate.Target {
+	return predicate.Target(sql.FieldIsNull(FieldLatestCspFindingCount))
+}
+
+// LatestCspFindingCountNotNil applies the NotNil predicate on the "latest_csp_finding_count" field.
+func LatestCspFindingCountNotNil() predicate.Target {
+	return predicate.Target(sql.FieldNotNull(FieldLatestCspFindingCount))
+}
+
+// OpenPortCountEQ applies the EQ predicate on the "open_port_count" field.
+func OpenPortCountEQ(v int) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldOpenPortCount, v))
+}
+
+// OpenPortCountNEQ applies the NEQ predicate on the "open_port_count" field.
+func OpenPortCountNEQ(v int) predicate.Target {
+	return predicate.Target(sql.FieldNEQ(FieldOpenPortCount, v))
+}
+
+// OpenPortCountIn applies the In predicate on the "open_port_count" field.
+func OpenPortCountIn(vs ...int) predicate.Target {
+	return predicate.Target(sql.FieldIn(FieldOpenPortCount, vs...))
+}
+
+// OpenPortCountNotIn applies the NotIn predicate on the "open_port_count" field.
+func OpenPortCountNotIn(vs ...int) predicate.Target {
+	return predicate.Target(sql.FieldNotIn(FieldOpenPortCount, vs...))
+}
+
+// OpenPortCountGT applies the GT predicate on the "open_port_count" field.
+func OpenPortCountGT(v int) predicate.Target {
+	return predicate.Target(sql.FieldGT(FieldOpenPortCount, v))
+}
+
+// OpenPortCountGTE applies the GTE predicate on the "open_port_count" field.
+func OpenPortCountGTE(v int) predicate.Target {
+	return predicate.Target(sql.FieldGTE(FieldOpenPortCount, v))
+}
+
+// OpenPortCountLT applies the LT predicate on the "open_port_count" field.
+func OpenPortCountLT(v int) predicate.Target {
+	return predicate.Target(sql.FieldLT(FieldOpenPortCount, v))
+}
+
+// OpenPortCountLTE applies the LTE predicate on the "open_port_count" field.
+func OpenPortCountLTE(v int) predicate.Target {
+	return predicate.Target(sql.FieldLTE(FieldOpenPortCount, v))
 }
 
 // HasIps applies the HasEdge predicate on the "ips" edge.

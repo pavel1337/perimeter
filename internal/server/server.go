@@ -45,8 +45,13 @@ type Server struct {
 func New(s storage.Storage, a *auth.Auth, client *ent.Client, registry *importer.Registry, notifierReg *notifier.Registry, viewsFS fs.FS, certExpiryWindow time.Duration) *Server {
 	engine := html.NewFileSystem(http.FS(viewsFS), ".html")
 	// Whole days until a certificate expires; negative once it has.
-	engine.AddFunc("daysUntil", func(t time.Time) int {
-		return int(time.Until(t).Hours() / 24)
+	// Takes a pointer so templates can pass the nullable LatestCertExpiry
+	// column directly; a nil pointer is reported as 0.
+	engine.AddFunc("daysUntil", func(t *time.Time) int {
+		if t == nil {
+			return 0
+		}
+		return int(time.Until(*t).Hours() / 24)
 	})
 	engine.AddFunc("hasTag", func(tags []*ent.Tag, id int) bool {
 		for _, t := range tags {
@@ -329,33 +334,7 @@ func (s *Server) handleIndex(c *fiber.Ctx) error {
 		targets = filtered
 	}
 
-	// Compute dashboard stats
-	totalTargets := len(targets)
-	totalOpenPorts := 0
-	expiringCerts := 0
-	cspIssues := 0
-
-	for _, t := range targets {
-		for _, ip := range t.Edges.Ips {
-			if len(ip.Edges.Scans) > 0 {
-				latestScan := ip.Edges.Scans[0]
-				totalOpenPorts += len(latestScan.Edges.Ports)
-			}
-		}
-		if len(t.Edges.SslScans) > 0 {
-			latest := t.Edges.SslScans[0]
-			untilExpiry := time.Until(latest.CertExpiry)
-			if !latest.CertExpiry.IsZero() && untilExpiry > 0 && untilExpiry < s.certExpiryWindow {
-				expiringCerts++
-			}
-		}
-		if len(t.Edges.CspScans) > 0 {
-			latest := t.Edges.CspScans[0]
-			if len(latest.Findings) > 0 {
-				cspIssues++
-			}
-		}
-	}
+	totalOpenPorts, expiringCerts, cspIssues := dashboardStats(targets, s.certExpiryWindow, time.Now())
 
 	return c.Render("views/index", s.templateData(c, fiber.Map{
 		"Title":          "Perimeter Dashboard",
@@ -364,13 +343,33 @@ func (s *Server) handleIndex(c *fiber.Ctx) error {
 		"FilterTag":      filterTag,
 		"FilterState":    filterState,
 		"States":         reachabilityStates,
-		"TotalTargets":   totalTargets,
+		"TotalTargets":   len(targets),
 		"TotalOpenPorts": totalOpenPorts,
 		"ExpiringCerts":  expiringCerts,
 		"CSPIssues":      cspIssues,
 		// Days, so the template can compare it against daysUntil.
 		"CertExpiryDays": int(s.certExpiryWindow.Hours() / 24),
 	}), "views/layouts/main")
+}
+
+// dashboardStats computes the dashboard header counters from the summary
+// columns on each target, so it never has to touch the scan edges.
+// A certificate counts as expiring when it expires after now but within
+// window; unknown expiry (nil) and already-expired certificates do not count.
+func dashboardStats(targets []*ent.Target, window time.Duration, now time.Time) (openPorts, expiring, cspIssues int) {
+	for _, t := range targets {
+		openPorts += t.OpenPortCount
+		if t.LatestCertExpiry != nil {
+			until := t.LatestCertExpiry.Sub(now)
+			if until > 0 && until < window {
+				expiring++
+			}
+		}
+		if t.LatestCspFindingCount != nil && *t.LatestCspFindingCount > 0 {
+			cspIssues++
+		}
+	}
+	return openPorts, expiring, cspIssues
 }
 
 const scanPageSize = 10

@@ -32,6 +32,16 @@ type Target struct {
 	ResolveError string `json:"resolve_error,omitempty"`
 	// Reachability holds the value of the "reachability" field.
 	Reachability target.Reachability `json:"reachability,omitempty"`
+	// LatestSslGrade holds the value of the "latest_ssl_grade" field.
+	LatestSslGrade string `json:"latest_ssl_grade,omitempty"`
+	// LatestSslGradeRank holds the value of the "latest_ssl_grade_rank" field.
+	LatestSslGradeRank int `json:"latest_ssl_grade_rank,omitempty"`
+	// LatestCertExpiry holds the value of the "latest_cert_expiry" field.
+	LatestCertExpiry *time.Time `json:"latest_cert_expiry,omitempty"`
+	// LatestCspFindingCount holds the value of the "latest_csp_finding_count" field.
+	LatestCspFindingCount *int `json:"latest_csp_finding_count,omitempty"`
+	// OpenPortCount holds the value of the "open_port_count" field.
+	OpenPortCount int `json:"open_port_count,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the TargetQuery when eager-loading is set.
 	Edges        TargetEdges `json:"edges"`
@@ -110,11 +120,11 @@ func (*Target) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case target.FieldIsIP:
 			values[i] = new(sql.NullBool)
-		case target.FieldID, target.FieldResolveAttempts:
+		case target.FieldID, target.FieldResolveAttempts, target.FieldLatestSslGradeRank, target.FieldLatestCspFindingCount, target.FieldOpenPortCount:
 			values[i] = new(sql.NullInt64)
-		case target.FieldInput, target.FieldResolveError, target.FieldReachability:
+		case target.FieldInput, target.FieldResolveError, target.FieldReachability, target.FieldLatestSslGrade:
 			values[i] = new(sql.NullString)
-		case target.FieldCreateTime, target.FieldUpdateTime:
+		case target.FieldCreateTime, target.FieldUpdateTime, target.FieldLatestCertExpiry:
 			values[i] = new(sql.NullTime)
 		case target.ForeignKeys[0]: // user_targets
 			values[i] = new(sql.NullInt64)
@@ -180,6 +190,38 @@ func (_m *Target) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field reachability", values[i])
 			} else if value.Valid {
 				_m.Reachability = target.Reachability(value.String)
+			}
+		case target.FieldLatestSslGrade:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field latest_ssl_grade", values[i])
+			} else if value.Valid {
+				_m.LatestSslGrade = value.String
+			}
+		case target.FieldLatestSslGradeRank:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field latest_ssl_grade_rank", values[i])
+			} else if value.Valid {
+				_m.LatestSslGradeRank = int(value.Int64)
+			}
+		case target.FieldLatestCertExpiry:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field latest_cert_expiry", values[i])
+			} else if value.Valid {
+				_m.LatestCertExpiry = new(time.Time)
+				*_m.LatestCertExpiry = value.Time
+			}
+		case target.FieldLatestCspFindingCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field latest_csp_finding_count", values[i])
+			} else if value.Valid {
+				_m.LatestCspFindingCount = new(int)
+				*_m.LatestCspFindingCount = int(value.Int64)
+			}
+		case target.FieldOpenPortCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field open_port_count", values[i])
+			} else if value.Valid {
+				_m.OpenPortCount = int(value.Int64)
 			}
 		case target.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -269,6 +311,25 @@ func (_m *Target) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("reachability=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Reachability))
+	builder.WriteString(", ")
+	builder.WriteString("latest_ssl_grade=")
+	builder.WriteString(_m.LatestSslGrade)
+	builder.WriteString(", ")
+	builder.WriteString("latest_ssl_grade_rank=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LatestSslGradeRank))
+	builder.WriteString(", ")
+	if v := _m.LatestCertExpiry; v != nil {
+		builder.WriteString("latest_cert_expiry=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.LatestCspFindingCount; v != nil {
+		builder.WriteString("latest_csp_finding_count=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("open_port_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.OpenPortCount))
 	builder.WriteByte(')')
 	return builder.String()
 }

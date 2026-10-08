@@ -7889,35 +7889,43 @@ func (m *TagMutation) ResetEdge(name string) error {
 // TargetMutation represents an operation that mutates the Target nodes in the graph.
 type TargetMutation struct {
 	config
-	op                  Op
-	typ                 string
-	id                  *int
-	create_time         *time.Time
-	update_time         *time.Time
-	input               *string
-	is_ip               *bool
-	resolve_attempts    *int
-	addresolve_attempts *int
-	resolve_error       *string
-	reachability        *target.Reachability
-	clearedFields       map[string]struct{}
-	ips                 map[int]struct{}
-	removedips          map[int]struct{}
-	clearedips          bool
-	ssl_scans           map[int]struct{}
-	removedssl_scans    map[int]struct{}
-	clearedssl_scans    bool
-	csp_scans           map[int]struct{}
-	removedcsp_scans    map[int]struct{}
-	clearedcsp_scans    bool
-	owner               *int
-	clearedowner        bool
-	tags                map[int]struct{}
-	removedtags         map[int]struct{}
-	clearedtags         bool
-	done                bool
-	oldValue            func(context.Context) (*Target, error)
-	predicates          []predicate.Target
+	op                          Op
+	typ                         string
+	id                          *int
+	create_time                 *time.Time
+	update_time                 *time.Time
+	input                       *string
+	is_ip                       *bool
+	resolve_attempts            *int
+	addresolve_attempts         *int
+	resolve_error               *string
+	reachability                *target.Reachability
+	latest_ssl_grade            *string
+	latest_ssl_grade_rank       *int
+	addlatest_ssl_grade_rank    *int
+	latest_cert_expiry          *time.Time
+	latest_csp_finding_count    *int
+	addlatest_csp_finding_count *int
+	open_port_count             *int
+	addopen_port_count          *int
+	clearedFields               map[string]struct{}
+	ips                         map[int]struct{}
+	removedips                  map[int]struct{}
+	clearedips                  bool
+	ssl_scans                   map[int]struct{}
+	removedssl_scans            map[int]struct{}
+	clearedssl_scans            bool
+	csp_scans                   map[int]struct{}
+	removedcsp_scans            map[int]struct{}
+	clearedcsp_scans            bool
+	owner                       *int
+	clearedowner                bool
+	tags                        map[int]struct{}
+	removedtags                 map[int]struct{}
+	clearedtags                 bool
+	done                        bool
+	oldValue                    func(context.Context) (*Target, error)
+	predicates                  []predicate.Target
 }
 
 var _ ent.Mutation = (*TargetMutation)(nil)
@@ -8303,6 +8311,286 @@ func (m *TargetMutation) ResetReachability() {
 	m.reachability = nil
 }
 
+// SetLatestSslGrade sets the "latest_ssl_grade" field.
+func (m *TargetMutation) SetLatestSslGrade(s string) {
+	m.latest_ssl_grade = &s
+}
+
+// LatestSslGrade returns the value of the "latest_ssl_grade" field in the mutation.
+func (m *TargetMutation) LatestSslGrade() (r string, exists bool) {
+	v := m.latest_ssl_grade
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLatestSslGrade returns the old "latest_ssl_grade" field's value of the Target entity.
+// If the Target object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TargetMutation) OldLatestSslGrade(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLatestSslGrade is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLatestSslGrade requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLatestSslGrade: %w", err)
+	}
+	return oldValue.LatestSslGrade, nil
+}
+
+// ClearLatestSslGrade clears the value of the "latest_ssl_grade" field.
+func (m *TargetMutation) ClearLatestSslGrade() {
+	m.latest_ssl_grade = nil
+	m.clearedFields[target.FieldLatestSslGrade] = struct{}{}
+}
+
+// LatestSslGradeCleared returns if the "latest_ssl_grade" field was cleared in this mutation.
+func (m *TargetMutation) LatestSslGradeCleared() bool {
+	_, ok := m.clearedFields[target.FieldLatestSslGrade]
+	return ok
+}
+
+// ResetLatestSslGrade resets all changes to the "latest_ssl_grade" field.
+func (m *TargetMutation) ResetLatestSslGrade() {
+	m.latest_ssl_grade = nil
+	delete(m.clearedFields, target.FieldLatestSslGrade)
+}
+
+// SetLatestSslGradeRank sets the "latest_ssl_grade_rank" field.
+func (m *TargetMutation) SetLatestSslGradeRank(i int) {
+	m.latest_ssl_grade_rank = &i
+	m.addlatest_ssl_grade_rank = nil
+}
+
+// LatestSslGradeRank returns the value of the "latest_ssl_grade_rank" field in the mutation.
+func (m *TargetMutation) LatestSslGradeRank() (r int, exists bool) {
+	v := m.latest_ssl_grade_rank
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLatestSslGradeRank returns the old "latest_ssl_grade_rank" field's value of the Target entity.
+// If the Target object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TargetMutation) OldLatestSslGradeRank(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLatestSslGradeRank is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLatestSslGradeRank requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLatestSslGradeRank: %w", err)
+	}
+	return oldValue.LatestSslGradeRank, nil
+}
+
+// AddLatestSslGradeRank adds i to the "latest_ssl_grade_rank" field.
+func (m *TargetMutation) AddLatestSslGradeRank(i int) {
+	if m.addlatest_ssl_grade_rank != nil {
+		*m.addlatest_ssl_grade_rank += i
+	} else {
+		m.addlatest_ssl_grade_rank = &i
+	}
+}
+
+// AddedLatestSslGradeRank returns the value that was added to the "latest_ssl_grade_rank" field in this mutation.
+func (m *TargetMutation) AddedLatestSslGradeRank() (r int, exists bool) {
+	v := m.addlatest_ssl_grade_rank
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLatestSslGradeRank resets all changes to the "latest_ssl_grade_rank" field.
+func (m *TargetMutation) ResetLatestSslGradeRank() {
+	m.latest_ssl_grade_rank = nil
+	m.addlatest_ssl_grade_rank = nil
+}
+
+// SetLatestCertExpiry sets the "latest_cert_expiry" field.
+func (m *TargetMutation) SetLatestCertExpiry(t time.Time) {
+	m.latest_cert_expiry = &t
+}
+
+// LatestCertExpiry returns the value of the "latest_cert_expiry" field in the mutation.
+func (m *TargetMutation) LatestCertExpiry() (r time.Time, exists bool) {
+	v := m.latest_cert_expiry
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLatestCertExpiry returns the old "latest_cert_expiry" field's value of the Target entity.
+// If the Target object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TargetMutation) OldLatestCertExpiry(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLatestCertExpiry is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLatestCertExpiry requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLatestCertExpiry: %w", err)
+	}
+	return oldValue.LatestCertExpiry, nil
+}
+
+// ClearLatestCertExpiry clears the value of the "latest_cert_expiry" field.
+func (m *TargetMutation) ClearLatestCertExpiry() {
+	m.latest_cert_expiry = nil
+	m.clearedFields[target.FieldLatestCertExpiry] = struct{}{}
+}
+
+// LatestCertExpiryCleared returns if the "latest_cert_expiry" field was cleared in this mutation.
+func (m *TargetMutation) LatestCertExpiryCleared() bool {
+	_, ok := m.clearedFields[target.FieldLatestCertExpiry]
+	return ok
+}
+
+// ResetLatestCertExpiry resets all changes to the "latest_cert_expiry" field.
+func (m *TargetMutation) ResetLatestCertExpiry() {
+	m.latest_cert_expiry = nil
+	delete(m.clearedFields, target.FieldLatestCertExpiry)
+}
+
+// SetLatestCspFindingCount sets the "latest_csp_finding_count" field.
+func (m *TargetMutation) SetLatestCspFindingCount(i int) {
+	m.latest_csp_finding_count = &i
+	m.addlatest_csp_finding_count = nil
+}
+
+// LatestCspFindingCount returns the value of the "latest_csp_finding_count" field in the mutation.
+func (m *TargetMutation) LatestCspFindingCount() (r int, exists bool) {
+	v := m.latest_csp_finding_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLatestCspFindingCount returns the old "latest_csp_finding_count" field's value of the Target entity.
+// If the Target object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TargetMutation) OldLatestCspFindingCount(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLatestCspFindingCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLatestCspFindingCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLatestCspFindingCount: %w", err)
+	}
+	return oldValue.LatestCspFindingCount, nil
+}
+
+// AddLatestCspFindingCount adds i to the "latest_csp_finding_count" field.
+func (m *TargetMutation) AddLatestCspFindingCount(i int) {
+	if m.addlatest_csp_finding_count != nil {
+		*m.addlatest_csp_finding_count += i
+	} else {
+		m.addlatest_csp_finding_count = &i
+	}
+}
+
+// AddedLatestCspFindingCount returns the value that was added to the "latest_csp_finding_count" field in this mutation.
+func (m *TargetMutation) AddedLatestCspFindingCount() (r int, exists bool) {
+	v := m.addlatest_csp_finding_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearLatestCspFindingCount clears the value of the "latest_csp_finding_count" field.
+func (m *TargetMutation) ClearLatestCspFindingCount() {
+	m.latest_csp_finding_count = nil
+	m.addlatest_csp_finding_count = nil
+	m.clearedFields[target.FieldLatestCspFindingCount] = struct{}{}
+}
+
+// LatestCspFindingCountCleared returns if the "latest_csp_finding_count" field was cleared in this mutation.
+func (m *TargetMutation) LatestCspFindingCountCleared() bool {
+	_, ok := m.clearedFields[target.FieldLatestCspFindingCount]
+	return ok
+}
+
+// ResetLatestCspFindingCount resets all changes to the "latest_csp_finding_count" field.
+func (m *TargetMutation) ResetLatestCspFindingCount() {
+	m.latest_csp_finding_count = nil
+	m.addlatest_csp_finding_count = nil
+	delete(m.clearedFields, target.FieldLatestCspFindingCount)
+}
+
+// SetOpenPortCount sets the "open_port_count" field.
+func (m *TargetMutation) SetOpenPortCount(i int) {
+	m.open_port_count = &i
+	m.addopen_port_count = nil
+}
+
+// OpenPortCount returns the value of the "open_port_count" field in the mutation.
+func (m *TargetMutation) OpenPortCount() (r int, exists bool) {
+	v := m.open_port_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOpenPortCount returns the old "open_port_count" field's value of the Target entity.
+// If the Target object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TargetMutation) OldOpenPortCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOpenPortCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOpenPortCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOpenPortCount: %w", err)
+	}
+	return oldValue.OpenPortCount, nil
+}
+
+// AddOpenPortCount adds i to the "open_port_count" field.
+func (m *TargetMutation) AddOpenPortCount(i int) {
+	if m.addopen_port_count != nil {
+		*m.addopen_port_count += i
+	} else {
+		m.addopen_port_count = &i
+	}
+}
+
+// AddedOpenPortCount returns the value that was added to the "open_port_count" field in this mutation.
+func (m *TargetMutation) AddedOpenPortCount() (r int, exists bool) {
+	v := m.addopen_port_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOpenPortCount resets all changes to the "open_port_count" field.
+func (m *TargetMutation) ResetOpenPortCount() {
+	m.open_port_count = nil
+	m.addopen_port_count = nil
+}
+
 // AddIPIDs adds the "ips" edge to the IP entity by ids.
 func (m *TargetMutation) AddIPIDs(ids ...int) {
 	if m.ips == nil {
@@ -8592,7 +8880,7 @@ func (m *TargetMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TargetMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 12)
 	if m.create_time != nil {
 		fields = append(fields, target.FieldCreateTime)
 	}
@@ -8613,6 +8901,21 @@ func (m *TargetMutation) Fields() []string {
 	}
 	if m.reachability != nil {
 		fields = append(fields, target.FieldReachability)
+	}
+	if m.latest_ssl_grade != nil {
+		fields = append(fields, target.FieldLatestSslGrade)
+	}
+	if m.latest_ssl_grade_rank != nil {
+		fields = append(fields, target.FieldLatestSslGradeRank)
+	}
+	if m.latest_cert_expiry != nil {
+		fields = append(fields, target.FieldLatestCertExpiry)
+	}
+	if m.latest_csp_finding_count != nil {
+		fields = append(fields, target.FieldLatestCspFindingCount)
+	}
+	if m.open_port_count != nil {
+		fields = append(fields, target.FieldOpenPortCount)
 	}
 	return fields
 }
@@ -8636,6 +8939,16 @@ func (m *TargetMutation) Field(name string) (ent.Value, bool) {
 		return m.ResolveError()
 	case target.FieldReachability:
 		return m.Reachability()
+	case target.FieldLatestSslGrade:
+		return m.LatestSslGrade()
+	case target.FieldLatestSslGradeRank:
+		return m.LatestSslGradeRank()
+	case target.FieldLatestCertExpiry:
+		return m.LatestCertExpiry()
+	case target.FieldLatestCspFindingCount:
+		return m.LatestCspFindingCount()
+	case target.FieldOpenPortCount:
+		return m.OpenPortCount()
 	}
 	return nil, false
 }
@@ -8659,6 +8972,16 @@ func (m *TargetMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldResolveError(ctx)
 	case target.FieldReachability:
 		return m.OldReachability(ctx)
+	case target.FieldLatestSslGrade:
+		return m.OldLatestSslGrade(ctx)
+	case target.FieldLatestSslGradeRank:
+		return m.OldLatestSslGradeRank(ctx)
+	case target.FieldLatestCertExpiry:
+		return m.OldLatestCertExpiry(ctx)
+	case target.FieldLatestCspFindingCount:
+		return m.OldLatestCspFindingCount(ctx)
+	case target.FieldOpenPortCount:
+		return m.OldOpenPortCount(ctx)
 	}
 	return nil, fmt.Errorf("unknown Target field %s", name)
 }
@@ -8717,6 +9040,41 @@ func (m *TargetMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetReachability(v)
 		return nil
+	case target.FieldLatestSslGrade:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLatestSslGrade(v)
+		return nil
+	case target.FieldLatestSslGradeRank:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLatestSslGradeRank(v)
+		return nil
+	case target.FieldLatestCertExpiry:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLatestCertExpiry(v)
+		return nil
+	case target.FieldLatestCspFindingCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLatestCspFindingCount(v)
+		return nil
+	case target.FieldOpenPortCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOpenPortCount(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Target field %s", name)
 }
@@ -8728,6 +9086,15 @@ func (m *TargetMutation) AddedFields() []string {
 	if m.addresolve_attempts != nil {
 		fields = append(fields, target.FieldResolveAttempts)
 	}
+	if m.addlatest_ssl_grade_rank != nil {
+		fields = append(fields, target.FieldLatestSslGradeRank)
+	}
+	if m.addlatest_csp_finding_count != nil {
+		fields = append(fields, target.FieldLatestCspFindingCount)
+	}
+	if m.addopen_port_count != nil {
+		fields = append(fields, target.FieldOpenPortCount)
+	}
 	return fields
 }
 
@@ -8738,6 +9105,12 @@ func (m *TargetMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case target.FieldResolveAttempts:
 		return m.AddedResolveAttempts()
+	case target.FieldLatestSslGradeRank:
+		return m.AddedLatestSslGradeRank()
+	case target.FieldLatestCspFindingCount:
+		return m.AddedLatestCspFindingCount()
+	case target.FieldOpenPortCount:
+		return m.AddedOpenPortCount()
 	}
 	return nil, false
 }
@@ -8754,6 +9127,27 @@ func (m *TargetMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddResolveAttempts(v)
 		return nil
+	case target.FieldLatestSslGradeRank:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLatestSslGradeRank(v)
+		return nil
+	case target.FieldLatestCspFindingCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLatestCspFindingCount(v)
+		return nil
+	case target.FieldOpenPortCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOpenPortCount(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Target numeric field %s", name)
 }
@@ -8764,6 +9158,15 @@ func (m *TargetMutation) ClearedFields() []string {
 	var fields []string
 	if m.FieldCleared(target.FieldResolveError) {
 		fields = append(fields, target.FieldResolveError)
+	}
+	if m.FieldCleared(target.FieldLatestSslGrade) {
+		fields = append(fields, target.FieldLatestSslGrade)
+	}
+	if m.FieldCleared(target.FieldLatestCertExpiry) {
+		fields = append(fields, target.FieldLatestCertExpiry)
+	}
+	if m.FieldCleared(target.FieldLatestCspFindingCount) {
+		fields = append(fields, target.FieldLatestCspFindingCount)
 	}
 	return fields
 }
@@ -8781,6 +9184,15 @@ func (m *TargetMutation) ClearField(name string) error {
 	switch name {
 	case target.FieldResolveError:
 		m.ClearResolveError()
+		return nil
+	case target.FieldLatestSslGrade:
+		m.ClearLatestSslGrade()
+		return nil
+	case target.FieldLatestCertExpiry:
+		m.ClearLatestCertExpiry()
+		return nil
+	case target.FieldLatestCspFindingCount:
+		m.ClearLatestCspFindingCount()
 		return nil
 	}
 	return fmt.Errorf("unknown Target nullable field %s", name)
@@ -8810,6 +9222,21 @@ func (m *TargetMutation) ResetField(name string) error {
 		return nil
 	case target.FieldReachability:
 		m.ResetReachability()
+		return nil
+	case target.FieldLatestSslGrade:
+		m.ResetLatestSslGrade()
+		return nil
+	case target.FieldLatestSslGradeRank:
+		m.ResetLatestSslGradeRank()
+		return nil
+	case target.FieldLatestCertExpiry:
+		m.ResetLatestCertExpiry()
+		return nil
+	case target.FieldLatestCspFindingCount:
+		m.ResetLatestCspFindingCount()
+		return nil
+	case target.FieldOpenPortCount:
+		m.ResetOpenPortCount()
 		return nil
 	}
 	return fmt.Errorf("unknown Target field %s", name)

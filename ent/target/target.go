@@ -29,6 +29,16 @@ const (
 	FieldResolveError = "resolve_error"
 	// FieldReachability holds the string denoting the reachability field in the database.
 	FieldReachability = "reachability"
+	// FieldLatestSslGrade holds the string denoting the latest_ssl_grade field in the database.
+	FieldLatestSslGrade = "latest_ssl_grade"
+	// FieldLatestSslGradeRank holds the string denoting the latest_ssl_grade_rank field in the database.
+	FieldLatestSslGradeRank = "latest_ssl_grade_rank"
+	// FieldLatestCertExpiry holds the string denoting the latest_cert_expiry field in the database.
+	FieldLatestCertExpiry = "latest_cert_expiry"
+	// FieldLatestCspFindingCount holds the string denoting the latest_csp_finding_count field in the database.
+	FieldLatestCspFindingCount = "latest_csp_finding_count"
+	// FieldOpenPortCount holds the string denoting the open_port_count field in the database.
+	FieldOpenPortCount = "open_port_count"
 	// EdgeIps holds the string denoting the ips edge name in mutations.
 	EdgeIps = "ips"
 	// EdgeSslScans holds the string denoting the ssl_scans edge name in mutations.
@@ -84,6 +94,11 @@ var Columns = []string{
 	FieldResolveAttempts,
 	FieldResolveError,
 	FieldReachability,
+	FieldLatestSslGrade,
+	FieldLatestSslGradeRank,
+	FieldLatestCertExpiry,
+	FieldLatestCspFindingCount,
+	FieldOpenPortCount,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "targets"
@@ -129,6 +144,10 @@ var (
 	DefaultIsIP bool
 	// DefaultResolveAttempts holds the default value on creation for the "resolve_attempts" field.
 	DefaultResolveAttempts int
+	// DefaultLatestSslGradeRank holds the default value on creation for the "latest_ssl_grade_rank" field.
+	DefaultLatestSslGradeRank int
+	// DefaultOpenPortCount holds the default value on creation for the "open_port_count" field.
+	DefaultOpenPortCount int
 )
 
 // Reachability defines the type for the "reachability" enum field.
@@ -200,6 +219,31 @@ func ByResolveError(opts ...sql.OrderTermOption) OrderOption {
 // ByReachability orders the results by the reachability field.
 func ByReachability(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldReachability, opts...).ToFunc()
+}
+
+// ByLatestSslGrade orders the results by the latest_ssl_grade field.
+func ByLatestSslGrade(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLatestSslGrade, opts...).ToFunc()
+}
+
+// ByLatestSslGradeRank orders the results by the latest_ssl_grade_rank field.
+func ByLatestSslGradeRank(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLatestSslGradeRank, opts...).ToFunc()
+}
+
+// ByLatestCertExpiry orders the results by the latest_cert_expiry field.
+func ByLatestCertExpiry(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLatestCertExpiry, opts...).ToFunc()
+}
+
+// ByLatestCspFindingCount orders the results by the latest_csp_finding_count field.
+func ByLatestCspFindingCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLatestCspFindingCount, opts...).ToFunc()
+}
+
+// ByOpenPortCount orders the results by the open_port_count field.
+func ByOpenPortCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOpenPortCount, opts...).ToFunc()
 }
 
 // ByIpsCount orders the results by ips count.

@@ -365,7 +365,7 @@ func (s *EntStorage) RecordResolveFailure(ctx context.Context, input, msg string
 		Exec(ctx); err != nil {
 		return err
 	}
-	return refreshReachability(ctx, s.client, target.Input(input))
+	return refreshSummary(ctx, s.client, target.Input(input))
 }
 
 func (s *EntStorage) TouchTarget(ctx context.Context, input string) error {
@@ -430,7 +430,7 @@ func (s *EntStorage) SaveIPs(ctx context.Context, targetInput string, ipAddresse
 	}
 
 	// New IPs may already have port scans from other targets sharing them.
-	if err := refreshReachability(ctx, s.client, target.ID(t.ID)); err != nil {
+	if err := refreshSummary(ctx, s.client, target.ID(t.ID)); err != nil {
 		log.Printf("Failed to update reachability for %s: %v", t.Input, err)
 	}
 
@@ -450,7 +450,7 @@ func (s *EntStorage) SavePortScan(ctx context.Context, ipAddress string, openPor
 		return err
 	}
 	// An open port makes every target on this IP reachable, domains included.
-	return refreshReachability(ctx, s.client, target.HasIpsWith(ip.ID(i.ID)))
+	return refreshSummary(ctx, s.client, target.HasIpsWith(ip.ID(i.ID)))
 }
 
 func (s *EntStorage) savePortScan(ctx context.Context, i *ent.IP, openPorts []int) error {
@@ -500,36 +500,47 @@ func (s *EntStorage) SaveSSLScan(ctx context.Context, input string, res SSLResul
 		return err
 	}
 
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return err
+	}
+
 	now := time.Now()
 
-	latest, err := s.client.SSLScan.Query().
+	latest, err := tx.SSLScan.Query().
 		Where(sslscan.HasTargetWith(target.IDEQ(t.ID))).
 		Order(ent.Desc(sslscan.FieldScannedAt), ent.Desc(sslscan.FieldID)).
 		First(ctx)
 	if err != nil && !ent.IsNotFound(err) {
-		return err
+		return rollback(tx, err)
 	}
 	if latest != nil && sameSSL(latest, res) {
-		return s.client.SSLScan.UpdateOne(latest).
+		err = tx.SSLScan.UpdateOne(latest).
 			SetLastSeenAt(now).
 			AddCheckCount(1).
 			Exec(ctx)
+	} else {
+		err = tx.SSLScan.Create().
+			SetTarget(t).
+			SetScannedAt(now).
+			SetLastSeenAt(now).
+			SetCheckCount(1).
+			SetGrade(res.Grade).
+			SetStatus(res.Status).
+			SetCertIssuer(res.CertIssuer).
+			SetCertSubject(res.CertSubject).
+			SetCertExpiry(res.CertExpiry).
+			SetProtocols(res.Protocols).
+			SetVulnerabilities(res.Vulnerabilities).
+			Exec(ctx)
 	}
-
-	_, err = s.client.SSLScan.Create().
-		SetTarget(t).
-		SetScannedAt(now).
-		SetLastSeenAt(now).
-		SetCheckCount(1).
-		SetGrade(res.Grade).
-		SetStatus(res.Status).
-		SetCertIssuer(res.CertIssuer).
-		SetCertSubject(res.CertSubject).
-		SetCertExpiry(res.CertExpiry).
-		SetProtocols(res.Protocols).
-		SetVulnerabilities(res.Vulnerabilities).
-		Save(ctx)
-	return err
+	if err != nil {
+		return rollback(tx, err)
+	}
+	if err := refreshSummary(ctx, tx.Client(), target.ID(t.ID)); err != nil {
+		return rollback(tx, err)
+	}
+	return tx.Commit()
 }
 
 // SaveCSPScan records the CSP evaluation of a target that answered the probe.
@@ -587,7 +598,7 @@ func (s *EntStorage) saveCSP(ctx context.Context, input, header string, findings
 	if err != nil {
 		return rollback(tx, err)
 	}
-	if err := refreshReachability(ctx, tx.Client(), target.ID(t.ID)); err != nil {
+	if err := refreshSummary(ctx, tx.Client(), target.ID(t.ID)); err != nil {
 		return rollback(tx, err)
 	}
 	return tx.Commit()
