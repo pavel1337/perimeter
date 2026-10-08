@@ -3,6 +3,7 @@
 package target
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -26,6 +27,8 @@ const (
 	FieldResolveAttempts = "resolve_attempts"
 	// FieldResolveError holds the string denoting the resolve_error field in the database.
 	FieldResolveError = "resolve_error"
+	// FieldReachability holds the string denoting the reachability field in the database.
+	FieldReachability = "reachability"
 	// EdgeIps holds the string denoting the ips edge name in mutations.
 	EdgeIps = "ips"
 	// EdgeSslScans holds the string denoting the ssl_scans edge name in mutations.
@@ -80,6 +83,7 @@ var Columns = []string{
 	FieldIsIP,
 	FieldResolveAttempts,
 	FieldResolveError,
+	FieldReachability,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "targets"
@@ -127,6 +131,34 @@ var (
 	DefaultResolveAttempts int
 )
 
+// Reachability defines the type for the "reachability" enum field.
+type Reachability string
+
+// ReachabilityPending is the default value of the Reachability enum.
+const DefaultReachability = ReachabilityPending
+
+// Reachability values.
+const (
+	ReachabilityPending     Reachability = "pending"
+	ReachabilityOk          Reachability = "ok"
+	ReachabilityUnresolved  Reachability = "unresolved"
+	ReachabilityUnreachable Reachability = "unreachable"
+)
+
+func (r Reachability) String() string {
+	return string(r)
+}
+
+// ReachabilityValidator is a validator for the "reachability" field enum values. It is called by the builders before save.
+func ReachabilityValidator(r Reachability) error {
+	switch r {
+	case ReachabilityPending, ReachabilityOk, ReachabilityUnresolved, ReachabilityUnreachable:
+		return nil
+	default:
+		return fmt.Errorf("target: invalid enum value for reachability field: %q", r)
+	}
+}
+
 // OrderOption defines the ordering options for the Target queries.
 type OrderOption func(*sql.Selector)
 
@@ -163,6 +195,11 @@ func ByResolveAttempts(opts ...sql.OrderTermOption) OrderOption {
 // ByResolveError orders the results by the resolve_error field.
 func ByResolveError(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldResolveError, opts...).ToFunc()
+}
+
+// ByReachability orders the results by the reachability field.
+func ByReachability(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReachability, opts...).ToFunc()
 }
 
 // ByIpsCount orders the results by ips count.

@@ -4,6 +4,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 	"entgo.io/ent/schema/mixin"
 )
 
@@ -19,6 +20,17 @@ func (Target) Fields() []ent.Field {
 		// Resolution backoff state (see scanner.resolveBackoff).
 		field.Int("resolve_attempts").Default(0),
 		field.String("resolve_error").Optional(),
+		// Whether the target answers at all, kept current by the scan write
+		// paths so it can be filtered and sorted on in SQL (issue #15).
+		field.Enum("reachability").
+			Values("pending", "ok", "unresolved", "unreachable").
+			Default("pending"),
+	}
+}
+
+func (Target) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("reachability"),
 	}
 }
 

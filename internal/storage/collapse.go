@@ -47,8 +47,9 @@ func sameSSL(scan *ent.SSLScan, res SSLResult) bool {
 }
 
 // sameCSP reports whether a stored CSP scan carries the same result.
-func sameCSP(scan *ent.CSPScan, header string, findings []csp.Finding) bool {
-	return scan.CspHeader == header && slices.Equal(scan.Findings, findings)
+func sameCSP(scan *ent.CSPScan, header string, findings []csp.Finding, probeErr string) bool {
+	return scan.CspHeader == header && slices.Equal(scan.Findings, findings) &&
+		scan.ProbeError == probeErr
 }
 
 // lastSeen is the effective end of a row's period. Rows written before issue #4
@@ -266,7 +267,7 @@ func collapseCSPScans(ctx context.Context, client *ent.Client, targetID int, sta
 	var drop []int
 	for start := 0; start < len(scans); {
 		end := start + 1
-		for end < len(scans) && sameCSP(scans[start], scans[end].CspHeader, scans[end].Findings) {
+		for end < len(scans) && sameCSP(scans[start], scans[end].CspHeader, scans[end].Findings, scans[end].ProbeError) {
 			end++
 		}
 

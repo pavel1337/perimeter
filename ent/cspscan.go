@@ -30,6 +30,8 @@ type CSPScan struct {
 	CspHeader string `json:"csp_header,omitempty"`
 	// Findings holds the value of the "findings" field.
 	Findings []csp.Finding `json:"findings,omitempty"`
+	// ProbeError holds the value of the "probe_error" field.
+	ProbeError string `json:"probe_error,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the CSPScanQuery when eager-loading is set.
 	Edges            CSPScanEdges `json:"edges"`
@@ -66,7 +68,7 @@ func (*CSPScan) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case cspscan.FieldID, cspscan.FieldCheckCount:
 			values[i] = new(sql.NullInt64)
-		case cspscan.FieldCspHeader:
+		case cspscan.FieldCspHeader, cspscan.FieldProbeError:
 			values[i] = new(sql.NullString)
 		case cspscan.FieldScannedAt, cspscan.FieldLastSeenAt:
 			values[i] = new(sql.NullTime)
@@ -124,6 +126,12 @@ func (_m *CSPScan) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &_m.Findings); err != nil {
 					return fmt.Errorf("unmarshal field findings: %w", err)
 				}
+			}
+		case cspscan.FieldProbeError:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field probe_error", values[i])
+			} else if value.Valid {
+				_m.ProbeError = value.String
 			}
 		case cspscan.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -187,6 +195,9 @@ func (_m *CSPScan) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("findings=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Findings))
+	builder.WriteString(", ")
+	builder.WriteString("probe_error=")
+	builder.WriteString(_m.ProbeError)
 	builder.WriteByte(')')
 	return builder.String()
 }

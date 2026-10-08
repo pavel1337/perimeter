@@ -21,12 +21,20 @@
   </div>
 </div>
 
+<div style="margin-bottom: 8px;">
+  <span class="text-muted" style="margin-right: 8px;">State:</span>
+  <a href="/?tag={{.FilterTag}}" style="margin-right: 6px; {{if eq .FilterState ""}}font-weight: 600;{{end}}">All</a>
+  {{range .States}}
+  <a href="/?state={{.}}&tag={{$.FilterTag}}" style="margin-right: 6px; {{if eq $.FilterState (print .)}}font-weight: 600;{{end}}">{{.}}</a>
+  {{end}}
+</div>
+
 {{if .Tags}}
 <div style="margin-bottom: 16px;">
   <span class="text-muted" style="margin-right: 8px;">Filter:</span>
-  <a href="/" style="margin-right: 6px; {{if eq .FilterTag ""}}font-weight: 600;{{end}}">All</a>
+  <a href="/?state={{.FilterState}}" style="margin-right: 6px; {{if eq .FilterTag ""}}font-weight: 600;{{end}}">All</a>
   {{range .Tags}}
-  <a href="/?tag={{.Name}}" style="margin-right: 6px; {{if eq $.FilterTag .Name}}font-weight: 600;{{end}}">
+  <a href="/?tag={{.Name}}&state={{$.FilterState}}" style="margin-right: 6px; {{if eq $.FilterTag .Name}}font-weight: 600;{{end}}">
     <span class="badge" style="background: {{.Color}}20; color: {{.Color}};">{{.Name}}</span>
   </a>
   {{end}}
@@ -60,12 +68,10 @@
         {{else}}
         {{if .Edges.CspScans}}
         {{$latestCSP := index .Edges.CspScans 0}}
-        {{if eq $latestCSP.CspHeader ""}}
-          {{if and $latestCSP.Findings (eq (index $latestCSP.Findings 0).Description "Target Unreachable")}}
-          <span class="text-muted">unreachable</span>
-          {{else}}
-          <span class="badge badge-red">no CSP header</span>
-          {{end}}
+        {{if $latestCSP.ProbeError}}
+        <span class="text-muted" title="{{$latestCSP.ProbeError}}">no HTTP response</span>
+        {{else if eq $latestCSP.CspHeader ""}}
+        <span class="badge badge-red">no CSP header</span>
         {{else if $latestCSP.Findings}}
         <span class="badge badge-red">{{len $latestCSP.Findings}} issues</span>
         {{else}}
@@ -97,7 +103,7 @@
         {{end}}
       </td>
       {{else}}
-      <td>{{if .ResolveError}}<span class="text-muted" title="attempt {{.ResolveAttempts}}">unresolved: {{.ResolveError}}</span>{{else}}<span class="text-muted">resolving...</span>{{end}}</td>
+      <td>{{if eq .Reachability "unresolved"}}<span class="text-muted" title="attempt {{.ResolveAttempts}}">unresolved: {{.ResolveError}}</span>{{else}}<span class="text-muted">resolving...</span>{{end}}</td>
       {{end}}
 
       <td>

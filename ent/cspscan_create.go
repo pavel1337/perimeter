@@ -68,6 +68,20 @@ func (_c *CSPScanCreate) SetFindings(v []csp.Finding) *CSPScanCreate {
 	return _c
 }
 
+// SetProbeError sets the "probe_error" field.
+func (_c *CSPScanCreate) SetProbeError(v string) *CSPScanCreate {
+	_c.mutation.SetProbeError(v)
+	return _c
+}
+
+// SetNillableProbeError sets the "probe_error" field if the given value is not nil.
+func (_c *CSPScanCreate) SetNillableProbeError(v *string) *CSPScanCreate {
+	if v != nil {
+		_c.SetProbeError(*v)
+	}
+	return _c
+}
+
 // SetTargetID sets the "target" edge to the Target entity by ID.
 func (_c *CSPScanCreate) SetTargetID(id int) *CSPScanCreate {
 	_c.mutation.SetTargetID(id)
@@ -179,6 +193,10 @@ func (_c *CSPScanCreate) createSpec() (*CSPScan, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Findings(); ok {
 		_spec.SetField(cspscan.FieldFindings, field.TypeJSON, value)
 		_node.Findings = value
+	}
+	if value, ok := _c.mutation.ProbeError(); ok {
+		_spec.SetField(cspscan.FieldProbeError, field.TypeString, value)
+		_node.ProbeError = value
 	}
 	if nodes := _c.mutation.TargetIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

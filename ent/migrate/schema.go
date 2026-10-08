@@ -16,6 +16,7 @@ var (
 		{Name: "check_count", Type: field.TypeInt, Default: 0},
 		{Name: "csp_header", Type: field.TypeString},
 		{Name: "findings", Type: field.TypeJSON, Nullable: true},
+		{Name: "probe_error", Type: field.TypeString, Nullable: true},
 		{Name: "target_csp_scans", Type: field.TypeInt},
 	}
 	// CspScansTable holds the schema information for the "csp_scans" table.
@@ -26,7 +27,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "csp_scans_targets_csp_scans",
-				Columns:    []*schema.Column{CspScansColumns[6]},
+				Columns:    []*schema.Column{CspScansColumns[7]},
 				RefColumns: []*schema.Column{TargetsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -250,6 +251,7 @@ var (
 		{Name: "is_ip", Type: field.TypeBool, Default: false},
 		{Name: "resolve_attempts", Type: field.TypeInt, Default: 0},
 		{Name: "resolve_error", Type: field.TypeString, Nullable: true},
+		{Name: "reachability", Type: field.TypeEnum, Enums: []string{"pending", "ok", "unresolved", "unreachable"}, Default: "pending"},
 		{Name: "user_targets", Type: field.TypeInt, Nullable: true},
 	}
 	// TargetsTable holds the schema information for the "targets" table.
@@ -260,9 +262,16 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "targets_users_targets",
-				Columns:    []*schema.Column{TargetsColumns[7]},
+				Columns:    []*schema.Column{TargetsColumns[8]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "target_reachability",
+				Unique:  false,
+				Columns: []*schema.Column{TargetsColumns[7]},
 			},
 		},
 	}

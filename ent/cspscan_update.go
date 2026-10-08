@@ -118,6 +118,26 @@ func (_u *CSPScanUpdate) ClearFindings() *CSPScanUpdate {
 	return _u
 }
 
+// SetProbeError sets the "probe_error" field.
+func (_u *CSPScanUpdate) SetProbeError(v string) *CSPScanUpdate {
+	_u.mutation.SetProbeError(v)
+	return _u
+}
+
+// SetNillableProbeError sets the "probe_error" field if the given value is not nil.
+func (_u *CSPScanUpdate) SetNillableProbeError(v *string) *CSPScanUpdate {
+	if v != nil {
+		_u.SetProbeError(*v)
+	}
+	return _u
+}
+
+// ClearProbeError clears the value of the "probe_error" field.
+func (_u *CSPScanUpdate) ClearProbeError() *CSPScanUpdate {
+	_u.mutation.ClearProbeError()
+	return _u
+}
+
 // SetTargetID sets the "target" edge to the Target entity by ID.
 func (_u *CSPScanUpdate) SetTargetID(id int) *CSPScanUpdate {
 	_u.mutation.SetTargetID(id)
@@ -215,6 +235,12 @@ func (_u *CSPScanUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.FindingsCleared() {
 		_spec.ClearField(cspscan.FieldFindings, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ProbeError(); ok {
+		_spec.SetField(cspscan.FieldProbeError, field.TypeString, value)
+	}
+	if _u.mutation.ProbeErrorCleared() {
+		_spec.ClearField(cspscan.FieldProbeError, field.TypeString)
 	}
 	if _u.mutation.TargetCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -352,6 +378,26 @@ func (_u *CSPScanUpdateOne) ClearFindings() *CSPScanUpdateOne {
 	return _u
 }
 
+// SetProbeError sets the "probe_error" field.
+func (_u *CSPScanUpdateOne) SetProbeError(v string) *CSPScanUpdateOne {
+	_u.mutation.SetProbeError(v)
+	return _u
+}
+
+// SetNillableProbeError sets the "probe_error" field if the given value is not nil.
+func (_u *CSPScanUpdateOne) SetNillableProbeError(v *string) *CSPScanUpdateOne {
+	if v != nil {
+		_u.SetProbeError(*v)
+	}
+	return _u
+}
+
+// ClearProbeError clears the value of the "probe_error" field.
+func (_u *CSPScanUpdateOne) ClearProbeError() *CSPScanUpdateOne {
+	_u.mutation.ClearProbeError()
+	return _u
+}
+
 // SetTargetID sets the "target" edge to the Target entity by ID.
 func (_u *CSPScanUpdateOne) SetTargetID(id int) *CSPScanUpdateOne {
 	_u.mutation.SetTargetID(id)
@@ -479,6 +525,12 @@ func (_u *CSPScanUpdateOne) sqlSave(ctx context.Context) (_node *CSPScan, err er
 	}
 	if _u.mutation.FindingsCleared() {
 		_spec.ClearField(cspscan.FieldFindings, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ProbeError(); ok {
+		_spec.SetField(cspscan.FieldProbeError, field.TypeString, value)
+	}
+	if _u.mutation.ProbeErrorCleared() {
+		_spec.ClearField(cspscan.FieldProbeError, field.TypeString)
 	}
 	if _u.mutation.TargetCleared() {
 		edge := &sqlgraph.EdgeSpec{

@@ -108,6 +108,20 @@ func (_u *TargetUpdate) ClearResolveError() *TargetUpdate {
 	return _u
 }
 
+// SetReachability sets the "reachability" field.
+func (_u *TargetUpdate) SetReachability(v target.Reachability) *TargetUpdate {
+	_u.mutation.SetReachability(v)
+	return _u
+}
+
+// SetNillableReachability sets the "reachability" field if the given value is not nil.
+func (_u *TargetUpdate) SetNillableReachability(v *target.Reachability) *TargetUpdate {
+	if v != nil {
+		_u.SetReachability(*v)
+	}
+	return _u
+}
+
 // AddIPIDs adds the "ips" edge to the IP entity by IDs.
 func (_u *TargetUpdate) AddIPIDs(ids ...int) *TargetUpdate {
 	_u.mutation.AddIPIDs(ids...)
@@ -325,6 +339,11 @@ func (_u *TargetUpdate) check() error {
 			return &ValidationError{Name: "input", err: fmt.Errorf(`ent: validator failed for field "Target.input": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Reachability(); ok {
+		if err := target.ReachabilityValidator(v); err != nil {
+			return &ValidationError{Name: "reachability", err: fmt.Errorf(`ent: validator failed for field "Target.reachability": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -360,6 +379,9 @@ func (_u *TargetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.ResolveErrorCleared() {
 		_spec.ClearField(target.FieldResolveError, field.TypeString)
+	}
+	if value, ok := _u.mutation.Reachability(); ok {
+		_spec.SetField(target.FieldReachability, field.TypeEnum, value)
 	}
 	if _u.mutation.IpsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -665,6 +687,20 @@ func (_u *TargetUpdateOne) ClearResolveError() *TargetUpdateOne {
 	return _u
 }
 
+// SetReachability sets the "reachability" field.
+func (_u *TargetUpdateOne) SetReachability(v target.Reachability) *TargetUpdateOne {
+	_u.mutation.SetReachability(v)
+	return _u
+}
+
+// SetNillableReachability sets the "reachability" field if the given value is not nil.
+func (_u *TargetUpdateOne) SetNillableReachability(v *target.Reachability) *TargetUpdateOne {
+	if v != nil {
+		_u.SetReachability(*v)
+	}
+	return _u
+}
+
 // AddIPIDs adds the "ips" edge to the IP entity by IDs.
 func (_u *TargetUpdateOne) AddIPIDs(ids ...int) *TargetUpdateOne {
 	_u.mutation.AddIPIDs(ids...)
@@ -895,6 +931,11 @@ func (_u *TargetUpdateOne) check() error {
 			return &ValidationError{Name: "input", err: fmt.Errorf(`ent: validator failed for field "Target.input": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Reachability(); ok {
+		if err := target.ReachabilityValidator(v); err != nil {
+			return &ValidationError{Name: "reachability", err: fmt.Errorf(`ent: validator failed for field "Target.reachability": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -947,6 +988,9 @@ func (_u *TargetUpdateOne) sqlSave(ctx context.Context) (_node *Target, err erro
 	}
 	if _u.mutation.ResolveErrorCleared() {
 		_spec.ClearField(target.FieldResolveError, field.TypeString)
+	}
+	if value, ok := _u.mutation.Reachability(); ok {
+		_spec.SetField(target.FieldReachability, field.TypeEnum, value)
 	}
 	if _u.mutation.IpsCleared() {
 		edge := &sqlgraph.EdgeSpec{
