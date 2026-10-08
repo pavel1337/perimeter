@@ -25,12 +25,30 @@ func (Target) Fields() []ent.Field {
 		field.Enum("reachability").
 			Values("pending", "ok", "unresolved", "unreachable").
 			Default("pending"),
+
+		// Summary of the newest scans, so the dashboard can sort, filter and
+		// paginate in SQL (issue #14). A cache: the scan tables stay
+		// authoritative, and storage.refreshSummary rebuilds it from them on
+		// every scan write. Nil means unknown: never scanned, or the scan
+		// produced no value.
+		field.String("latest_ssl_grade").Optional(),
+		// latest_ssl_grade ordered best-first: A+ highest, ungraded 0.
+		field.Int("latest_ssl_grade_rank").Default(0),
+		field.Time("latest_cert_expiry").Optional().Nillable(),
+		// Nil when no HTTP response has been evaluated yet.
+		field.Int("latest_csp_finding_count").Optional().Nillable(),
+		// Summed over the newest port scan of each of the target's IPs.
+		field.Int("open_port_count").Default(0),
 	}
 }
 
 func (Target) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("reachability"),
+		index.Fields("latest_ssl_grade_rank"),
+		index.Fields("latest_cert_expiry"),
+		index.Fields("latest_csp_finding_count"),
+		index.Fields("open_port_count"),
 	}
 }
 

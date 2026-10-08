@@ -252,6 +252,11 @@ var (
 		{Name: "resolve_attempts", Type: field.TypeInt, Default: 0},
 		{Name: "resolve_error", Type: field.TypeString, Nullable: true},
 		{Name: "reachability", Type: field.TypeEnum, Enums: []string{"pending", "ok", "unresolved", "unreachable"}, Default: "pending"},
+		{Name: "latest_ssl_grade", Type: field.TypeString, Nullable: true},
+		{Name: "latest_ssl_grade_rank", Type: field.TypeInt, Default: 0},
+		{Name: "latest_cert_expiry", Type: field.TypeTime, Nullable: true},
+		{Name: "latest_csp_finding_count", Type: field.TypeInt, Nullable: true},
+		{Name: "open_port_count", Type: field.TypeInt, Default: 0},
 		{Name: "user_targets", Type: field.TypeInt, Nullable: true},
 	}
 	// TargetsTable holds the schema information for the "targets" table.
@@ -262,7 +267,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "targets_users_targets",
-				Columns:    []*schema.Column{TargetsColumns[8]},
+				Columns:    []*schema.Column{TargetsColumns[13]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -272,6 +277,26 @@ var (
 				Name:    "target_reachability",
 				Unique:  false,
 				Columns: []*schema.Column{TargetsColumns[7]},
+			},
+			{
+				Name:    "target_latest_ssl_grade_rank",
+				Unique:  false,
+				Columns: []*schema.Column{TargetsColumns[9]},
+			},
+			{
+				Name:    "target_latest_cert_expiry",
+				Unique:  false,
+				Columns: []*schema.Column{TargetsColumns[10]},
+			},
+			{
+				Name:    "target_latest_csp_finding_count",
+				Unique:  false,
+				Columns: []*schema.Column{TargetsColumns[11]},
+			},
+			{
+				Name:    "target_open_port_count",
+				Unique:  false,
+				Columns: []*schema.Column{TargetsColumns[12]},
 			},
 		},
 	}

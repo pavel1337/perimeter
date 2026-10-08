@@ -130,17 +130,16 @@
       <td>
         {{if .IsIP}}
         <span class="text-muted">—</span>
-        {{else if .Edges.SslScans}}
-        {{$cert := (index .Edges.SslScans 0).CertExpiry}}
-        {{if $cert.IsZero}}
-        <span class="text-muted">—</span>
-        {{else}}
-        {{$days := daysUntil $cert}}
-        <span title="{{$cert.Format "Jan 02, 2006 15:04"}}"
+        {{else if .LatestCertExpiry}}
+        {{$days := daysUntil .LatestCertExpiry}}
+        <span title="{{.LatestCertExpiry.Format "Jan 02, 2006 15:04"}}"
           {{if le $days $.CertExpiryDays}}class="badge badge-red"{{else}}class="text-muted"{{end}}>
           {{if lt $days 0}}expired{{else}}{{$days}}d{{end}}
         </span>
-        {{end}}
+        {{else if .Edges.SslScans}}
+        {{/* Scanned, but the expiry is unknown. The column cannot tell this apart
+             from "never scanned", so the SSL scan edge still decides between the two. */}}
+        <span class="text-muted">—</span>
         {{else}}
         <span class="text-muted">pending</span>
         {{end}}
