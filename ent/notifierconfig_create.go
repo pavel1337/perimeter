@@ -74,6 +74,12 @@ func (_c *NotifierConfigCreate) SetNillableEnabled(v *bool) *NotifierConfigCreat
 	return _c
 }
 
+// SetEvents sets the "events" field.
+func (_c *NotifierConfigCreate) SetEvents(v []string) *NotifierConfigCreate {
+	_c.mutation.SetEvents(v)
+	return _c
+}
+
 // Mutation returns the NotifierConfigMutation object of the builder.
 func (_c *NotifierConfigCreate) Mutation() *NotifierConfigMutation {
 	return _c.mutation
@@ -190,6 +196,10 @@ func (_c *NotifierConfigCreate) createSpec() (*NotifierConfig, *sqlgraph.CreateS
 	if value, ok := _c.mutation.Enabled(); ok {
 		_spec.SetField(notifierconfig.FieldEnabled, field.TypeBool, value)
 		_node.Enabled = value
+	}
+	if value, ok := _c.mutation.Events(); ok {
+		_spec.SetField(notifierconfig.FieldEvents, field.TypeJSON, value)
+		_node.Events = value
 	}
 	return _node, _spec
 }

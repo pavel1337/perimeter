@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"slices"
 	"time"
 
 	"perimeter/ent"
+	"perimeter/ent/notifierconfig"
 )
 
 // Event represents a security event that triggers notifications.
@@ -27,6 +29,11 @@ const (
 	EventCertExpiring EventType = "cert_expiring"
 	EventCSPIssues    EventType = "csp_issues"
 )
+
+// AllEventTypes returns every event type in declaration order.
+func AllEventTypes() []EventType {
+	return []EventType{EventNewOpenPorts, EventSSLGradeDrop, EventCertExpiring, EventCSPIssues}
+}
 
 // Notifier sends alerts for security events.
 type Notifier interface {
@@ -65,6 +72,7 @@ func (r *Registry) List() []string {
 	for name := range r.factories {
 		names = append(names, name)
 	}
+	slices.Sort(names)
 	return names
 }
 
@@ -80,7 +88,7 @@ func NewDispatcher(client *ent.Client, registry *Registry) *Dispatcher {
 
 func (d *Dispatcher) Dispatch(ctx context.Context, event Event) {
 	configs, err := d.client.NotifierConfig.Query().
-		Where().
+		Where(notifierconfig.EnabledEQ(true)).
 		All(ctx)
 	if err != nil {
 		log.Printf("Notifier dispatch: error loading configs: %v", err)
@@ -88,7 +96,8 @@ func (d *Dispatcher) Dispatch(ctx context.Context, event Event) {
 	}
 
 	for _, cfg := range configs {
-		if !cfg.Enabled {
+		// Empty events means every event type.
+		if len(cfg.Events) > 0 && !slices.Contains(cfg.Events, string(event.Type)) {
 			continue
 		}
 		n, err := d.registry.Get(cfg.Provider.String(), json.RawMessage(cfg.Config))

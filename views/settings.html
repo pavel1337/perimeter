@@ -212,6 +212,7 @@ showProviderFields();
   <thead>
     <tr>
       <th>Provider</th>
+      <th>Events</th>
       <th>Status</th>
       <th></th>
     </tr>
@@ -220,6 +221,9 @@ showProviderFields();
     {{range .Notifiers}}
     <tr>
       <td class="mono">{{.Provider}}</td>
+      <td>
+        {{if .Events}}{{range .Events}}<span class="badge">{{eventLabel .}}</span> {{end}}{{else}}all{{end}}
+      </td>
       <td>
         {{if .Enabled}}<span class="badge badge-green">enabled</span>
         {{else}}<span class="badge badge-gray">disabled</span>{{end}}
@@ -235,7 +239,7 @@ showProviderFields();
       </td>
     </tr>
     {{else}}
-    <tr><td colspan="3" class="text-muted">No notifiers configured.</td></tr>
+    <tr><td colspan="4" class="text-muted">No notifiers configured.</td></tr>
     {{end}}
   </tbody>
 </table>
@@ -244,25 +248,69 @@ showProviderFields();
 <form action="/notifiers" method="POST" onsubmit="buildNotifierConfig()">
   <div class="form-group">
     <label for="notifier_provider">Provider</label>
-    <select name="provider" id="notifier_provider">
+    <select name="provider" id="notifier_provider" onchange="showNotifierFields()">
       {{range .NotifierProviders}}
       <option value="{{.}}">{{.}}</option>
       {{end}}
     </select>
   </div>
-  <div class="form-group">
-    <label for="webhook_url">Webhook URL</label>
-    <input type="url" id="webhook_url" placeholder="https://example.com/webhook" style="width: 100%; max-width: 500px;">
+
+  <div id="notifier-fields-webhook" class="notifier-fields" style="display:none;">
+    <div class="form-group">
+      <label for="webhook_url">Webhook URL</label>
+      <input type="url" id="webhook_url" placeholder="https://example.com/webhook" style="width: 100%; max-width: 500px;">
+    </div>
   </div>
+
+  <div id="notifier-fields-email" class="notifier-fields" style="display:none;">
+    <div class="form-group">
+      <label for="email_to">Recipients</label>
+      <textarea id="email_to" rows="3" placeholder="alerts@example.com, oncall@example.com" style="width: 100%; max-width: 500px;"></textarea>
+      <div class="text-muted">Separate addresses with commas or new lines.</div>
+    </div>
+  </div>
+
+  <fieldset class="form-group" style="border: none; padding: 0;">
+    <legend>Events</legend>
+    {{range .NotifierEventTypes}}
+    <div>
+      <label><input type="checkbox" name="events" value="{{.}}" checked> {{eventLabel .}}</label>
+    </div>
+    {{end}}
+  </fieldset>
+
   <input type="hidden" name="config" id="notifier-config-hidden">
   <button type="submit" class="btn-primary">Add Notifier</button>
 </form>
 
 <script>
-function buildNotifierConfig() {
-  var url = document.getElementById('webhook_url').value;
-  document.getElementById('notifier-config-hidden').value = JSON.stringify({ url: url });
+function showNotifierFields() {
+  var provider = document.getElementById('notifier_provider').value;
+  document.querySelectorAll('.notifier-fields').forEach(function (el) {
+    var active = el.id === 'notifier-fields-' + provider;
+    el.style.display = active ? '' : 'none';
+    // Disabled inputs are left out of validation and submission.
+    el.querySelectorAll('input, textarea').forEach(function (input) {
+      input.disabled = !active;
+    });
+  });
 }
+
+function buildNotifierConfig() {
+  var provider = document.getElementById('notifier_provider').value;
+  var config = {};
+  if (provider === 'email') {
+    config.to = document.getElementById('email_to').value
+      .split(/[,\n]/)
+      .map(function (addr) { return addr.trim(); })
+      .filter(function (addr) { return addr !== ''; });
+  } else if (provider === 'webhook') {
+    config.url = document.getElementById('webhook_url').value;
+  }
+  document.getElementById('notifier-config-hidden').value = JSON.stringify(config);
+}
+
+showNotifierFields();
 </script>
 
 <!-- Tags -->

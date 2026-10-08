@@ -24,6 +24,8 @@ const (
 	FieldConfig = "config"
 	// FieldEnabled holds the string denoting the enabled field in the database.
 	FieldEnabled = "enabled"
+	// FieldEvents holds the string denoting the events field in the database.
+	FieldEvents = "events"
 	// Table holds the table name of the notifierconfig in the database.
 	Table = "notifier_configs"
 )
@@ -36,6 +38,7 @@ var Columns = []string{
 	FieldProvider,
 	FieldConfig,
 	FieldEnabled,
+	FieldEvents,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -65,6 +68,7 @@ type Provider string
 // Provider values.
 const (
 	ProviderWebhook Provider = "webhook"
+	ProviderEmail   Provider = "email"
 )
 
 func (pr Provider) String() string {
@@ -74,7 +78,7 @@ func (pr Provider) String() string {
 // ProviderValidator is a validator for the "provider" field enum values. It is called by the builders before save.
 func ProviderValidator(pr Provider) error {
 	switch pr {
-	case ProviderWebhook:
+	case ProviderWebhook, ProviderEmail:
 		return nil
 	default:
 		return fmt.Errorf("notifierconfig: invalid enum value for provider field: %q", pr)

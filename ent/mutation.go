@@ -4188,6 +4188,8 @@ type NotifierConfigMutation struct {
 	provider      *notifierconfig.Provider
 	_config       *[]byte
 	enabled       *bool
+	events        *[]string
+	appendevents  []string
 	clearedFields map[string]struct{}
 	done          bool
 	oldValue      func(context.Context) (*NotifierConfig, error)
@@ -4472,6 +4474,71 @@ func (m *NotifierConfigMutation) ResetEnabled() {
 	m.enabled = nil
 }
 
+// SetEvents sets the "events" field.
+func (m *NotifierConfigMutation) SetEvents(s []string) {
+	m.events = &s
+	m.appendevents = nil
+}
+
+// Events returns the value of the "events" field in the mutation.
+func (m *NotifierConfigMutation) Events() (r []string, exists bool) {
+	v := m.events
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEvents returns the old "events" field's value of the NotifierConfig entity.
+// If the NotifierConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NotifierConfigMutation) OldEvents(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEvents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEvents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEvents: %w", err)
+	}
+	return oldValue.Events, nil
+}
+
+// AppendEvents adds s to the "events" field.
+func (m *NotifierConfigMutation) AppendEvents(s []string) {
+	m.appendevents = append(m.appendevents, s...)
+}
+
+// AppendedEvents returns the list of values that were appended to the "events" field in this mutation.
+func (m *NotifierConfigMutation) AppendedEvents() ([]string, bool) {
+	if len(m.appendevents) == 0 {
+		return nil, false
+	}
+	return m.appendevents, true
+}
+
+// ClearEvents clears the value of the "events" field.
+func (m *NotifierConfigMutation) ClearEvents() {
+	m.events = nil
+	m.appendevents = nil
+	m.clearedFields[notifierconfig.FieldEvents] = struct{}{}
+}
+
+// EventsCleared returns if the "events" field was cleared in this mutation.
+func (m *NotifierConfigMutation) EventsCleared() bool {
+	_, ok := m.clearedFields[notifierconfig.FieldEvents]
+	return ok
+}
+
+// ResetEvents resets all changes to the "events" field.
+func (m *NotifierConfigMutation) ResetEvents() {
+	m.events = nil
+	m.appendevents = nil
+	delete(m.clearedFields, notifierconfig.FieldEvents)
+}
+
 // Where appends a list predicates to the NotifierConfigMutation builder.
 func (m *NotifierConfigMutation) Where(ps ...predicate.NotifierConfig) {
 	m.predicates = append(m.predicates, ps...)
@@ -4506,7 +4573,7 @@ func (m *NotifierConfigMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *NotifierConfigMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 6)
 	if m.create_time != nil {
 		fields = append(fields, notifierconfig.FieldCreateTime)
 	}
@@ -4521,6 +4588,9 @@ func (m *NotifierConfigMutation) Fields() []string {
 	}
 	if m.enabled != nil {
 		fields = append(fields, notifierconfig.FieldEnabled)
+	}
+	if m.events != nil {
+		fields = append(fields, notifierconfig.FieldEvents)
 	}
 	return fields
 }
@@ -4540,6 +4610,8 @@ func (m *NotifierConfigMutation) Field(name string) (ent.Value, bool) {
 		return m.Config()
 	case notifierconfig.FieldEnabled:
 		return m.Enabled()
+	case notifierconfig.FieldEvents:
+		return m.Events()
 	}
 	return nil, false
 }
@@ -4559,6 +4631,8 @@ func (m *NotifierConfigMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldConfig(ctx)
 	case notifierconfig.FieldEnabled:
 		return m.OldEnabled(ctx)
+	case notifierconfig.FieldEvents:
+		return m.OldEvents(ctx)
 	}
 	return nil, fmt.Errorf("unknown NotifierConfig field %s", name)
 }
@@ -4603,6 +4677,13 @@ func (m *NotifierConfigMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetEnabled(v)
 		return nil
+	case notifierconfig.FieldEvents:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEvents(v)
+		return nil
 	}
 	return fmt.Errorf("unknown NotifierConfig field %s", name)
 }
@@ -4632,7 +4713,11 @@ func (m *NotifierConfigMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *NotifierConfigMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(notifierconfig.FieldEvents) {
+		fields = append(fields, notifierconfig.FieldEvents)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -4645,6 +4730,11 @@ func (m *NotifierConfigMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *NotifierConfigMutation) ClearField(name string) error {
+	switch name {
+	case notifierconfig.FieldEvents:
+		m.ClearEvents()
+		return nil
+	}
 	return fmt.Errorf("unknown NotifierConfig nullable field %s", name)
 }
 
@@ -4666,6 +4756,9 @@ func (m *NotifierConfigMutation) ResetField(name string) error {
 		return nil
 	case notifierconfig.FieldEnabled:
 		m.ResetEnabled()
+		return nil
+	case notifierconfig.FieldEvents:
+		m.ResetEvents()
 		return nil
 	}
 	return fmt.Errorf("unknown NotifierConfig field %s", name)

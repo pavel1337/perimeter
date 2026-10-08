@@ -12,6 +12,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 )
 
@@ -65,6 +66,24 @@ func (_u *NotifierConfigUpdate) SetNillableEnabled(v *bool) *NotifierConfigUpdat
 	if v != nil {
 		_u.SetEnabled(*v)
 	}
+	return _u
+}
+
+// SetEvents sets the "events" field.
+func (_u *NotifierConfigUpdate) SetEvents(v []string) *NotifierConfigUpdate {
+	_u.mutation.SetEvents(v)
+	return _u
+}
+
+// AppendEvents appends value to the "events" field.
+func (_u *NotifierConfigUpdate) AppendEvents(v []string) *NotifierConfigUpdate {
+	_u.mutation.AppendEvents(v)
+	return _u
+}
+
+// ClearEvents clears the value of the "events" field.
+func (_u *NotifierConfigUpdate) ClearEvents() *NotifierConfigUpdate {
+	_u.mutation.ClearEvents()
 	return _u
 }
 
@@ -143,6 +162,17 @@ func (_u *NotifierConfigUpdate) sqlSave(ctx context.Context) (_node int, err err
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(notifierconfig.FieldEnabled, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.Events(); ok {
+		_spec.SetField(notifierconfig.FieldEvents, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedEvents(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, notifierconfig.FieldEvents, value)
+		})
+	}
+	if _u.mutation.EventsCleared() {
+		_spec.ClearField(notifierconfig.FieldEvents, field.TypeJSON)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{notifierconfig.Label}
@@ -200,6 +230,24 @@ func (_u *NotifierConfigUpdateOne) SetNillableEnabled(v *bool) *NotifierConfigUp
 	if v != nil {
 		_u.SetEnabled(*v)
 	}
+	return _u
+}
+
+// SetEvents sets the "events" field.
+func (_u *NotifierConfigUpdateOne) SetEvents(v []string) *NotifierConfigUpdateOne {
+	_u.mutation.SetEvents(v)
+	return _u
+}
+
+// AppendEvents appends value to the "events" field.
+func (_u *NotifierConfigUpdateOne) AppendEvents(v []string) *NotifierConfigUpdateOne {
+	_u.mutation.AppendEvents(v)
+	return _u
+}
+
+// ClearEvents clears the value of the "events" field.
+func (_u *NotifierConfigUpdateOne) ClearEvents() *NotifierConfigUpdateOne {
+	_u.mutation.ClearEvents()
 	return _u
 }
 
@@ -307,6 +355,17 @@ func (_u *NotifierConfigUpdateOne) sqlSave(ctx context.Context) (_node *Notifier
 	}
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(notifierconfig.FieldEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Events(); ok {
+		_spec.SetField(notifierconfig.FieldEvents, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedEvents(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, notifierconfig.FieldEvents, value)
+		})
+	}
+	if _u.mutation.EventsCleared() {
+		_spec.ClearField(notifierconfig.FieldEvents, field.TypeJSON)
 	}
 	_node = &NotifierConfig{config: _u.config}
 	_spec.Assign = _node.assignValues
