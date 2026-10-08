@@ -23,34 +23,66 @@
 
 <div style="margin-bottom: 8px;">
   <span class="text-muted" style="margin-right: 8px;">State:</span>
-  <a href="/?tag={{.FilterTag}}" style="margin-right: 6px; {{if eq .FilterState ""}}font-weight: 600;{{end}}">All</a>
+  <a href="{{withQuery $.Query "state" ""}}" style="margin-right: 6px; {{if eq .FilterState ""}}font-weight: 600;{{end}}">All</a>
   {{range .States}}
-  <a href="/?state={{.}}&tag={{$.FilterTag}}" style="margin-right: 6px; {{if eq $.FilterState (print .)}}font-weight: 600;{{end}}">{{.}}</a>
+  <a href="{{withQuery $.Query "state" (print .)}}" style="margin-right: 6px; {{if eq $.FilterState (print .)}}font-weight: 600;{{end}}">{{.}}</a>
   {{end}}
 </div>
 
 {{if .Tags}}
 <div style="margin-bottom: 16px;">
   <span class="text-muted" style="margin-right: 8px;">Filter:</span>
-  <a href="/?state={{.FilterState}}" style="margin-right: 6px; {{if eq .FilterTag ""}}font-weight: 600;{{end}}">All</a>
+  <a href="{{withQuery $.Query "tag" ""}}" style="margin-right: 6px; {{if eq .FilterTag ""}}font-weight: 600;{{end}}">All</a>
   {{range .Tags}}
-  <a href="/?tag={{.Name}}&state={{$.FilterState}}" style="margin-right: 6px; {{if eq $.FilterTag .Name}}font-weight: 600;{{end}}">
+  <a href="{{withQuery $.Query "tag" .Name}}" style="margin-right: 6px; {{if eq $.FilterTag .Name}}font-weight: 600;{{end}}">
     <span class="badge" style="background: {{.Color}}20; color: {{.Color}};">{{.Name}}</span>
   </a>
   {{end}}
 </div>
 {{end}}
 
+<form method="GET" action="/" style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 16px;">
+  {{with .FilterState}}<input type="hidden" name="state" value="{{.}}">{{end}}
+  {{with .FilterTag}}<input type="hidden" name="tag" value="{{.}}">{{end}}
+  {{with .FilterSSL}}<input type="hidden" name="ssl" value="{{.}}">{{end}}
+  {{with .FilterSort}}<input type="hidden" name="sort" value="{{.}}">{{end}}
+  {{with .FilterDir}}<input type="hidden" name="dir" value="{{.}}">{{end}}
+  <label>CSP
+    <select name="csp">
+      <option value="" {{if eq .FilterCSP ""}}selected{{end}}>any</option>
+      <option value="issues" {{if eq .FilterCSP "issues"}}selected{{end}}>issues</option>
+      <option value="ok" {{if eq .FilterCSP "ok"}}selected{{end}}>ok</option>
+      <option value="none" {{if eq .FilterCSP "none"}}selected{{end}}>none</option>
+    </select>
+  </label>
+  <label>SSL below
+    <select name="ssl_below">
+      <option value="" {{if eq .FilterSSLBelow ""}}selected{{end}}>any</option>
+      {{range .SSLGrades}}
+      <option value="{{.}}" {{if eq $.FilterSSLBelow .}}selected{{end}}>{{.}}</option>
+      {{end}}
+    </select>
+  </label>
+  <label>Port
+    <input type="number" name="port" min="1" max="65535" value="{{.FilterPort}}" style="width: 90px;">
+  </label>
+  <label>Expiring within (days)
+    <input type="number" name="expiring" min="1" value="{{.FilterExpiring}}" style="width: 90px;">
+  </label>
+  <button type="submit">Apply</button>
+  <a href="{{.ClearURL}}">Clear filters</a>
+</form>
+
 <h2>Targets</h2>
 
 <table>
   <thead>
     <tr>
-      <th>Target</th>
-      <th>CSP</th>
-      <th>Open Ports</th>
-      <th>SSL</th>
-      <th>Cert Expiry</th>
+      <th>{{with index .SortHeaders "target"}}<a href="{{.URL}}">Target{{.Arrow}}</a>{{end}}</th>
+      <th>{{with index .SortHeaders "csp"}}<a href="{{.URL}}">CSP{{.Arrow}}</a>{{end}}</th>
+      <th>{{with index .SortHeaders "ports"}}<a href="{{.URL}}">Open Ports{{.Arrow}}</a>{{end}}</th>
+      <th>{{with index .SortHeaders "ssl"}}<a href="{{.URL}}">SSL{{.Arrow}}</a>{{end}}</th>
+      <th>{{with index .SortHeaders "expiry"}}<a href="{{.URL}}">Cert Expiry{{.Arrow}}</a>{{end}}</th>
       <th></th>
     </tr>
   </thead>
@@ -154,10 +186,12 @@
     </tr>
     {{else}}
     <tr>
-      <td colspan="6" class="text-muted" style="text-align:center; padding:24px;">No targets yet. <a href="/import">Import some.</a></td>
+      <td colspan="6" class="text-muted" style="text-align:center; padding:24px;">{{if eq (len .Query) 0}}No targets yet. <a href="/import">Import some.</a>{{else}}No targets match these filters. <a href="{{.ClearURL}}">Clear filters.</a>{{end}}</td>
     </tr>
     {{end}}
   </tbody>
 </table>
+
+{{template "views/partials/pagination" .Pagination}}
 
 {{template "views/partials/footer" .}}
