@@ -33,6 +33,8 @@ type Storage interface {
 	Close() error
 	ImportTargets(ctx context.Context, lines []string) (int, error)
 	GetTargets(ctx context.Context, states ...target.Reachability) ([]*ent.Target, error)
+	ListTargets(ctx context.Context, f TargetFilter, sort TargetSort, limit, offset int) ([]*ent.Target, error)
+	TargetStats(ctx context.Context, f TargetFilter, now time.Time, window time.Duration) (TargetStats, error)
 	GetTarget(ctx context.Context, id int) (*ent.Target, error)
 	GetTargetBasic(ctx context.Context, id int) (*ent.Target, error)
 	GetIPScansPage(ctx context.Context, ipID, limit, offset int) ([]*ent.PortScan, int, error)
@@ -138,21 +140,7 @@ func (s *EntStorage) GetTargets(ctx context.Context, states ...target.Reachabili
 	if len(states) > 0 {
 		q.Where(target.ReachabilityIn(states...))
 	}
-	return q.
-		WithIps(func(q *ent.IPQuery) {
-			q.WithScans(func(sq *ent.PortScanQuery) {
-				sq.Where(latestPerParent(portscan.Table, portscan.IPColumn)).
-					WithPorts()
-			})
-		}).
-		WithSslScans(func(q *ent.SSLScanQuery) {
-			q.Where(latestPerParent(sslscan.Table, sslscan.TargetColumn))
-		}).
-		WithCspScans(func(q *ent.CSPScanQuery) {
-			q.Where(latestPerParent(cspscan.Table, cspscan.TargetColumn))
-		}).
-		WithTags().
-		All(ctx)
+	return withTargetDetails(q).All(ctx)
 }
 
 func (s *EntStorage) GetTarget(ctx context.Context, id int) (*ent.Target, error) {

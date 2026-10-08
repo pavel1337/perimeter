@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
@@ -40,9 +41,39 @@ type Server struct {
 	// certExpiryWindow is how close to expiry a certificate has to be before
 	// the dashboard calls it out.
 	certExpiryWindow time.Duration
+	// dashboardPageSize is how many targets the dashboard shows per page.
+	dashboardPageSize int
 }
 
-func New(s storage.Storage, a *auth.Auth, client *ent.Client, registry *importer.Registry, notifierReg *notifier.Registry, viewsFS fs.FS, certExpiryWindow time.Duration) *Server {
+func New(s storage.Storage, a *auth.Auth, client *ent.Client, registry *importer.Registry, notifierReg *notifier.Registry, viewsFS fs.FS, certExpiryWindow time.Duration, dashboardPageSize int) *Server {
+	engine := newViewEngine(viewsFS)
+
+	app := fiber.New(fiber.Config{
+		Views: engine,
+	})
+
+	if dashboardPageSize < 1 {
+		dashboardPageSize = defaultDashboardPageSize
+	}
+
+	srv := &Server{
+		app:               app,
+		storage:           s,
+		auth:              a,
+		client:            client,
+		registry:          registry,
+		notifierRegistry:  notifierReg,
+		certExpiryWindow:  certExpiryWindow,
+		dashboardPageSize: dashboardPageSize,
+	}
+
+	srv.setupRoutes()
+	return srv
+}
+
+// newViewEngine loads the templates from viewsFS and registers the template
+// funcs the views use.
+func newViewEngine(viewsFS fs.FS) *html.Engine {
 	engine := html.NewFileSystem(http.FS(viewsFS), ".html")
 	// Whole days until a certificate expires; negative once it has.
 	// Takes a pointer so templates can pass the nullable LatestCertExpiry
@@ -62,22 +93,8 @@ func New(s storage.Storage, a *auth.Auth, client *ent.Client, registry *importer
 		return false
 	})
 
-	app := fiber.New(fiber.Config{
-		Views: engine,
-	})
-
-	srv := &Server{
-		app:              app,
-		storage:          s,
-		auth:             a,
-		client:           client,
-		registry:         registry,
-		notifierRegistry: notifierReg,
-		certExpiryWindow: certExpiryWindow,
-	}
-
-	srv.setupRoutes()
-	return srv
+	engine.AddFunc("withQuery", withQuery)
+	return engine
 }
 
 func (s *Server) Listen(addr string) error {
@@ -301,75 +318,258 @@ var reachabilityStates = []target.Reachability{
 	target.ReachabilityPending,
 }
 
-func (s *Server) handleIndex(c *fiber.Ctx) error {
-	filterState := c.Query("state")
-	var states []target.Reachability
-	if filterState != "" {
-		st := target.Reachability(filterState)
+// sslGrades is the grade list offered by the dashboard's ssl_below filter,
+// best first.
+var sslGrades = []string{"A+", "A", "A-", "B", "C", "D", "E", "F"}
+
+// dashboardParams are the query parameters the dashboard understands. Only
+// these are carried into the links it builds.
+var dashboardParams = []string{"state", "tag", "csp", "ssl", "ssl_below", "port", "expiring", "sort", "dir"}
+
+const (
+	defaultDashboardPageSize = 50
+	// maxExpiringDays keeps days*24h inside time.Duration.
+	maxExpiringDays = 100000
+)
+
+// parseDashboardQuery validates the dashboard's query parameters. An empty
+// value counts as absent. Any invalid value is an error, so the handler can
+// answer 400 instead of silently ignoring it.
+func parseDashboardQuery(q url.Values) (storage.TargetFilter, storage.TargetSort, error) {
+	var f storage.TargetFilter
+	var sort storage.TargetSort
+
+	if v := q.Get("state"); v != "" {
+		st := target.Reachability(v)
 		if target.ReachabilityValidator(st) != nil {
-			return c.Status(400).SendString("Invalid state")
+			return f, sort, invalidParam("state")
 		}
-		states = append(states, st)
+		f.States = []target.Reachability{st}
+	}
+	f.Tag = q.Get("tag")
+
+	switch v := q.Get("csp"); v {
+	case "", "issues", "ok", "none":
+		f.CSP = v
+	default:
+		return f, sort, invalidParam("csp")
 	}
 
-	targets, err := s.storage.GetTargets(c.Context(), states...)
+	if v := q.Get("ssl"); v != "" {
+		if !storage.IsGrade(v) {
+			return f, sort, invalidParam("ssl")
+		}
+		f.SSLGrade = v
+	}
+	if v := q.Get("ssl_below"); v != "" {
+		if !storage.IsGrade(v) {
+			return f, sort, invalidParam("ssl_below")
+		}
+		f.SSLBelow = v
+	}
+
+	if v := q.Get("port"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 || n > 65535 {
+			return f, sort, invalidParam("port")
+		}
+		f.Port = n
+	}
+
+	if v := q.Get("expiring"); v != "" {
+		days, err := strconv.Atoi(v)
+		if err != nil || days < 1 || days > maxExpiringDays {
+			return f, sort, invalidParam("expiring")
+		}
+		f.ExpiringWithin = time.Duration(days) * 24 * time.Hour
+	}
+
+	sort.Field = storage.SortTarget
+	if v := q.Get("sort"); v != "" {
+		if !slices.Contains(storage.SortFields, v) {
+			return f, sort, invalidParam("sort")
+		}
+		sort.Field = v
+	}
+	switch q.Get("dir") {
+	case "", "asc":
+	case "desc":
+		sort.Desc = true
+	default:
+		return f, sort, invalidParam("dir")
+	}
+
+	return f, sort, nil
+}
+
+func invalidParam(name string) error {
+	return fmt.Errorf("invalid %s", name)
+}
+
+// dashboardQuery returns the recognised, non-empty parameters of q. Call it
+// only after parseDashboardQuery has accepted q.
+func dashboardQuery(q url.Values) url.Values {
+	out := url.Values{}
+	for _, k := range dashboardParams {
+		if v := q.Get(k); v != "" {
+			out.Set(k, v)
+		}
+	}
+	return out
+}
+
+// withQuery builds a dashboard URL from the current query q plus the key,
+// value pairs in kv. An empty value deletes the key. "page" is never carried
+// over from q, so any link that changes the filters or sort starts on page 1;
+// it is only present when kv sets it.
+func withQuery(q url.Values, kv ...string) (string, error) {
+	if len(kv)%2 != 0 {
+		return "", errors.New("withQuery: odd number of key/value arguments")
+	}
+	out := url.Values{}
+	for k, vs := range q {
+		if k == "page" {
+			continue
+		}
+		out[k] = slices.Clone(vs)
+	}
+	for i := 0; i < len(kv); i += 2 {
+		if kv[i+1] == "" {
+			out.Del(kv[i])
+		} else {
+			out.Set(kv[i], kv[i+1])
+		}
+	}
+	enc := out.Encode()
+	if enc == "" {
+		return "/", nil
+	}
+	return "/?" + enc, nil
+}
+
+// sortHeader is one sortable column header: the link to click and the arrow
+// shown when the column is the active sort.
+type sortHeader struct {
+	URL   string
+	Arrow string
+}
+
+// sortHeaders builds the header link for every sort field. Clicking the
+// active column toggles its direction; clicking another column sorts it asc.
+func sortHeaders(q url.Values, cur storage.TargetSort) (map[string]sortHeader, error) {
+	out := make(map[string]sortHeader, len(storage.SortFields))
+	for _, field := range storage.SortFields {
+		dir := "asc"
+		var arrow string
+		if field == cur.Field {
+			if cur.Desc {
+				arrow = " ▼"
+			} else {
+				arrow = " ▲"
+				dir = "desc"
+			}
+		}
+		u, err := withQuery(q, "sort", field, "dir", dir)
+		if err != nil {
+			return nil, err
+		}
+		out[field] = sortHeader{URL: u, Arrow: arrow}
+	}
+	return out, nil
+}
+
+// dashboardPagination builds prev/next links that keep the current query.
+func dashboardPagination(q url.Values, page, totalPages int) (pagination, error) {
+	p := pagination{Page: page, TotalPages: totalPages}
+	var err error
+	if page > 1 {
+		if p.PrevURL, err = withQuery(q, "page", strconv.Itoa(page-1)); err != nil {
+			return p, err
+		}
+	}
+	if page < totalPages {
+		if p.NextURL, err = withQuery(q, "page", strconv.Itoa(page+1)); err != nil {
+			return p, err
+		}
+	}
+	return p, nil
+}
+
+// queryValues copies the request's query string into url.Values.
+func queryValues(c *fiber.Ctx) url.Values {
+	v := url.Values{}
+	c.Context().QueryArgs().VisitAll(func(key, value []byte) {
+		v.Add(string(key), string(value))
+	})
+	return v
+}
+
+func (s *Server) handleIndex(c *fiber.Ctx) error {
+	raw := queryValues(c)
+	filter, sort, err := parseDashboardQuery(raw)
+	if err != nil {
+		return c.Status(400).SendString(err.Error())
+	}
+	query := dashboardQuery(raw)
+
+	ctx := c.Context()
+	// The stat cards describe every target matching the filter, not the page.
+	stats, err := s.storage.TargetStats(ctx, filter, time.Now(), s.certExpiryWindow)
 	if err != nil {
 		return c.Status(500).SendString(err.Error())
 	}
 
-	allTags, _ := s.client.Tag.Query().All(c.Context())
+	pageSize := s.dashboardPageSize
+	totalPages := max(1, (stats.Total+pageSize-1)/pageSize)
+	page := clampPage(parsePage(c, "page"), stats.Total, pageSize)
 
-	// Filter by tag if specified
-	filterTag := c.Query("tag")
-	if filterTag != "" {
-		var filtered []*ent.Target
-		for _, t := range targets {
-			for _, tg := range t.Edges.Tags {
-				if tg.Name == filterTag {
-					filtered = append(filtered, t)
-					break
-				}
-			}
-		}
-		targets = filtered
+	targets, err := s.storage.ListTargets(ctx, filter, sort, pageSize, (page-1)*pageSize)
+	if err != nil {
+		return c.Status(500).SendString(err.Error())
 	}
 
-	totalOpenPorts, expiringCerts, cspIssues := dashboardStats(targets, s.certExpiryWindow, time.Now())
+	allTags, _ := s.client.Tag.Query().All(ctx)
+
+	headers, err := sortHeaders(query, sort)
+	if err != nil {
+		return c.Status(500).SendString(err.Error())
+	}
+	pag, err := dashboardPagination(query, page, totalPages)
+	if err != nil {
+		return c.Status(500).SendString(err.Error())
+	}
+	clearURL, err := withQuery(query, "state", "", "tag", "", "csp", "", "ssl", "",
+		"ssl_below", "", "port", "", "expiring", "")
+	if err != nil {
+		return c.Status(500).SendString(err.Error())
+	}
 
 	return c.Render("views/index", s.templateData(c, fiber.Map{
 		"Title":          "Perimeter Dashboard",
 		"Targets":        targets,
 		"Tags":           allTags,
-		"FilterTag":      filterTag,
-		"FilterState":    filterState,
 		"States":         reachabilityStates,
-		"TotalTargets":   len(targets),
-		"TotalOpenPorts": totalOpenPorts,
-		"ExpiringCerts":  expiringCerts,
-		"CSPIssues":      cspIssues,
+		"SSLGrades":      sslGrades,
+		"Query":          query,
+		"FilterTag":      query.Get("tag"),
+		"FilterState":    query.Get("state"),
+		"FilterCSP":      query.Get("csp"),
+		"FilterSSL":      query.Get("ssl"),
+		"FilterSSLBelow": query.Get("ssl_below"),
+		"FilterPort":     query.Get("port"),
+		"FilterExpiring": query.Get("expiring"),
+		"FilterSort":     query.Get("sort"),
+		"FilterDir":      query.Get("dir"),
+		"SortHeaders":    headers,
+		"ClearURL":       clearURL,
+		"Pagination":     pag,
+		"TotalTargets":   stats.Total,
+		"TotalOpenPorts": stats.OpenPorts,
+		"ExpiringCerts":  stats.ExpiringCerts,
+		"CSPIssues":      stats.CSPIssues,
 		// Days, so the template can compare it against daysUntil.
 		"CertExpiryDays": int(s.certExpiryWindow.Hours() / 24),
 	}), "views/layouts/main")
-}
-
-// dashboardStats computes the dashboard header counters from the summary
-// columns on each target, so it never has to touch the scan edges.
-// A certificate counts as expiring when it expires after now but within
-// window; unknown expiry (nil) and already-expired certificates do not count.
-func dashboardStats(targets []*ent.Target, window time.Duration, now time.Time) (openPorts, expiring, cspIssues int) {
-	for _, t := range targets {
-		openPorts += t.OpenPortCount
-		if t.LatestCertExpiry != nil {
-			until := t.LatestCertExpiry.Sub(now)
-			if until > 0 && until < window {
-				expiring++
-			}
-		}
-		if t.LatestCspFindingCount != nil && *t.LatestCspFindingCount > 0 {
-			cspIssues++
-		}
-	}
-	return openPorts, expiring, cspIssues
 }
 
 const scanPageSize = 10
@@ -411,8 +611,8 @@ func buildPageLink(c *fiber.Ctx, key string, page int) string {
 	return c.Path() + "?" + v.Encode()
 }
 
-func clampPage(page, total int) int {
-	totalPages := (total + scanPageSize - 1) / scanPageSize
+func clampPage(page, total, pageSize int) int {
+	totalPages := (total + pageSize - 1) / pageSize
 	if totalPages < 1 {
 		return 1
 	}
@@ -444,7 +644,7 @@ func (s *Server) sslHistoryData(ctx context.Context, c *fiber.Ctx, targetID int)
 	if err != nil {
 		return nil, pagination{}, err
 	}
-	if settled := clampPage(page, total); settled != page {
+	if settled := clampPage(page, total, scanPageSize); settled != page {
 		items, _, err = s.storage.GetSSLScansPage(ctx, targetID, scanPageSize, (settled-1)*scanPageSize)
 		if err != nil {
 			return nil, pagination{}, err
@@ -460,7 +660,7 @@ func (s *Server) cspHistoryData(ctx context.Context, c *fiber.Ctx, targetID int)
 	if err != nil {
 		return nil, pagination{}, err
 	}
-	if settled := clampPage(page, total); settled != page {
+	if settled := clampPage(page, total, scanPageSize); settled != page {
 		items, _, err = s.storage.GetCSPScansPage(ctx, targetID, scanPageSize, (settled-1)*scanPageSize)
 		if err != nil {
 			return nil, pagination{}, err
@@ -477,7 +677,7 @@ func (s *Server) ipHistoryData(ctx context.Context, c *fiber.Ctx, i *ent.IP) (ip
 	if err != nil {
 		return ipScanRow{}, err
 	}
-	if settled := clampPage(page, total); settled != page {
+	if settled := clampPage(page, total, scanPageSize); settled != page {
 		items, _, err = s.storage.GetIPScansPage(ctx, i.ID, scanPageSize+1, (settled-1)*scanPageSize)
 		if err != nil {
 			return ipScanRow{}, err

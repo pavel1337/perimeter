@@ -1,7 +1,9 @@
 package server
 
 import (
-	"bytes"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"regexp"
 	"strings"
@@ -12,132 +14,40 @@ import (
 
 	"perimeter/ent"
 	"perimeter/internal/auth"
+	"perimeter/internal/storage"
 )
-
-func intPtr(n int) *int { return &n }
 
 func timePtr(t time.Time) *time.Time { return &t }
 
-func TestDashboardStats(t *testing.T) {
-	now := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
-	const window = 30 * 24 * time.Hour
-
-	tests := []struct {
-		name                       string
-		targets                    []*ent.Target
-		wantPorts, wantExp, wantCS int
-	}{
-		{
-			name:    "no targets",
-			targets: nil,
-		},
-		{
-			name:    "nil pointers and zero ports count as nothing",
-			targets: []*ent.Target{{}},
-		},
-		{
-			name: "expired cert is not expiring",
-			targets: []*ent.Target{
-				{LatestCertExpiry: timePtr(now.Add(-time.Hour))},
-			},
-		},
-		{
-			name: "cert expiring exactly now is not expiring",
-			targets: []*ent.Target{
-				{LatestCertExpiry: timePtr(now)},
-			},
-		},
-		{
-			name: "cert outside window is not expiring",
-			targets: []*ent.Target{
-				{LatestCertExpiry: timePtr(now.Add(window + time.Hour))},
-			},
-		},
-		{
-			name: "cert exactly at window edge is not expiring",
-			targets: []*ent.Target{
-				{LatestCertExpiry: timePtr(now.Add(window))},
-			},
-		},
-		{
-			name: "cert inside window is expiring",
-			targets: []*ent.Target{
-				{LatestCertExpiry: timePtr(now.Add(window - time.Hour))},
-			},
-			wantExp: 1,
-		},
-		{
-			name: "zero CSP count is not an issue, positive is",
-			targets: []*ent.Target{
-				{LatestCspFindingCount: intPtr(0)},
-				{LatestCspFindingCount: intPtr(3)},
-				{LatestCspFindingCount: nil},
-			},
-			wantCS: 1,
-		},
-		{
-			name: "port counts are summed across targets",
-			targets: []*ent.Target{
-				{OpenPortCount: 2},
-				{OpenPortCount: 0},
-				{OpenPortCount: 5},
-			},
-			wantPorts: 7,
-		},
-		{
-			name: "all three counters together",
-			targets: []*ent.Target{
-				{OpenPortCount: 4, LatestCertExpiry: timePtr(now.Add(24 * time.Hour)), LatestCspFindingCount: intPtr(1)},
-				{OpenPortCount: 1, LatestCertExpiry: timePtr(now.Add(-24 * time.Hour)), LatestCspFindingCount: intPtr(0)},
-				{OpenPortCount: 0, LatestCertExpiry: nil, LatestCspFindingCount: nil},
-			},
-			wantPorts: 5,
-			wantExp:   1,
-			wantCS:    1,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ports, exp, cs := dashboardStats(tt.targets, window, now)
-			if ports != tt.wantPorts || exp != tt.wantExp || cs != tt.wantCS {
-				t.Errorf("dashboardStats() = (%d, %d, %d), want (%d, %d, %d)",
-					ports, exp, cs, tt.wantPorts, tt.wantExp, tt.wantCS)
-			}
-		})
-	}
-}
-
-// renderIndexCertCells renders views/index with the real template funcs
-// (via New) and returns the Cert Expiry cell body for each target row.
+// renderIndexCertCells renders the dashboard through handleIndex, with the
+// real template funcs (via New), and returns the Cert Expiry cell body for
+// each target row.
 func renderIndexCertCells(t *testing.T, targets []*ent.Target) []string {
 	t.Helper()
-	// Zero-value auth: setupRoutes only needs OIDCEnabled to answer false.
-	srv := New(nil, &auth.Auth{}, nil, nil, nil, os.DirFS("../.."), 30*24*time.Hour)
+	fs := &fakeStore{targets: targets, stats: storage.TargetStats{Total: len(targets)}}
+	srv := New(fs, &auth.Auth{}, newTestClient(t), nil, nil, os.DirFS("../.."), 30*24*time.Hour, 50)
+	// Mount the handler on a bare app: the authed route needs a session.
+	app := fiber.New(fiber.Config{Views: srv.app.Config().Views})
+	app.Get("/", srv.handleIndex)
 
-	var buf bytes.Buffer
-	// Same keys handleIndex passes; the stats come from the function under test.
-	ports, expiring, csp := dashboardStats(targets, srv.certExpiryWindow, time.Now())
-	data := fiber.Map{
-		"Title":          "Perimeter Dashboard",
-		"Targets":        targets,
-		"Tags":           []*ent.Tag{},
-		"States":         reachabilityStates,
-		"TotalTargets":   len(targets),
-		"TotalOpenPorts": ports,
-		"ExpiringCerts":  expiring,
-		"CSPIssues":      csp,
-		"CertExpiryDays": int(srv.certExpiryWindow.Hours() / 24),
+	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	if err != nil {
+		t.Fatalf("GET /: %v", err)
 	}
-	if err := srv.app.Config().Views.Render(&buf, "views/index", data, "views/layouts/main"); err != nil {
-		t.Fatalf("render index: %v", err)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /: status %d, body:\n%s", resp.StatusCode, body)
 	}
 	// Fiber's html engine writes template execution errors into the output
 	// instead of returning them, so check for them explicitly.
-	if strings.Contains(buf.String(), "template: views/") {
-		t.Fatalf("template execution error in output:\n%s", buf.String())
+	if strings.Contains(string(body), "template: views/") {
+		t.Fatalf("template execution error in output:\n%s", body)
 	}
-	return certCellBodies(t, buf.String())
+	return certCellBodies(t, string(body))
 }
 
 var certCellRe = regexp.MustCompile(`(?s)<td>\s*(.*?)\s*</td>`)
