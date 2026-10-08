@@ -22,6 +22,8 @@ type Target struct {
 	CreateTime time.Time `json:"create_time,omitempty"`
 	// UpdateTime holds the value of the "update_time" field.
 	UpdateTime time.Time `json:"update_time,omitempty"`
+	// DeletedAt holds the value of the "deleted_at" field.
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 	// Input holds the value of the "input" field.
 	Input string `json:"input,omitempty"`
 	// IsIP holds the value of the "is_ip" field.
@@ -124,7 +126,7 @@ func (*Target) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case target.FieldInput, target.FieldResolveError, target.FieldReachability, target.FieldLatestSslGrade:
 			values[i] = new(sql.NullString)
-		case target.FieldCreateTime, target.FieldUpdateTime, target.FieldLatestCertExpiry:
+		case target.FieldCreateTime, target.FieldUpdateTime, target.FieldDeletedAt, target.FieldLatestCertExpiry:
 			values[i] = new(sql.NullTime)
 		case target.ForeignKeys[0]: // user_targets
 			values[i] = new(sql.NullInt64)
@@ -160,6 +162,13 @@ func (_m *Target) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field update_time", values[i])
 			} else if value.Valid {
 				_m.UpdateTime = value.Time
+			}
+		case target.FieldDeletedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field deleted_at", values[i])
+			} else if value.Valid {
+				_m.DeletedAt = new(time.Time)
+				*_m.DeletedAt = value.Time
 			}
 		case target.FieldInput:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -296,6 +305,11 @@ func (_m *Target) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("update_time=")
 	builder.WriteString(_m.UpdateTime.Format(time.ANSIC))
+	builder.WriteString(", ")
+	if v := _m.DeletedAt; v != nil {
+		builder.WriteString("deleted_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("input=")
 	builder.WriteString(_m.Input)

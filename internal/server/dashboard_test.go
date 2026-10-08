@@ -32,8 +32,8 @@ func newTestClient(t *testing.T) *ent.Client {
 	return client
 }
 
-// fakeStore embeds storage.Storage so only the two dashboard methods need
-// implementing; any other call panics on the nil interface.
+// fakeStore embeds storage.Storage so only the methods the dashboard calls
+// need implementing; any other call panics on the nil interface.
 type fakeStore struct {
 	storage.Storage
 
@@ -48,6 +48,12 @@ type fakeStore struct {
 	limit      int
 	offset     int
 	listCalls  int
+
+	deleted int
+}
+
+func (f *fakeStore) CountDeletedTargets(_ context.Context) (int, error) {
+	return f.deleted, nil
 }
 
 func (f *fakeStore) TargetStats(_ context.Context, filter storage.TargetFilter, _ time.Time, _ time.Duration) (storage.TargetStats, error) {

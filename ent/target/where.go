@@ -65,6 +65,11 @@ func UpdateTime(v time.Time) predicate.Target {
 	return predicate.Target(sql.FieldEQ(FieldUpdateTime, v))
 }
 
+// DeletedAt applies equality check predicate on the "deleted_at" field. It's identical to DeletedAtEQ.
+func DeletedAt(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldDeletedAt, v))
+}
+
 // Input applies equality check predicate on the "input" field. It's identical to InputEQ.
 func Input(v string) predicate.Target {
 	return predicate.Target(sql.FieldEQ(FieldInput, v))
@@ -188,6 +193,56 @@ func UpdateTimeLT(v time.Time) predicate.Target {
 // UpdateTimeLTE applies the LTE predicate on the "update_time" field.
 func UpdateTimeLTE(v time.Time) predicate.Target {
 	return predicate.Target(sql.FieldLTE(FieldUpdateTime, v))
+}
+
+// DeletedAtEQ applies the EQ predicate on the "deleted_at" field.
+func DeletedAtEQ(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldDeletedAt, v))
+}
+
+// DeletedAtNEQ applies the NEQ predicate on the "deleted_at" field.
+func DeletedAtNEQ(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldNEQ(FieldDeletedAt, v))
+}
+
+// DeletedAtIn applies the In predicate on the "deleted_at" field.
+func DeletedAtIn(vs ...time.Time) predicate.Target {
+	return predicate.Target(sql.FieldIn(FieldDeletedAt, vs...))
+}
+
+// DeletedAtNotIn applies the NotIn predicate on the "deleted_at" field.
+func DeletedAtNotIn(vs ...time.Time) predicate.Target {
+	return predicate.Target(sql.FieldNotIn(FieldDeletedAt, vs...))
+}
+
+// DeletedAtGT applies the GT predicate on the "deleted_at" field.
+func DeletedAtGT(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldGT(FieldDeletedAt, v))
+}
+
+// DeletedAtGTE applies the GTE predicate on the "deleted_at" field.
+func DeletedAtGTE(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldGTE(FieldDeletedAt, v))
+}
+
+// DeletedAtLT applies the LT predicate on the "deleted_at" field.
+func DeletedAtLT(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldLT(FieldDeletedAt, v))
+}
+
+// DeletedAtLTE applies the LTE predicate on the "deleted_at" field.
+func DeletedAtLTE(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldLTE(FieldDeletedAt, v))
+}
+
+// DeletedAtIsNil applies the IsNil predicate on the "deleted_at" field.
+func DeletedAtIsNil() predicate.Target {
+	return predicate.Target(sql.FieldIsNull(FieldDeletedAt))
+}
+
+// DeletedAtNotNil applies the NotNil predicate on the "deleted_at" field.
+func DeletedAtNotNil() predicate.Target {
+	return predicate.Target(sql.FieldNotNull(FieldDeletedAt))
 }
 
 // InputEQ applies the EQ predicate on the "input" field.

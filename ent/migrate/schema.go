@@ -247,6 +247,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "create_time", Type: field.TypeTime},
 		{Name: "update_time", Type: field.TypeTime},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
 		{Name: "input", Type: field.TypeString, Unique: true},
 		{Name: "is_ip", Type: field.TypeBool, Default: false},
 		{Name: "resolve_attempts", Type: field.TypeInt, Default: 0},
@@ -267,36 +268,41 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "targets_users_targets",
-				Columns:    []*schema.Column{TargetsColumns[13]},
+				Columns:    []*schema.Column{TargetsColumns[14]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 		},
 		Indexes: []*schema.Index{
 			{
+				Name:    "target_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{TargetsColumns[3]},
+			},
+			{
 				Name:    "target_reachability",
 				Unique:  false,
-				Columns: []*schema.Column{TargetsColumns[7]},
+				Columns: []*schema.Column{TargetsColumns[8]},
 			},
 			{
 				Name:    "target_latest_ssl_grade_rank",
 				Unique:  false,
-				Columns: []*schema.Column{TargetsColumns[9]},
+				Columns: []*schema.Column{TargetsColumns[10]},
 			},
 			{
 				Name:    "target_latest_cert_expiry",
 				Unique:  false,
-				Columns: []*schema.Column{TargetsColumns[10]},
+				Columns: []*schema.Column{TargetsColumns[11]},
 			},
 			{
 				Name:    "target_latest_csp_finding_count",
 				Unique:  false,
-				Columns: []*schema.Column{TargetsColumns[11]},
+				Columns: []*schema.Column{TargetsColumns[12]},
 			},
 			{
 				Name:    "target_open_port_count",
 				Unique:  false,
-				Columns: []*schema.Column{TargetsColumns[12]},
+				Columns: []*schema.Column{TargetsColumns[13]},
 			},
 		},
 	}

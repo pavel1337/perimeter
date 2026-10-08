@@ -53,6 +53,20 @@ func (_c *TargetCreate) SetNillableUpdateTime(v *time.Time) *TargetCreate {
 	return _c
 }
 
+// SetDeletedAt sets the "deleted_at" field.
+func (_c *TargetCreate) SetDeletedAt(v time.Time) *TargetCreate {
+	_c.mutation.SetDeletedAt(v)
+	return _c
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_c *TargetCreate) SetNillableDeletedAt(v *time.Time) *TargetCreate {
+	if v != nil {
+		_c.SetDeletedAt(*v)
+	}
+	return _c
+}
+
 // SetInput sets the "input" field.
 func (_c *TargetCreate) SetInput(v string) *TargetCreate {
 	_c.mutation.SetInput(v)
@@ -398,6 +412,10 @@ func (_c *TargetCreate) createSpec() (*Target, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UpdateTime(); ok {
 		_spec.SetField(target.FieldUpdateTime, field.TypeTime, value)
 		_node.UpdateTime = value
+	}
+	if value, ok := _c.mutation.DeletedAt(); ok {
+		_spec.SetField(target.FieldDeletedAt, field.TypeTime, value)
+		_node.DeletedAt = &value
 	}
 	if value, ok := _c.mutation.Input(); ok {
 		_spec.SetField(target.FieldInput, field.TypeString, value)

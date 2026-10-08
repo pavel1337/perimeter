@@ -13,6 +13,7 @@ import (
 
 	"perimeter/ent"
 	"perimeter/ent/datamigration"
+	"perimeter/ent/schema"
 	"perimeter/internal/storage"
 )
 
@@ -74,7 +75,8 @@ func run(ctx context.Context, client *ent.Client, ms []Migration) error {
 
 		log.Printf("Migration %s: running", m.Name)
 		started := time.Now()
-		if err := m.Run(ctx, client); err != nil {
+		// Data migrations normalise every row, soft-deleted targets included.
+		if err := m.Run(schema.SkipSoftDelete(ctx), client); err != nil {
 			return fmt.Errorf("migration %s: %w", m.Name, err)
 		}
 		if err := client.DataMigration.Create().SetName(m.Name).Exec(ctx); err != nil {

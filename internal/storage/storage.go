@@ -13,9 +13,14 @@ import (
 	"perimeter/ent/cspscan"
 	"perimeter/ent/ip"
 	"perimeter/ent/portscan"
+	"perimeter/ent/schema"
 	"perimeter/ent/sslscan"
 	"perimeter/ent/target"
 	"perimeter/scanner/csp"
+
+	// Registers the schema interceptors, the soft-delete filter among them.
+	// Without it deleted targets would silently show up everywhere.
+	_ "perimeter/ent/runtime"
 )
 
 // ScanType definition
@@ -40,7 +45,21 @@ type Storage interface {
 	GetIPScansPage(ctx context.Context, ipID, limit, offset int) ([]*ent.PortScan, int, error)
 	GetSSLScansPage(ctx context.Context, targetID, limit, offset int) ([]*ent.SSLScan, int, error)
 	GetCSPScansPage(ctx context.Context, targetID, limit, offset int) ([]*ent.CSPScan, int, error)
+	// DeleteTarget soft-deletes a live target: it disappears from every
+	// normal read, its scan history is kept. ErrTargetNotFound if there is no
+	// live target with that id.
 	DeleteTarget(ctx context.Context, id int) error
+	// ListDeletedTargets returns the soft-deleted targets, most recently
+	// deleted first, with their tags.
+	ListDeletedTargets(ctx context.Context) ([]*ent.Target, error)
+	// CountDeletedTargets counts the soft-deleted targets.
+	CountDeletedTargets(ctx context.Context) (int, error)
+	// RestoreTarget brings a soft-deleted target back with its history.
+	// ErrTargetNotFound if there is no deleted target with that id.
+	RestoreTarget(ctx context.Context, id int) error
+	// PurgeTarget permanently removes a soft-deleted target and its SSL and
+	// CSP scans. Live targets cannot be purged: ErrTargetNotFound.
+	PurgeTarget(ctx context.Context, id int) error
 
 	// Scanning Logic
 	GetOldestOutdatedTarget(ctx context.Context, scanType ScanType, threshold time.Duration) (*ent.Target, error)
@@ -81,6 +100,39 @@ func (s *EntStorage) Close() error {
 	return s.client.Close()
 }
 
+// importTarget creates the target for input, or updates the existing row. A
+// soft-deleted row holds the same unique input, so it is revived rather than
+// duplicated: its scan history comes back with it, and its summary is
+// refreshed because scans may have been written while it was hidden.
+func (s *EntStorage) importTarget(ctx context.Context, input string, isIP bool) error {
+	existing, err := s.client.Target.Query().
+		Where(target.InputEQ(input)).
+		Only(schema.SkipSoftDelete(ctx))
+	if ent.IsNotFound(err) {
+		_, err = s.client.Target.Create().
+			SetInput(input).
+			SetIsIP(isIP).
+			Save(ctx)
+		return err
+	}
+	if err != nil {
+		return err
+	}
+	if existing.DeletedAt == nil {
+		return s.client.Target.Update().
+			Where(target.InputEQ(input)).
+			SetIsIP(isIP).
+			Exec(ctx)
+	}
+	if err := s.client.Target.UpdateOne(existing).
+		SetIsIP(isIP).
+		ClearDeletedAt().
+		Exec(ctx); err != nil {
+		return err
+	}
+	return refreshSummary(ctx, s.client, target.ID(existing.ID))
+}
+
 func (s *EntStorage) ImportTargets(ctx context.Context, lines []string) (int, error) {
 	count := 0
 	for _, line := range lines {
@@ -88,21 +140,7 @@ func (s *EntStorage) ImportTargets(ctx context.Context, lines []string) (int, er
 			continue
 		}
 		isIP := net.ParseIP(line) != nil
-		exists, _ := s.client.Target.Query().Where(target.InputEQ(line)).Exist(ctx)
-		var err error
-		if exists {
-			err = s.client.Target.Update().
-				Where(target.InputEQ(line)).
-				SetIsIP(isIP).
-				Exec(ctx)
-		} else {
-			_, err = s.client.Target.Create().
-				SetInput(line).
-				SetIsIP(isIP).
-				Save(ctx)
-		}
-
-		if err != nil {
+		if err := s.importTarget(ctx, line, isIP); err != nil {
 			log.Printf("Error importing %s: %v", line, err)
 		} else {
 			count++
@@ -234,33 +272,6 @@ func (s *EntStorage) GetCSPScansPage(ctx context.Context, targetID, limit, offse
 	return scans, total, nil
 }
 
-func (s *EntStorage) DeleteTarget(ctx context.Context, id int) error {
-	tx, err := s.client.Tx(ctx)
-	if err != nil {
-		return err
-	}
-	// cascade delete scans
-	_, err = tx.SSLScan.Delete().Where(sslscan.HasTargetWith(target.ID(id))).Exec(ctx)
-	if err != nil {
-		return rollback(tx, err)
-	}
-	_, err = tx.CSPScan.Delete().Where(cspscan.HasTargetWith(target.ID(id))).Exec(ctx)
-	if err != nil {
-		return rollback(tx, err)
-	}
-
-	// cleanup IPs that are orphaned if we want?
-	// For now let's just delete the target. M2M edges to IPs will be removed automatically.
-	// But IPs themselves remain, which is probably desired as they might be shared or re-discovered.
-
-	err = tx.Target.DeleteOneID(id).Exec(ctx)
-	if err != nil {
-		return rollback(tx, err)
-	}
-
-	return tx.Commit()
-}
-
 func rollback(tx *ent.Tx, err error) error {
 	if rerr := tx.Rollback(); rerr != nil {
 		err = fmt.Errorf("%w: %v", err, rerr)
@@ -303,11 +314,15 @@ func (s *EntStorage) GetOldestOutdatedTarget(ctx context.Context, scanType ScanT
 func (s *EntStorage) GetOutdatedIPs(ctx context.Context, limit int, threshold time.Duration) ([]*ent.IP, error) {
 	cutoff := time.Now().Add(-threshold)
 
+	// Only IPs with a live target: the soft-delete filter does not reach edge
+	// predicates, so an IP that belongs only to deleted targets would otherwise
+	// keep being port scanned.
 	return s.client.IP.Query().
 		Where(ip.Or(
 			ip.Not(ip.HasScans()),
 			ip.Not(ip.HasScansWith(portscan.LastSeenAtGTE(cutoff))),
 		)).
+		Where(ip.HasTargetsWith(target.DeletedAtIsNil())).
 		Order(ip.ByScans(oldestScanFirst())).
 		Limit(limit).
 		All(ctx)
