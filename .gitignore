@@ -1,7 +1,7 @@
 *.db
 *.lst
 .env
-perimeter
+/perimeter
 docs/superpowers
 .superpowers
 *.md
