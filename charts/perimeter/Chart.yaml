@@ -1,0 +1,11 @@
+apiVersion: v2
+name: perimeter
+description: Attack-surface scanner for domains and IPs (open ports, SSL Labs grades, CSP headers)
+type: application
+# CI packages the chart with --version/--app-version set to the release tag, so
+# chart and image versions always match. These are only the local defaults.
+version: 0.0.0
+appVersion: "latest"
+home: https://github.com/pavel1337/perimeter
+sources:
+  - https://github.com/pavel1337/perimeter

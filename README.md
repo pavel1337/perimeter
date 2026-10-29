@@ -88,13 +88,26 @@ The app listens on http://localhost:3000 and stores data in the bundled
 Postgres. Configure via the `environment:` block in `docker-compose.yml`.
 Published images live at `ghcr.io/pavel1337/perimeter`.
 
+## Kubernetes
+
+A Helm chart lives in `charts/perimeter` and is published with every release:
+
+```bash
+helm install perimeter oci://ghcr.io/pavel1337/charts/perimeter --version <version> \
+  --set ingress.enabled=true --set ingress.host=perimeter.example.com
+```
+
+Settings go under `env:` (same names as the table above). The default keeps
+SQLite on a PVC; for Postgres set `persistence.enabled=false` plus
+`env.DB_DRIVER=postgres` and `env.DB_DSN`.
+
 ## Versioning & releases
 
 Versioning is automatic, driven by git tags (`vMAJOR.MINOR.PATCH`):
 
 - Every push to `main` bumps the **patch** version and, once lint and tests
-  pass, builds and pushes `ghcr.io/pavel1337/perimeter:<version>` and `:latest`,
-  then creates the matching `v<version>` git tag.
+  pass, builds and pushes `ghcr.io/pavel1337/perimeter:<version>` and `:latest`
+  plus the Helm chart `oci://ghcr.io/pavel1337/charts/perimeter:<version>`, then creates the matching `v<version>` git tag.
 - For a **minor** or **major** bump, push a tag yourself — the next push to
   `main` continues patch bumps from there:
 

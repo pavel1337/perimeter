@@ -1,0 +1,47 @@
+image:
+  repository: ghcr.io/pavel1337/perimeter
+  # Defaults to the chart's appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# Every setting is an env var (see the README's configuration table). Rendered
+# into a Secret, so DB_DSN, SMTP_PASSWORD, OIDC_CLIENT_SECRET etc. can go here.
+env: {}
+#  DB_DRIVER: postgres
+#  DB_DSN: postgres://perimeter:...@db:5432/perimeter?sslmode=require
+#  FIRST_NAME: Jane  # SSL Labs registration, needed for SSL scans
+#  LAST_NAME: Doe
+#  EMAIL: jane@example.com
+#  ORGANIZATION: Example
+
+# Extra env from Secrets/ConfigMaps managed outside the chart.
+envFrom: []
+#  - secretRef:
+#      name: perimeter-db
+
+# SQLite storage. Only needed with the default DB_DRIVER (sqlite3); the chart
+# points DB_PATH at the volume. Disable when using Postgres.
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClass: ""
+  existingClaim: ""
+
+service:
+  port: 3000
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: perimeter.example.com
+  tls:
+    enabled: true
+    secretName: ""
+
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
