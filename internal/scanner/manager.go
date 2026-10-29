@@ -523,6 +523,14 @@ func mergeConfirmed(scanned, prev, confirmed []int) []int {
 	return final
 }
 
+// gradeDropped reports whether next is a worse SSL Labs grade than prev.
+// Both sides need a known grade: a failed assessment or a target without
+// HTTPS is not a drop.
+func gradeDropped(prev, next string) bool {
+	prevRank, nextRank := storage.GradeRank(prev), storage.GradeRank(next)
+	return prevRank > 0 && nextRank > 0 && nextRank < prevRank
+}
+
 func (m *Manager) processSSLScan(ctx context.Context, j Job, scanner *ssl.SSLLabsScanner) {
 	log.Printf("Worker: SSL Scanning %s", j.Input)
 
@@ -577,7 +585,7 @@ func (m *Manager) processSSLScan(ctx context.Context, j Job, scanner *ssl.SSLLab
 	m.completeJob(ctx, j)
 
 	// Check for grade drop
-	if prevGrade != "" && res.Grade > prevGrade {
+	if gradeDropped(prevGrade, res.Grade) {
 		m.dispatcher.Dispatch(ctx, notifier.Event{
 			Type:      notifier.EventSSLGradeDrop,
 			Target:    j.Input,
