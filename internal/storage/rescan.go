@@ -95,9 +95,13 @@ func (s *EntStorage) RequestRescan(ctx context.Context, ids []int, now time.Time
 
 // requestRescanChunk stamps and flags one chunk of queued targets.
 func requestRescanChunk(ctx context.Context, tx *ent.Tx, ids []int, now time.Time, kinds RescanKinds) error {
+	// Clearing resolved_at makes the target due for re-resolution, so a rescan
+	// re-resolves first and any new IP in the answer is picked up as never
+	// scanned (issue #59).
 	if _, err := tx.Target.Update().
 		Where(target.IDIn(ids...)).
 		SetRescanRequestedAt(now).
+		ClearResolvedAt().
 		Save(ctx); err != nil {
 		return err
 	}

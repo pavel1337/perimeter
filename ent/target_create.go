@@ -241,6 +241,20 @@ func (_c *TargetCreate) SetNillableOpenPortCount(v *int) *TargetCreate {
 	return _c
 }
 
+// SetResolvedAt sets the "resolved_at" field.
+func (_c *TargetCreate) SetResolvedAt(v time.Time) *TargetCreate {
+	_c.mutation.SetResolvedAt(v)
+	return _c
+}
+
+// SetNillableResolvedAt sets the "resolved_at" field if the given value is not nil.
+func (_c *TargetCreate) SetNillableResolvedAt(v *time.Time) *TargetCreate {
+	if v != nil {
+		_c.SetResolvedAt(*v)
+	}
+	return _c
+}
+
 // AddIPIDs adds the "ips" edge to the IP entity by IDs.
 func (_c *TargetCreate) AddIPIDs(ids ...int) *TargetCreate {
 	_c.mutation.AddIPIDs(ids...)
@@ -524,6 +538,10 @@ func (_c *TargetCreate) createSpec() (*Target, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.OpenPortCount(); ok {
 		_spec.SetField(target.FieldOpenPortCount, field.TypeInt, value)
 		_node.OpenPortCount = value
+	}
+	if value, ok := _c.mutation.ResolvedAt(); ok {
+		_spec.SetField(target.FieldResolvedAt, field.TypeTime, value)
+		_node.ResolvedAt = &value
 	}
 	if nodes := _c.mutation.IpsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

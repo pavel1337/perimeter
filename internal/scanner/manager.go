@@ -31,10 +31,14 @@ type ScannerConfig struct {
 	SSLScanInterval    time.Duration
 	CSPScanInterval    time.Duration
 	ResolutionInterval time.Duration
-	SSLEmail           string
-	WorkerCount        int
-	UseDBQueue         bool
-	JobTimeout         time.Duration
+	// ResolveInterval is how often a live target that resolved successfully is
+	// re-resolved. ResolutionInterval stays the base retry backoff for names
+	// that fail (issue #59).
+	ResolveInterval time.Duration
+	SSLEmail        string
+	WorkerCount     int
+	UseDBQueue      bool
+	JobTimeout      time.Duration
 }
 
 type Manager struct {
@@ -51,6 +55,9 @@ type Manager struct {
 func NewManager(s *storage.EntStorage, cfg ScannerConfig, dispatcher *notifier.Dispatcher) *Manager {
 	if cfg.ResolutionInterval == 0 {
 		cfg.ResolutionInterval = 1 * time.Minute
+	}
+	if cfg.ResolveInterval == 0 {
+		cfg.ResolveInterval = 1 * time.Hour
 	}
 	if cfg.WorkerCount < 0 {
 		cfg.WorkerCount = 0
@@ -256,7 +263,7 @@ func (m *Manager) runResolutionProducer() {
 	log.Println("Starting Resolution Producer")
 	ctx := context.Background()
 	for {
-		targets, err := m.storage.GetUnresolvedTargets(ctx, 10, m.config.ResolutionInterval)
+		targets, err := m.storage.GetUnresolvedTargets(ctx, 10, m.config.ResolveInterval)
 		if err != nil {
 			log.Printf("Producer: Error fetching targets: %v", err)
 			time.Sleep(10 * time.Second)
@@ -380,6 +387,16 @@ func (m *Manager) processResolution(ctx context.Context, j Job) {
 	if err != nil {
 		msg := dnsErrorMessage(err)
 		log.Printf("Worker: Failed to resolve %s: %s", j.Input, msg)
+		// NXDOMAIN / NODATA: the name is gone. Unlink all IPs and record the
+		// error so the target becomes unresolved; the backoff clock keeps it
+		// retried (issue #59). Temporary failures (timeout, SERVFAIL) keep the
+		// existing links and retry with the existing backoff.
+		var dnsErr *net.DNSError
+		if errors.As(err, &dnsErr) && dnsErr.IsNotFound {
+			if err := m.storage.ClearTargetIPs(ctx, j.Input); err != nil {
+				log.Printf("Worker: failed to clear IPs for %s: %v", j.Input, err)
+			}
+		}
 		if terr := m.storage.RecordResolveFailure(ctx, j.Input, msg); terr != nil {
 			log.Printf("Worker: failed to record resolve failure for %s: %v", j.Input, terr)
 		}
@@ -390,6 +407,20 @@ func (m *Manager) processResolution(ctx context.Context, j Job) {
 	var ipStrings []string
 	for _, ipAddr := range ips {
 		ipStrings = append(ipStrings, ipAddr.String())
+	}
+
+	// NODATA: the name exists but has no A/AAAA records, so the answer is
+	// empty. Treat it like the name is gone.
+	if len(ipStrings) == 0 {
+		if err := m.storage.ClearTargetIPs(ctx, j.Input); err != nil {
+			log.Printf("Worker: failed to clear IPs for %s: %v", j.Input, err)
+		}
+		msg := "no such host (NODATA)"
+		if terr := m.storage.RecordResolveFailure(ctx, j.Input, msg); terr != nil {
+			log.Printf("Worker: failed to record resolve failure for %s: %v", j.Input, terr)
+		}
+		m.failJob(ctx, j, msg)
+		return
 	}
 
 	err = m.storage.SaveIPs(ctx, j.Input, ipStrings)

@@ -46,6 +46,11 @@ func (Target) Fields() []ent.Field {
 		field.Int("latest_csp_finding_count").Optional().Nillable(),
 		// Summed over the newest port scan of each of the target's IPs.
 		field.Int("open_port_count").Default(0),
+		// resolved_at is the clock for the re-resolution schedule: every live
+		// target is re-resolved on RESOLVE_INTERVAL, tracked here rather than on
+		// update_time, which changes on every row update (issue #59). It is
+		// appended last so existing field indices are not shifted.
+		field.Time("resolved_at").Optional().Nillable(),
 	}
 }
 

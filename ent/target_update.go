@@ -299,6 +299,26 @@ func (_u *TargetUpdate) AddOpenPortCount(v int) *TargetUpdate {
 	return _u
 }
 
+// SetResolvedAt sets the "resolved_at" field.
+func (_u *TargetUpdate) SetResolvedAt(v time.Time) *TargetUpdate {
+	_u.mutation.SetResolvedAt(v)
+	return _u
+}
+
+// SetNillableResolvedAt sets the "resolved_at" field if the given value is not nil.
+func (_u *TargetUpdate) SetNillableResolvedAt(v *time.Time) *TargetUpdate {
+	if v != nil {
+		_u.SetResolvedAt(*v)
+	}
+	return _u
+}
+
+// ClearResolvedAt clears the value of the "resolved_at" field.
+func (_u *TargetUpdate) ClearResolvedAt() *TargetUpdate {
+	_u.mutation.ClearResolvedAt()
+	return _u
+}
+
 // AddIPIDs adds the "ips" edge to the IP entity by IDs.
 func (_u *TargetUpdate) AddIPIDs(ids ...int) *TargetUpdate {
 	_u.mutation.AddIPIDs(ids...)
@@ -610,6 +630,12 @@ func (_u *TargetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedOpenPortCount(); ok {
 		_spec.AddField(target.FieldOpenPortCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ResolvedAt(); ok {
+		_spec.SetField(target.FieldResolvedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ResolvedAtCleared() {
+		_spec.ClearField(target.FieldResolvedAt, field.TypeTime)
 	}
 	if _u.mutation.IpsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -1106,6 +1132,26 @@ func (_u *TargetUpdateOne) AddOpenPortCount(v int) *TargetUpdateOne {
 	return _u
 }
 
+// SetResolvedAt sets the "resolved_at" field.
+func (_u *TargetUpdateOne) SetResolvedAt(v time.Time) *TargetUpdateOne {
+	_u.mutation.SetResolvedAt(v)
+	return _u
+}
+
+// SetNillableResolvedAt sets the "resolved_at" field if the given value is not nil.
+func (_u *TargetUpdateOne) SetNillableResolvedAt(v *time.Time) *TargetUpdateOne {
+	if v != nil {
+		_u.SetResolvedAt(*v)
+	}
+	return _u
+}
+
+// ClearResolvedAt clears the value of the "resolved_at" field.
+func (_u *TargetUpdateOne) ClearResolvedAt() *TargetUpdateOne {
+	_u.mutation.ClearResolvedAt()
+	return _u
+}
+
 // AddIPIDs adds the "ips" edge to the IP entity by IDs.
 func (_u *TargetUpdateOne) AddIPIDs(ids ...int) *TargetUpdateOne {
 	_u.mutation.AddIPIDs(ids...)
@@ -1447,6 +1493,12 @@ func (_u *TargetUpdateOne) sqlSave(ctx context.Context) (_node *Target, err erro
 	}
 	if value, ok := _u.mutation.AddedOpenPortCount(); ok {
 		_spec.AddField(target.FieldOpenPortCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ResolvedAt(); ok {
+		_spec.SetField(target.FieldResolvedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ResolvedAtCleared() {
+		_spec.ClearField(target.FieldResolvedAt, field.TypeTime)
 	}
 	if _u.mutation.IpsCleared() {
 		edge := &sqlgraph.EdgeSpec{

@@ -130,6 +130,11 @@ func OpenPortCount(v int) predicate.Target {
 	return predicate.Target(sql.FieldEQ(FieldOpenPortCount, v))
 }
 
+// ResolvedAt applies equality check predicate on the "resolved_at" field. It's identical to ResolvedAtEQ.
+func ResolvedAt(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldResolvedAt, v))
+}
+
 // CreateTimeEQ applies the EQ predicate on the "create_time" field.
 func CreateTimeEQ(v time.Time) predicate.Target {
 	return predicate.Target(sql.FieldEQ(FieldCreateTime, v))
@@ -793,6 +798,56 @@ func OpenPortCountLT(v int) predicate.Target {
 // OpenPortCountLTE applies the LTE predicate on the "open_port_count" field.
 func OpenPortCountLTE(v int) predicate.Target {
 	return predicate.Target(sql.FieldLTE(FieldOpenPortCount, v))
+}
+
+// ResolvedAtEQ applies the EQ predicate on the "resolved_at" field.
+func ResolvedAtEQ(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldResolvedAt, v))
+}
+
+// ResolvedAtNEQ applies the NEQ predicate on the "resolved_at" field.
+func ResolvedAtNEQ(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldNEQ(FieldResolvedAt, v))
+}
+
+// ResolvedAtIn applies the In predicate on the "resolved_at" field.
+func ResolvedAtIn(vs ...time.Time) predicate.Target {
+	return predicate.Target(sql.FieldIn(FieldResolvedAt, vs...))
+}
+
+// ResolvedAtNotIn applies the NotIn predicate on the "resolved_at" field.
+func ResolvedAtNotIn(vs ...time.Time) predicate.Target {
+	return predicate.Target(sql.FieldNotIn(FieldResolvedAt, vs...))
+}
+
+// ResolvedAtGT applies the GT predicate on the "resolved_at" field.
+func ResolvedAtGT(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldGT(FieldResolvedAt, v))
+}
+
+// ResolvedAtGTE applies the GTE predicate on the "resolved_at" field.
+func ResolvedAtGTE(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldGTE(FieldResolvedAt, v))
+}
+
+// ResolvedAtLT applies the LT predicate on the "resolved_at" field.
+func ResolvedAtLT(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldLT(FieldResolvedAt, v))
+}
+
+// ResolvedAtLTE applies the LTE predicate on the "resolved_at" field.
+func ResolvedAtLTE(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldLTE(FieldResolvedAt, v))
+}
+
+// ResolvedAtIsNil applies the IsNil predicate on the "resolved_at" field.
+func ResolvedAtIsNil() predicate.Target {
+	return predicate.Target(sql.FieldIsNull(FieldResolvedAt))
+}
+
+// ResolvedAtNotNil applies the NotNil predicate on the "resolved_at" field.
+func ResolvedAtNotNil() predicate.Target {
+	return predicate.Target(sql.FieldNotNull(FieldResolvedAt))
 }
 
 // HasIps applies the HasEdge predicate on the "ips" edge.

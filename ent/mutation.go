@@ -11281,6 +11281,7 @@ type TargetMutation struct {
 	addlatest_csp_finding_count *int
 	open_port_count             *int
 	addopen_port_count          *int
+	resolved_at                 *time.Time
 	clearedFields               map[string]struct{}
 	ips                         map[int]struct{}
 	removedips                  map[int]struct{}
@@ -12134,6 +12135,55 @@ func (m *TargetMutation) ResetOpenPortCount() {
 	m.addopen_port_count = nil
 }
 
+// SetResolvedAt sets the "resolved_at" field.
+func (m *TargetMutation) SetResolvedAt(t time.Time) {
+	m.resolved_at = &t
+}
+
+// ResolvedAt returns the value of the "resolved_at" field in the mutation.
+func (m *TargetMutation) ResolvedAt() (r time.Time, exists bool) {
+	v := m.resolved_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolvedAt returns the old "resolved_at" field's value of the Target entity.
+// If the Target object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TargetMutation) OldResolvedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolvedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolvedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolvedAt: %w", err)
+	}
+	return oldValue.ResolvedAt, nil
+}
+
+// ClearResolvedAt clears the value of the "resolved_at" field.
+func (m *TargetMutation) ClearResolvedAt() {
+	m.resolved_at = nil
+	m.clearedFields[target.FieldResolvedAt] = struct{}{}
+}
+
+// ResolvedAtCleared returns if the "resolved_at" field was cleared in this mutation.
+func (m *TargetMutation) ResolvedAtCleared() bool {
+	_, ok := m.clearedFields[target.FieldResolvedAt]
+	return ok
+}
+
+// ResetResolvedAt resets all changes to the "resolved_at" field.
+func (m *TargetMutation) ResetResolvedAt() {
+	m.resolved_at = nil
+	delete(m.clearedFields, target.FieldResolvedAt)
+}
+
 // AddIPIDs adds the "ips" edge to the IP entity by ids.
 func (m *TargetMutation) AddIPIDs(ids ...int) {
 	if m.ips == nil {
@@ -12423,7 +12473,7 @@ func (m *TargetMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TargetMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 17)
 	if m.create_time != nil {
 		fields = append(fields, target.FieldCreateTime)
 	}
@@ -12472,6 +12522,9 @@ func (m *TargetMutation) Fields() []string {
 	if m.open_port_count != nil {
 		fields = append(fields, target.FieldOpenPortCount)
 	}
+	if m.resolved_at != nil {
+		fields = append(fields, target.FieldResolvedAt)
+	}
 	return fields
 }
 
@@ -12512,6 +12565,8 @@ func (m *TargetMutation) Field(name string) (ent.Value, bool) {
 		return m.LatestCspFindingCount()
 	case target.FieldOpenPortCount:
 		return m.OpenPortCount()
+	case target.FieldResolvedAt:
+		return m.ResolvedAt()
 	}
 	return nil, false
 }
@@ -12553,6 +12608,8 @@ func (m *TargetMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldLatestCspFindingCount(ctx)
 	case target.FieldOpenPortCount:
 		return m.OldOpenPortCount(ctx)
+	case target.FieldResolvedAt:
+		return m.OldResolvedAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown Target field %s", name)
 }
@@ -12674,6 +12731,13 @@ func (m *TargetMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetOpenPortCount(v)
 		return nil
+	case target.FieldResolvedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolvedAt(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Target field %s", name)
 }
@@ -12773,6 +12837,9 @@ func (m *TargetMutation) ClearedFields() []string {
 	if m.FieldCleared(target.FieldLatestCspFindingCount) {
 		fields = append(fields, target.FieldLatestCspFindingCount)
 	}
+	if m.FieldCleared(target.FieldResolvedAt) {
+		fields = append(fields, target.FieldResolvedAt)
+	}
 	return fields
 }
 
@@ -12804,6 +12871,9 @@ func (m *TargetMutation) ClearField(name string) error {
 		return nil
 	case target.FieldLatestCspFindingCount:
 		m.ClearLatestCspFindingCount()
+		return nil
+	case target.FieldResolvedAt:
+		m.ClearResolvedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown Target nullable field %s", name)
@@ -12860,6 +12930,9 @@ func (m *TargetMutation) ResetField(name string) error {
 		return nil
 	case target.FieldOpenPortCount:
 		m.ResetOpenPortCount()
+		return nil
+	case target.FieldResolvedAt:
+		m.ResetResolvedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown Target field %s", name)

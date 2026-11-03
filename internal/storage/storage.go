@@ -93,6 +93,9 @@ type Storage interface {
 	GetOldestOutdatedTarget(ctx context.Context, scanType ScanType, threshold time.Duration) (*ent.Target, error)
 	GetOutdatedIPs(ctx context.Context, limit int, threshold time.Duration) ([]*ent.IP, error)
 	GetUnresolvedTargets(ctx context.Context, limit int, threshold time.Duration) ([]*ent.Target, error)
+	// ClearTargetIPs unlinks every IP from a target (it stays unresolved) and
+	// leaves the IP rows for targets that still share them (issue #59).
+	ClearTargetIPs(ctx context.Context, input string) error
 	RecordResolveFailure(ctx context.Context, input, msg string) error
 	TouchTarget(ctx context.Context, input string) error
 
@@ -446,15 +449,35 @@ func oldestScanFirst() *sql.OrderExprTerm {
 	}
 }
 
-// GetUnresolvedTargets returns up to limit targets with no IPs, oldest-attempt
-// first. The caller applies per-target backoff (see scanner.resolveBackoff);
+// GetUnresolvedTargets returns up to limit targets that need (re)resolution:
+// targets with no IPs, and targets whose last successful resolution is older
+// than threshold (tracked in resolved_at rather than the churning update_time).
+// The caller applies per-target backoff (see scanner.resolveBackoff);
 // oldest-first ordering means if the head isn't due yet, none are.
-func (s *EntStorage) GetUnresolvedTargets(ctx context.Context, limit int, _ time.Duration) ([]*ent.Target, error) {
+func (s *EntStorage) GetUnresolvedTargets(ctx context.Context, limit int, threshold time.Duration) ([]*ent.Target, error) {
+	cutoff := time.Now().Add(-threshold)
 	return s.client.Target.Query().
-		Where(target.Not(target.HasIps())).
-		Order(ent.Asc(target.FieldUpdateTime)).
+		Where(target.Or(
+			target.Not(target.HasIps()),
+			target.Or(target.ResolvedAtIsNil(), target.ResolvedAtLT(cutoff)),
+		)).
+		Order(target.ByResolvedAt(sql.OrderNullsFirst()), ent.Asc(target.FieldUpdateTime)).
 		Limit(limit).
 		All(ctx)
+}
+
+// ClearTargetIPs unlinks every IP from the target without deleting the IP rows
+// (they may be shared with other targets and keep their own scan history). The
+// target is left with no IPs, i.e. unresolved (issue #59).
+func (s *EntStorage) ClearTargetIPs(ctx context.Context, input string) error {
+	t, err := s.client.Target.Query().Where(target.Input(input)).First(ctx)
+	if err != nil {
+		return err
+	}
+	if err := s.client.Target.UpdateOne(t).ClearIps().Exec(ctx); err != nil {
+		return err
+	}
+	return refreshSummary(ctx, s.client, target.ID(t.ID))
 }
 
 // RecordResolveFailure bumps the attempt counter and stores a status message.
@@ -484,24 +507,11 @@ func (s *EntStorage) SaveIPs(ctx context.Context, targetInput string, ipAddresse
 		return err
 	}
 
-	// For each IP, find or create, then add to target.
-	// Bulk operations are tricky with "Find or Create", so loop is fine for now.
+	// Find or create every IP in the answer.
+	desired := make(map[string]*ent.IP, len(ipAddresses))
 	for _, ipAddr := range ipAddresses {
-		// Use Upsert approach or just Check Exist -> Create
-		// Ent Upsert support varies by driver (sqlite supports ON CONFLICT)
-		// Let's try simple check-create
-
-		// Create IP if not exists
-		// We CAN use the ID if we want, but finding by address is safer.
-		// Note: IP.Address is unique.
-
-		// Attempt to create. If fails (unique violation), query it.
-		// Or query first.
-
-		// 1. Query
 		i, err := s.client.IP.Query().Where(ip.Address(ipAddr)).First(ctx)
 		if ent.IsNotFound(err) {
-			// 2. Create
 			i, err = s.client.IP.Create().SetAddress(ipAddr).Save(ctx)
 			if err != nil {
 				// Race condition possible? Yes. But for this tool, probably accept failure or retry.
@@ -515,17 +525,42 @@ func (s *EntStorage) SaveIPs(ctx context.Context, targetInput string, ipAddresse
 		} else if err != nil {
 			return err
 		}
+		desired[ipAddr] = i
+	}
 
-		// 3. Link to Target (AddIps handles deduplication on edge?)
-		// Ent Many-to-Many additions:
-		err = s.client.Target.UpdateOne(t).AddIps(i).Exec(ctx)
-		if err != nil {
-			log.Printf("Failed to link IP %s to target %s: %v", ipAddr, t.Input, err)
+	// Currently linked IPs.
+	current, err := t.QueryIps().All(ctx)
+	if err != nil {
+		return err
+	}
+	linked := make(map[string]bool, len(current))
+	for _, i := range current {
+		linked[i.Address] = true
+	}
+
+	// Unlink IPs that are no longer in the answer. The IP rows themselves stay
+	// (they may be shared with other targets); only the edge to this target is
+	// removed, so shared IPs keep being port-scanned under their other targets.
+	for _, i := range current {
+		if desired[i.Address] == nil {
+			if err := s.client.Target.UpdateOne(t).RemoveIps(i).Exec(ctx); err != nil {
+				return err
+			}
 		}
 	}
 
-	// Resolved successfully: clear backoff state and update timestamp.
+	// Link IPs in the answer that aren't linked yet.
+	for ipAddr, i := range desired {
+		if !linked[ipAddr] {
+			if err := s.client.Target.UpdateOne(t).AddIps(i).Exec(ctx); err != nil {
+				log.Printf("Failed to link IP %s to target %s: %v", ipAddr, t.Input, err)
+			}
+		}
+	}
+
+	// Resolved successfully: record the resolution time, clear backoff state.
 	if err := s.client.Target.UpdateOne(t).
+		SetResolvedAt(time.Now()).
 		SetResolveAttempts(0).
 		SetResolveError("").
 		SetUpdateTime(time.Now()).Exec(ctx); err != nil {

@@ -367,6 +367,7 @@ var (
 		{Name: "latest_cert_expiry", Type: field.TypeTime, Nullable: true},
 		{Name: "latest_csp_finding_count", Type: field.TypeInt, Nullable: true},
 		{Name: "open_port_count", Type: field.TypeInt, Default: 0},
+		{Name: "resolved_at", Type: field.TypeTime, Nullable: true},
 		{Name: "user_targets", Type: field.TypeInt, Nullable: true},
 	}
 	// TargetsTable holds the schema information for the "targets" table.
@@ -377,7 +378,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "targets_users_targets",
-				Columns:    []*schema.Column{TargetsColumns[17]},
+				Columns:    []*schema.Column{TargetsColumns[18]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},

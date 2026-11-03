@@ -48,6 +48,8 @@ const (
 	FieldLatestCspFindingCount = "latest_csp_finding_count"
 	// FieldOpenPortCount holds the string denoting the open_port_count field in the database.
 	FieldOpenPortCount = "open_port_count"
+	// FieldResolvedAt holds the string denoting the resolved_at field in the database.
+	FieldResolvedAt = "resolved_at"
 	// EdgeIps holds the string denoting the ips edge name in mutations.
 	EdgeIps = "ips"
 	// EdgeSslScans holds the string denoting the ssl_scans edge name in mutations.
@@ -112,6 +114,7 @@ var Columns = []string{
 	FieldLatestCertExpiry,
 	FieldLatestCspFindingCount,
 	FieldOpenPortCount,
+	FieldResolvedAt,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "targets"
@@ -287,6 +290,11 @@ func ByLatestCspFindingCount(opts ...sql.OrderTermOption) OrderOption {
 // ByOpenPortCount orders the results by the open_port_count field.
 func ByOpenPortCount(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOpenPortCount, opts...).ToFunc()
+}
+
+// ByResolvedAt orders the results by the resolved_at field.
+func ByResolvedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResolvedAt, opts...).ToFunc()
 }
 
 // ByIpsCount orders the results by ips count.

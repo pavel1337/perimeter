@@ -50,6 +50,8 @@ type Target struct {
 	LatestCspFindingCount *int `json:"latest_csp_finding_count,omitempty"`
 	// OpenPortCount holds the value of the "open_port_count" field.
 	OpenPortCount int `json:"open_port_count,omitempty"`
+	// ResolvedAt holds the value of the "resolved_at" field.
+	ResolvedAt *time.Time `json:"resolved_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the TargetQuery when eager-loading is set.
 	Edges        TargetEdges `json:"edges"`
@@ -132,7 +134,7 @@ func (*Target) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case target.FieldInput, target.FieldResolveError, target.FieldReachability, target.FieldLatestSslGrade:
 			values[i] = new(sql.NullString)
-		case target.FieldCreateTime, target.FieldUpdateTime, target.FieldDeletedAt, target.FieldRescanRequestedAt, target.FieldLatestCertExpiry:
+		case target.FieldCreateTime, target.FieldUpdateTime, target.FieldDeletedAt, target.FieldRescanRequestedAt, target.FieldLatestCertExpiry, target.FieldResolvedAt:
 			values[i] = new(sql.NullTime)
 		case target.ForeignKeys[0]: // user_targets
 			values[i] = new(sql.NullInt64)
@@ -257,6 +259,13 @@ func (_m *Target) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.OpenPortCount = int(value.Int64)
 			}
+		case target.FieldResolvedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field resolved_at", values[i])
+			} else if value.Valid {
+				_m.ResolvedAt = new(time.Time)
+				*_m.ResolvedAt = value.Time
+			}
 		case target.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for edge-field user_targets", value)
@@ -380,6 +389,11 @@ func (_m *Target) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("open_port_count=")
 	builder.WriteString(fmt.Sprintf("%v", _m.OpenPortCount))
+	builder.WriteString(", ")
+	if v := _m.ResolvedAt; v != nil {
+		builder.WriteString("resolved_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }
