@@ -3,11 +3,14 @@ package ssl
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -30,8 +33,16 @@ type SSLScanner interface {
 }
 
 // SSLLabsScanner implements SSLScanner using the Qualys SSL Labs API v4.
+// It is safe for concurrent use, and one scanner should be shared by every
+// worker: it limits how many assessments run at once and how fast new ones
+// start, which SSL Labs enforces per email (issue #62).
 type SSLLabsScanner struct {
 	Email string
+
+	slots *assessmentSlots
+
+	startMu   sync.Mutex
+	lastStart time.Time
 }
 
 // NewSSLLabsScanner creates a new scanner instance.
@@ -39,12 +50,102 @@ type SSLLabsScanner struct {
 func NewSSLLabsScanner(email string) *SSLLabsScanner {
 	return &SSLLabsScanner{
 		Email: email,
+		slots: newAssessmentSlots(defaultMaxAssessments),
 	}
 }
 
 var (
 	apiBaseURL = "https://api.ssllabs.com/api/v4"
+
+	// Timings, variables so tests need not wait.
+	pollInterval = 30 * time.Second
+	pollTimeout  = 10 * time.Minute
+	// overloadBackoff is the wait after SSL Labs answers 429 (too many
+	// requests or new assessments too fast) or 529 (service overloaded).
+	overloadBackoff = 60 * time.Second
+	// newAssessmentCoolOff is the minimum gap between two new assessments.
+	newAssessmentCoolOff = 2 * time.Second
 )
+
+// overloadAttempts is how many times a request answered 429 or 529 is sent
+// before the scan gives up and is stored as a failed check.
+const overloadAttempts = 3
+
+// defaultMaxAssessments caps concurrent assessments until SSL Labs reports
+// its limit in X-Max-Assessments.
+const defaultMaxAssessments = 1
+
+// APIError is a non-200 answer from SSL Labs.
+type APIError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("API error %d: %s", e.StatusCode, e.Body)
+}
+
+// overloaded reports whether err is SSL Labs asking the client to slow down:
+// 429 (rate or new-assessment limit) or 529 (service overloaded).
+func overloaded(err error) bool {
+	var apiErr *APIError
+	return errors.As(err, &apiErr) &&
+		(apiErr.StatusCode == http.StatusTooManyRequests || apiErr.StatusCode == 529)
+}
+
+// assessmentSlots limits concurrent assessments. The limit follows SSL Labs'
+// X-Max-Assessments header, less what X-Current-Assessments reports running
+// beyond our own (another client using the same email, or assessments still
+// running from before a restart).
+type assessmentSlots struct {
+	mu    sync.Mutex
+	cond  *sync.Cond
+	limit int
+	inUse int
+}
+
+func newAssessmentSlots(limit int) *assessmentSlots {
+	a := &assessmentSlots{limit: limit}
+	a.cond = sync.NewCond(&a.mu)
+	return a
+}
+
+func (a *assessmentSlots) acquire() {
+	a.mu.Lock()
+	for a.inUse >= a.limit {
+		a.cond.Wait()
+	}
+	a.inUse++
+	a.mu.Unlock()
+}
+
+func (a *assessmentSlots) release() {
+	a.mu.Lock()
+	a.inUse--
+	a.mu.Unlock()
+	a.cond.Broadcast()
+}
+
+// update sizes the limit from the headers of an SSL Labs response.
+func (a *assessmentSlots) update(h http.Header) {
+	maxA, err := strconv.Atoi(h.Get("X-Max-Assessments"))
+	if err != nil || maxA <= 0 {
+		return
+	}
+	limit := maxA
+	if cur, err := strconv.Atoi(h.Get("X-Current-Assessments")); err == nil {
+		a.mu.Lock()
+		others := cur - a.inUse
+		a.mu.Unlock()
+		if others > 0 {
+			limit -= others
+		}
+	}
+	a.mu.Lock()
+	a.limit = max(1, limit)
+	a.mu.Unlock()
+	a.cond.Broadcast()
+}
 
 // Internal API structs for unmarshalling
 // We only define fields we care about or might need for the minimal result
@@ -89,6 +190,10 @@ type apiCert struct {
 }
 
 func (s *SSLLabsScanner) Scan(target string, fresh bool) (*SSLResult, error) {
+	// An assessment can run for minutes; hold a slot for all of it.
+	s.slots.acquire()
+	defer s.slots.release()
+
 	// A rescan must not be answered from the cache, or it would just repeat
 	// the old assessment.
 	if fresh {
@@ -97,15 +202,14 @@ func (s *SSLLabsScanner) Scan(target string, fresh bool) (*SSLResult, error) {
 
 	// 1. Check for existing scan first (startNew=false)
 	// This helps avoid 529 errors by not triggering new scans unnecessarily.
-	hostData, err := s.analyze(target, false)
+	hostData, err := s.analyzeRetrying(target, false)
 
 	shouldStartNew := false
 
 	if err != nil {
-		// If 529 Service Overloaded, we should back off.
-		// Manager sleeps 5s, so we add more delay here to be polite.
-		if strings.Contains(err.Error(), "529") {
-			time.Sleep(60 * time.Second)
+		// Still told to slow down after backing off: give up for now, the
+		// check is retried later.
+		if overloaded(err) {
 			return nil, err
 		}
 		// For other errors (e.g. connectivity), we might try to start new or fail.
@@ -144,26 +248,49 @@ func (s *SSLLabsScanner) Scan(target string, fresh bool) (*SSLResult, error) {
 // startAndPoll asks SSL Labs for a new assessment (startNew=on) and waits for
 // it to finish.
 func (s *SSLLabsScanner) startAndPoll(target string) (*SSLResult, error) {
-	hostData, err := s.analyze(target, true)
+	hostData, err := s.analyzeRetrying(target, true)
 	if err != nil {
-		if strings.Contains(err.Error(), "529") {
-			time.Sleep(60 * time.Second)
-		}
 		return nil, err
 	}
 	return s.poll(target, hostData)
 }
 
+// analyzeRetrying is analyze, backing off and trying again while SSL Labs
+// answers 429 or 529. New assessments are spaced by newAssessmentCoolOff.
+func (s *SSLLabsScanner) analyzeRetrying(host string, startNew bool) (*apiHost, error) {
+	var err error
+	for attempt := 1; ; attempt++ {
+		if startNew {
+			s.coolOff()
+		}
+		var data *apiHost
+		data, err = s.analyze(host, startNew)
+		if err == nil || !overloaded(err) || attempt == overloadAttempts {
+			return data, err
+		}
+		time.Sleep(time.Duration(attempt) * overloadBackoff)
+	}
+}
+
+// coolOff waits until newAssessmentCoolOff has passed since the last new
+// assessment this scanner started.
+func (s *SSLLabsScanner) coolOff() {
+	s.startMu.Lock()
+	defer s.startMu.Unlock()
+	if wait := newAssessmentCoolOff - time.Since(s.lastStart); wait > 0 {
+		time.Sleep(wait)
+	}
+	s.lastStart = time.Now()
+}
+
 // poll waits until the assessment is READY or ERROR and builds the result.
 func (s *SSLLabsScanner) poll(target string, hostData *apiHost) (*SSLResult, error) {
-	var err error
-
 	// 3. Poll until READY or ERROR
-	ticker := time.NewTicker(30 * time.Second) // Slower polling to be polite
+	ticker := time.NewTicker(pollInterval) // Slower polling to be polite
 	defer ticker.Stop()
 
-	// Hard timeout of 10 minutes (SSL Labs can be slow)
-	timeout := time.After(10 * time.Minute)
+	// Hard timeout (SSL Labs can be slow)
+	timeout := time.After(pollTimeout)
 
 	for hostData.Status == "IN_PROGRESS" || hostData.Status == "DNS" {
 		select {
@@ -171,14 +298,17 @@ func (s *SSLLabsScanner) poll(target string, hostData *apiHost) (*SSLResult, err
 			return nil, fmt.Errorf("scan timed out")
 		case <-ticker.C:
 			// Poll without startNew
-			hostData, err = s.analyze(target, false)
+			next, err := s.analyze(target, false)
 			if err != nil {
-				// If 529 during poll, just wait and retry next tick
-				if strings.Contains(err.Error(), "529") {
+				// Told to slow down while polling: skip this tick and keep
+				// the last state (the old code set hostData to nil here and
+				// crashed on the next loop check).
+				if overloaded(err) {
 					continue
 				}
 				return nil, err
 			}
+			hostData = next
 		}
 	}
 
@@ -287,9 +417,11 @@ func (s *SSLLabsScanner) analyze(host string, startNew bool) (*apiHost, error) {
 	}
 	defer resp.Body.Close()
 
+	s.slots.update(resp.Header)
+
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
+		return nil, &APIError{StatusCode: resp.StatusCode, Body: strings.TrimSpace(string(body))}
 	}
 
 	var data apiHost

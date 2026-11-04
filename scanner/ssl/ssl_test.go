@@ -65,6 +65,7 @@ func TestSSLLabsScanner_Scan(t *testing.T) {
 	apiBaseURL = ts.URL
 	defer func() { apiBaseURL = oldURL }()
 
+	fastTimings(t)
 	scanner := NewSSLLabsScanner("test@example.com")
 	result, err := scanner.Scan("example.com", false)
 	if err != nil {
