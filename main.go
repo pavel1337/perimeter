@@ -23,6 +23,7 @@ import (
 	"perimeter/internal/scanner"
 	"perimeter/internal/server"
 	"perimeter/internal/storage"
+	"perimeter/scanner/ports"
 	"perimeter/scanner/ssl"
 
 	_ "github.com/lib/pq"
@@ -71,8 +72,11 @@ var (
 
 	portInterval = getEnvOrDefaultDuration("PORT_INTERVAL", 1*time.Hour)
 	portTimeout  = getEnvOrDefaultDuration("PORT_TIMEOUT", 1*time.Second)
-	sslInterval  = getEnvOrDefaultDuration("SSL_INTERVAL", 12*time.Hour)
-	cspInterval  = getEnvOrDefaultDuration("CSP_INTERVAL", 1*time.Hour)
+	// Ports to scan: ports and ranges, "default" for nmap's top 1000 TCP
+	// ports plus common infrastructure ports (issue #64).
+	portRange   = getEnvOrDefaultStr("PORT_RANGE", ports.DefaultSpec)
+	sslInterval = getEnvOrDefaultDuration("SSL_INTERVAL", 12*time.Hour)
+	cspInterval = getEnvOrDefaultDuration("CSP_INTERVAL", 1*time.Hour)
 	// How often a name that resolved is looked up again (issue #59).
 	resolveInterval = getEnvOrDefaultDuration("RESOLVE_INTERVAL", 1*time.Hour)
 
@@ -107,6 +111,7 @@ func main() {
 	// Scanning intervals
 	flag.DurationVar(&portInterval, "portInterval", portInterval, "Interval for port scans")
 	flag.DurationVar(&portTimeout, "portTimeout", portTimeout, "Timeout for a single port probe")
+	flag.StringVar(&portRange, "portRange", portRange, `Ports to scan, e.g. "1-1024,3000,6443"; "default" is nmap's top 1000 plus common infrastructure ports`)
 	flag.DurationVar(&sslInterval, "sslInterval", sslInterval, "Interval for SSL scans")
 	flag.DurationVar(&cspInterval, "cspInterval", cspInterval, "Interval for CSP scans")
 	flag.DurationVar(&resolveInterval, "resolveInterval", resolveInterval, "Interval for looking up resolved names again")
@@ -115,6 +120,11 @@ func main() {
 	flag.IntVar(&dashboardPageSize, "dashboardPageSize", dashboardPageSize, "How many targets the dashboard shows per page")
 
 	flag.Parse()
+
+	portList, perr := ports.ParsePorts(portRange)
+	if perr != nil {
+		log.Fatalf("PORT_RANGE: %v", perr)
+	}
 
 	// SSL Labs Registration
 	if firstName != "" && lastName != "" && email != "" && organization != "" {
@@ -236,6 +246,7 @@ func main() {
 	scanConfig := scanner.ScannerConfig{
 		PortScanInterval: portInterval,
 		PortTimeout:      portTimeout,
+		Ports:            portList,
 		SSLScanInterval:  sslInterval,
 		CSPScanInterval:  cspInterval,
 		ResolveInterval:  resolveInterval,
