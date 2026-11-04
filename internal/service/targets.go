@@ -127,8 +127,12 @@ type CSPDetail struct {
 	ProbeError string       `json:"probe_error,omitempty"`
 	// The HTTP status and final URL of the response (#67). CSP is judged on
 	// 2xx only; for 4xx and 5xx there are no findings.
-	StatusCode  int       `json:"status_code,omitempty"`
-	FinalURL    string    `json:"final_url,omitempty"`
+	StatusCode int    `json:"status_code,omitempty"`
+	FinalURL   string `json:"final_url,omitempty"`
+	// Why the certificate failed verification; the response was read
+	// without verifying it (#68). A final_url with the http scheme means the
+	// result came over plain HTTP: nothing answered TLS on port 443.
+	TLSProblem  string    `json:"tls_problem,omitempty"`
 	FirstSeen   time.Time `json:"first_seen"`
 	LastChecked time.Time `json:"last_checked"`
 }
@@ -363,6 +367,7 @@ func (s *Service) GetTarget(ctx context.Context, id int) (*TargetDetail, error) 
 			ProbeError:  sc.ProbeError,
 			StatusCode:  sc.StatusCode,
 			FinalURL:    sc.FinalURL,
+			TLSProblem:  sc.TLSProblem,
 			FirstSeen:   sc.ScannedAt,
 			LastChecked: sc.LastSeenAt,
 		}

@@ -90,6 +90,11 @@ func FinalURL(v string) predicate.CSPScan {
 	return predicate.CSPScan(sql.FieldEQ(FieldFinalURL, v))
 }
 
+// TLSProblem applies equality check predicate on the "tls_problem" field. It's identical to TLSProblemEQ.
+func TLSProblem(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldEQ(FieldTLSProblem, v))
+}
+
 // ScannedAtEQ applies the EQ predicate on the "scanned_at" field.
 func ScannedAtEQ(v time.Time) predicate.CSPScan {
 	return predicate.CSPScan(sql.FieldEQ(FieldScannedAt, v))
@@ -493,6 +498,81 @@ func FinalURLEqualFold(v string) predicate.CSPScan {
 // FinalURLContainsFold applies the ContainsFold predicate on the "final_url" field.
 func FinalURLContainsFold(v string) predicate.CSPScan {
 	return predicate.CSPScan(sql.FieldContainsFold(FieldFinalURL, v))
+}
+
+// TLSProblemEQ applies the EQ predicate on the "tls_problem" field.
+func TLSProblemEQ(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldEQ(FieldTLSProblem, v))
+}
+
+// TLSProblemNEQ applies the NEQ predicate on the "tls_problem" field.
+func TLSProblemNEQ(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldNEQ(FieldTLSProblem, v))
+}
+
+// TLSProblemIn applies the In predicate on the "tls_problem" field.
+func TLSProblemIn(vs ...string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldIn(FieldTLSProblem, vs...))
+}
+
+// TLSProblemNotIn applies the NotIn predicate on the "tls_problem" field.
+func TLSProblemNotIn(vs ...string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldNotIn(FieldTLSProblem, vs...))
+}
+
+// TLSProblemGT applies the GT predicate on the "tls_problem" field.
+func TLSProblemGT(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldGT(FieldTLSProblem, v))
+}
+
+// TLSProblemGTE applies the GTE predicate on the "tls_problem" field.
+func TLSProblemGTE(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldGTE(FieldTLSProblem, v))
+}
+
+// TLSProblemLT applies the LT predicate on the "tls_problem" field.
+func TLSProblemLT(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldLT(FieldTLSProblem, v))
+}
+
+// TLSProblemLTE applies the LTE predicate on the "tls_problem" field.
+func TLSProblemLTE(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldLTE(FieldTLSProblem, v))
+}
+
+// TLSProblemContains applies the Contains predicate on the "tls_problem" field.
+func TLSProblemContains(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldContains(FieldTLSProblem, v))
+}
+
+// TLSProblemHasPrefix applies the HasPrefix predicate on the "tls_problem" field.
+func TLSProblemHasPrefix(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldHasPrefix(FieldTLSProblem, v))
+}
+
+// TLSProblemHasSuffix applies the HasSuffix predicate on the "tls_problem" field.
+func TLSProblemHasSuffix(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldHasSuffix(FieldTLSProblem, v))
+}
+
+// TLSProblemIsNil applies the IsNil predicate on the "tls_problem" field.
+func TLSProblemIsNil() predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldIsNull(FieldTLSProblem))
+}
+
+// TLSProblemNotNil applies the NotNil predicate on the "tls_problem" field.
+func TLSProblemNotNil() predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldNotNull(FieldTLSProblem))
+}
+
+// TLSProblemEqualFold applies the EqualFold predicate on the "tls_problem" field.
+func TLSProblemEqualFold(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldEqualFold(FieldTLSProblem, v))
+}
+
+// TLSProblemContainsFold applies the ContainsFold predicate on the "tls_problem" field.
+func TLSProblemContainsFold(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldContainsFold(FieldTLSProblem, v))
 }
 
 // HasTarget applies the HasEdge predicate on the "target" edge.

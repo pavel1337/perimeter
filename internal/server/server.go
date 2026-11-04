@@ -148,6 +148,7 @@ func newViewEngine(viewsFS fs.FS) *html.Engine {
 		return code
 	})
 	engine.AddFunc("trimPrefix", strings.TrimPrefix)
+	engine.AddFunc("hasPrefix", strings.HasPrefix)
 	engine.AddFunc("eventLabel", notifierEventLabel)
 	engine.AddFunc("formValue", formValue)
 	engine.AddFunc("formChecked", formChecked)
@@ -1901,6 +1902,7 @@ type exportCSP struct {
 	ProbeError string `json:"probe_error,omitempty"`
 	StatusCode int    `json:"status_code,omitempty"`
 	FinalURL   string `json:"final_url,omitempty"`
+	TLSProblem string `json:"tls_problem,omitempty"`
 }
 
 // newExportData gathers the export view of a target. The target must come
@@ -1954,6 +1956,7 @@ func newExportData(t *ent.Target) exportData {
 			ProbeError: scan.ProbeError,
 			StatusCode: scan.StatusCode,
 			FinalURL:   scan.FinalURL,
+			TLSProblem: scan.TLSProblem,
 		})
 	}
 

@@ -110,6 +110,20 @@ func (_c *CSPScanCreate) SetNillableFinalURL(v *string) *CSPScanCreate {
 	return _c
 }
 
+// SetTLSProblem sets the "tls_problem" field.
+func (_c *CSPScanCreate) SetTLSProblem(v string) *CSPScanCreate {
+	_c.mutation.SetTLSProblem(v)
+	return _c
+}
+
+// SetNillableTLSProblem sets the "tls_problem" field if the given value is not nil.
+func (_c *CSPScanCreate) SetNillableTLSProblem(v *string) *CSPScanCreate {
+	if v != nil {
+		_c.SetTLSProblem(*v)
+	}
+	return _c
+}
+
 // SetTargetID sets the "target" edge to the Target entity by ID.
 func (_c *CSPScanCreate) SetTargetID(id int) *CSPScanCreate {
 	_c.mutation.SetTargetID(id)
@@ -233,6 +247,10 @@ func (_c *CSPScanCreate) createSpec() (*CSPScan, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.FinalURL(); ok {
 		_spec.SetField(cspscan.FieldFinalURL, field.TypeString, value)
 		_node.FinalURL = value
+	}
+	if value, ok := _c.mutation.TLSProblem(); ok {
+		_spec.SetField(cspscan.FieldTLSProblem, field.TypeString, value)
+		_node.TLSProblem = value
 	}
 	if nodes := _c.mutation.TargetIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

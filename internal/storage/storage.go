@@ -835,6 +835,9 @@ type CSPResponse struct {
 	// FinalURL is where the response came from, after redirects, without
 	// query string or fragment.
 	FinalURL string
+	// TLSProblem says why the certificate failed verification, when the
+	// response was read without verifying it (#68).
+	TLSProblem string
 }
 
 // SaveCSPResponse records the CSP probe of a target that answered, with the
@@ -922,6 +925,7 @@ func (s *EntStorage) saveCSP(ctx context.Context, input string, r CSPResponse, p
 			SetProbeError(probeErr).
 			SetStatusCode(r.StatusCode).
 			SetFinalURL(r.FinalURL).
+			SetTLSProblem(r.TLSProblem).
 			Exec(ctx)
 	}
 	if err != nil {

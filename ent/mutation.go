@@ -1765,6 +1765,7 @@ type CSPScanMutation struct {
 	status_code    *int
 	addstatus_code *int
 	final_url      *string
+	tls_problem    *string
 	clearedFields  map[string]struct{}
 	target         *int
 	clearedtarget  bool
@@ -2281,6 +2282,55 @@ func (m *CSPScanMutation) ResetFinalURL() {
 	delete(m.clearedFields, cspscan.FieldFinalURL)
 }
 
+// SetTLSProblem sets the "tls_problem" field.
+func (m *CSPScanMutation) SetTLSProblem(s string) {
+	m.tls_problem = &s
+}
+
+// TLSProblem returns the value of the "tls_problem" field in the mutation.
+func (m *CSPScanMutation) TLSProblem() (r string, exists bool) {
+	v := m.tls_problem
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTLSProblem returns the old "tls_problem" field's value of the CSPScan entity.
+// If the CSPScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CSPScanMutation) OldTLSProblem(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTLSProblem is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTLSProblem requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTLSProblem: %w", err)
+	}
+	return oldValue.TLSProblem, nil
+}
+
+// ClearTLSProblem clears the value of the "tls_problem" field.
+func (m *CSPScanMutation) ClearTLSProblem() {
+	m.tls_problem = nil
+	m.clearedFields[cspscan.FieldTLSProblem] = struct{}{}
+}
+
+// TLSProblemCleared returns if the "tls_problem" field was cleared in this mutation.
+func (m *CSPScanMutation) TLSProblemCleared() bool {
+	_, ok := m.clearedFields[cspscan.FieldTLSProblem]
+	return ok
+}
+
+// ResetTLSProblem resets all changes to the "tls_problem" field.
+func (m *CSPScanMutation) ResetTLSProblem() {
+	m.tls_problem = nil
+	delete(m.clearedFields, cspscan.FieldTLSProblem)
+}
+
 // SetTargetID sets the "target" edge to the Target entity by id.
 func (m *CSPScanMutation) SetTargetID(id int) {
 	m.target = &id
@@ -2354,7 +2404,7 @@ func (m *CSPScanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CSPScanMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.scanned_at != nil {
 		fields = append(fields, cspscan.FieldScannedAt)
 	}
@@ -2378,6 +2428,9 @@ func (m *CSPScanMutation) Fields() []string {
 	}
 	if m.final_url != nil {
 		fields = append(fields, cspscan.FieldFinalURL)
+	}
+	if m.tls_problem != nil {
+		fields = append(fields, cspscan.FieldTLSProblem)
 	}
 	return fields
 }
@@ -2403,6 +2456,8 @@ func (m *CSPScanMutation) Field(name string) (ent.Value, bool) {
 		return m.StatusCode()
 	case cspscan.FieldFinalURL:
 		return m.FinalURL()
+	case cspscan.FieldTLSProblem:
+		return m.TLSProblem()
 	}
 	return nil, false
 }
@@ -2428,6 +2483,8 @@ func (m *CSPScanMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldStatusCode(ctx)
 	case cspscan.FieldFinalURL:
 		return m.OldFinalURL(ctx)
+	case cspscan.FieldTLSProblem:
+		return m.OldTLSProblem(ctx)
 	}
 	return nil, fmt.Errorf("unknown CSPScan field %s", name)
 }
@@ -2492,6 +2549,13 @@ func (m *CSPScanMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetFinalURL(v)
+		return nil
+	case cspscan.FieldTLSProblem:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTLSProblem(v)
 		return nil
 	}
 	return fmt.Errorf("unknown CSPScan field %s", name)
@@ -2565,6 +2629,9 @@ func (m *CSPScanMutation) ClearedFields() []string {
 	if m.FieldCleared(cspscan.FieldFinalURL) {
 		fields = append(fields, cspscan.FieldFinalURL)
 	}
+	if m.FieldCleared(cspscan.FieldTLSProblem) {
+		fields = append(fields, cspscan.FieldTLSProblem)
+	}
 	return fields
 }
 
@@ -2593,6 +2660,9 @@ func (m *CSPScanMutation) ClearField(name string) error {
 		return nil
 	case cspscan.FieldFinalURL:
 		m.ClearFinalURL()
+		return nil
+	case cspscan.FieldTLSProblem:
+		m.ClearTLSProblem()
 		return nil
 	}
 	return fmt.Errorf("unknown CSPScan nullable field %s", name)
@@ -2625,6 +2695,9 @@ func (m *CSPScanMutation) ResetField(name string) error {
 		return nil
 	case cspscan.FieldFinalURL:
 		m.ResetFinalURL()
+		return nil
+	case cspscan.FieldTLSProblem:
+		m.ResetTLSProblem()
 		return nil
 	}
 	return fmt.Errorf("unknown CSPScan field %s", name)

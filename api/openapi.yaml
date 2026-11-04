@@ -855,6 +855,9 @@ components:
         final_url:
           type: string
           description: Where the response came from after redirects, without query string or fragment.
+        tls_problem:
+          type: string
+          description: Why the certificate failed verification, when the CSP probe read the response without verifying it. A final_url with the http scheme means nothing answered TLS on port 443 and the result came over plain HTTP.
         first_seen:
           type: string
           format: date-time
