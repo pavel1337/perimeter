@@ -60,6 +60,7 @@ Set values in `.env` or pass CLI flags (flags win). Common ones:
 | `WORKER_COUNT` | `--workers` | `3` | Concurrent scan workers |
 | `PORT_INTERVAL` | `--portInterval` | `1h` | Time between port scans |
 | `PORT_TIMEOUT` | `--portTimeout` | `1s` | Timeout for a single port probe |
+| `PORT_RANGE` | `--portRange` | `default` | Ports to scan: ports and ranges such as `1-1024,3000,6443`. `default` is nmap's top 1000 TCP ports plus Docker, etcd, Kubernetes API and kubelet, Redis, MongoDB, memcached, Prometheus, Kibana and RabbitMQ ports, and can be extended (`default,9999`). `1-65535` scans everything but takes far longer per IP |
 | `SSL_INTERVAL` | `--sslInterval` | `12h` | Time between SSL scans |
 | `CSP_INTERVAL` | `--cspInterval` | `1h` | Time between CSP scans |
 | `RESOLVE_INTERVAL` | `--resolveInterval` | `1h` | Time between DNS lookups of a name that resolved, so moved and removed records are noticed |

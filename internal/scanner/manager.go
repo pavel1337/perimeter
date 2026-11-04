@@ -35,6 +35,9 @@ type ScannerConfig struct {
 	WorkerCount        int
 	UseDBQueue         bool
 	JobTimeout         time.Duration
+	// Ports are what a port scan probes, from PORT_RANGE; empty means
+	// ports.DefaultSpec (issue #64).
+	Ports []int
 	// ResolveInterval is how often a name that resolved is looked up again,
 	// so moved and removed records are noticed (issue #59). A failed lookup
 	// is retried sooner, on the ResolutionInterval backoff.
@@ -226,7 +229,11 @@ func (m *Manager) runWorker(ctx context.Context, id int) {
 	}
 	// Retries only cover filtered (timeout) outcomes, so two tries per port
 	// is enough (issue #29).
-	portScanner := ports.NewSimpleScanner(int(portTimeout.Milliseconds()), 50, 2, 1, 1000)
+	portList := m.config.Ports
+	if len(portList) == 0 {
+		portList, _ = ports.ParsePorts(ports.DefaultSpec)
+	}
+	portScanner := ports.NewSimpleScanner(int(portTimeout.Milliseconds()), 50, 2, portList)
 
 	// One SSL Labs client for all workers, so its assessment limit and
 	// cool-off cover the whole process (issue #62).

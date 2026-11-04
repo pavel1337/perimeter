@@ -35,7 +35,11 @@ func closedPort(t *testing.T) int {
 }
 
 func newTestScanner(min, max int) *SimpleScanner {
-	return NewSimpleScanner(500, 10, 2, min, max)
+	var ports []int
+	for p := min; p <= max; p++ {
+		ports = append(ports, p)
+	}
+	return NewSimpleScanner(500, 10, 2, ports)
 }
 
 func TestScanFindsOpenPorts(t *testing.T) {

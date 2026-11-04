@@ -16,8 +16,7 @@ type ScannerConfig struct {
 	Timeout     time.Duration
 	Concurrency int // Max number of simultaneous connections (Semaphore)
 	Retries     int
-	PortMin     int
-	PortMax     int
+	Ports       []int // what Scan probes, from ParsePorts
 }
 
 // SimpleScanner implements your PortScanner interface.
@@ -41,14 +40,13 @@ const (
 )
 
 // NewSimpleScanner creates a scanner with safe defaults.
-func NewSimpleScanner(ms, concurrency, retries int, portMin, portMax int) *SimpleScanner {
+func NewSimpleScanner(ms, concurrency, retries int, ports []int) *SimpleScanner {
 	return &SimpleScanner{
 		config: ScannerConfig{
 			Timeout:     time.Duration(ms) * time.Millisecond,
 			Concurrency: concurrency,
 			Retries:     retries,
-			PortMin:     portMin,
-			PortMax:     portMax,
+			Ports:       ports,
 		},
 	}
 }
@@ -71,7 +69,7 @@ func (s *SimpleScanner) Scan(target string) ([]int, error) {
 	// This prevents "too many open files" errors on limited systems.
 	sem := make(chan struct{}, s.config.Concurrency)
 
-	for port := s.config.PortMin; port <= s.config.PortMax; port++ {
+	for _, port := range s.config.Ports {
 		// Acquire token
 		sem <- struct{}{}
 		wg.Add(1)
