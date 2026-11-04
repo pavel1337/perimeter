@@ -3,6 +3,17 @@
 <h1>Delete {{.Count}} target{{if ne .Count 1}}s{{end}}?</h1>
 <p class="text-muted" style="margin: -12px 0 20px;">Deleted targets are not scanned. You can restore them from <a href="/targets/deleted">Deleted targets</a>.</p>
 
+{{if .LiveCount}}
+<div class="alert alert-error" role="alert" style="margin-bottom: 20px;">
+  <strong>{{.LiveCount}} of these answered in their last scan</strong> (HTTP or open ports), so they may still be in use.
+  Targets that only exist through a DNS wildcard won't come back with an importer sync.
+  <ul style="margin: 8px 0 0;">
+    {{range .Live}}<li class="mono">{{.Input}}</li>{{end}}
+    {{if gt .LiveMore 0}}<li class="text-muted">…and {{.LiveMore}} more</li>{{end}}
+  </ul>
+</div>
+{{end}}
+
 <table>
   <thead>
     <tr>

@@ -212,7 +212,7 @@
       <td>
         {{if $.CanWrite}}
         <form method="POST" action="/targets/{{.ID}}/delete"
-          onsubmit="return confirm('Delete this target? It can be restored from Deleted targets.');" style="display:inline;">
+          onsubmit="return confirm('{{if eq .Reachability "ok"}}This target answered in its last scan (HTTP or open ports), so it may still be in use. {{end}}Delete this target? It can be restored from Deleted targets.');" style="display:inline;">
           <button type="submit" class="btn-danger">Delete</button>
         </form>
         {{end}}

@@ -266,9 +266,18 @@ func (s *Service) ListTargets(ctx context.Context, q TargetQuery) (Page[TargetSu
 // first. Only Search narrows them; the other query fields are refused rather
 // than silently ignored.
 func (s *Service) listDeleted(ctx context.Context, q TargetQuery, limit int) (Page[TargetSummary], error) {
-	if q.Tag != "" || len(q.States) > 0 || q.CSP != "" || q.SSLGrade != "" ||
+	if q.Tag != "" || q.CSP != "" || q.SSLGrade != "" ||
 		q.SSLBelow != "" || q.Port != 0 || q.ExpiringWithinDays != 0 || q.Expired || q.Sort != "" {
-		return Page[TargetSummary]{}, invalid("deleted", "only search can be combined with deleted")
+		return Page[TargetSummary]{}, invalid("deleted", "only search and states can be combined with deleted")
+	}
+	// States filter by the last known state, which a deleted target keeps:
+	// states=ok finds targets that still answered when deleted (#77).
+	states := map[string]bool{}
+	for _, name := range q.States {
+		if _, ok := reachabilityByName[name]; !ok {
+			return Page[TargetSummary]{}, invalid("state", "unknown state %q", name)
+		}
+		states[name] = true
 	}
 	rows, err := s.st.ListDeletedTargets(ctx)
 	if err != nil {
@@ -279,6 +288,9 @@ func (s *Service) listDeleted(ctx context.Context, q TargetQuery, limit int) (Pa
 	var matched []TargetSummary
 	for _, t := range rows {
 		if needle != "" && !strings.Contains(strings.ToLower(t.Input), needle) {
+			continue
+		}
+		if len(states) > 0 && !states[string(t.Reachability)] {
 			continue
 		}
 		matched = append(matched, toSummary(t, now))

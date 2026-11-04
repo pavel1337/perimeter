@@ -1147,14 +1147,27 @@ func (s *Server) handleRescanTarget(c *fiber.Ctx) error {
 }
 
 func (s *Server) handleDeletedTargets(c *fiber.Ctx) error {
-	targets, err := s.storage.ListDeletedTargets(c.Context())
+	all, err := s.storage.ListDeletedTargets(c.Context())
 	if err != nil {
 		return err
 	}
+	// ?state=ok keeps the targets that still answered when deleted (#77).
+	onlyLive := c.Query("state") == string(target.ReachabilityOk)
+	targets := all
+	if onlyLive {
+		targets = nil
+		for _, t := range all {
+			if t.Reachability == target.ReachabilityOk {
+				targets = append(targets, t)
+			}
+		}
+	}
 
 	return c.Render("views/deleted", s.templateData(c, fiber.Map{
-		"Title":   "Deleted targets",
-		"Targets": targets,
+		"Title":    "Deleted targets",
+		"Targets":  targets,
+		"OnlyLive": onlyLive,
+		"Total":    len(all),
 	}), "views/layouts/main")
 }
 
@@ -2294,11 +2307,27 @@ func (s *Server) renderBulkDeleteConfirm(c *fiber.Ctx, ids []int) error {
 		return err
 	}
 
+	// Targets that answered in their last scan (HTTP or open ports) are
+	// probably still in use: say so before they are deleted (#77). A target
+	// that only exists through a DNS wildcard won't come back with a sync.
+	liveQ := s.client.Target.Query().Where(target.IDIn(ids...), target.ReachabilityEQ(target.ReachabilityOk))
+	liveCount, err := liveQ.Clone().Count(c.Context())
+	if err != nil {
+		return err
+	}
+	live, err := liveQ.Order(ent.Asc(target.FieldInput)).Limit(bulkDeletePreview).All(c.Context())
+	if err != nil {
+		return err
+	}
+
 	return c.Render("views/bulk_delete", s.templateData(c, fiber.Map{
-		"Title":   "Delete targets",
-		"IDs":     ids,
-		"Count":   len(ids),
-		"Targets": targets,
-		"More":    len(ids) - len(preview),
+		"Title":     "Delete targets",
+		"IDs":       ids,
+		"Count":     len(ids),
+		"Targets":   targets,
+		"More":      len(ids) - len(preview),
+		"Live":      live,
+		"LiveCount": liveCount,
+		"LiveMore":  liveCount - len(live),
 	}), "views/layouts/main")
 }
