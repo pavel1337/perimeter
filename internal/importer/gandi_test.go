@@ -19,7 +19,7 @@ func fakeGandi(t *testing.T, n int, sendTotal bool) (*GandiSource, *int) {
 	recordCalls := 0
 	mux := http.NewServeMux()
 	mux.HandleFunc("/domain/domains", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]gandiDomain{{FQDN: "example.com"}})
+		_ = json.NewEncoder(w).Encode([]gandiDomain{{FQDN: "example.com"}})
 	})
 	mux.HandleFunc("/livedns/domains/example.com/records", func(w http.ResponseWriter, r *http.Request) {
 		recordCalls++
@@ -36,7 +36,7 @@ func fakeGandi(t *testing.T, n int, sendTotal bool) (*GandiSource, *int) {
 		if sendTotal {
 			w.Header().Set("Total-Count", strconv.Itoa(n))
 		}
-		json.NewEncoder(w).Encode(out)
+		_ = json.NewEncoder(w).Encode(out)
 	})
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
