@@ -1,8 +1,10 @@
 package csp
 
 import (
+	"cmp"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -44,7 +46,35 @@ func (e *DefaultEvaluator) Evaluate(cspInput string) ([]Finding, error) {
 		findings := check(parsed)
 		allFindings = append(allFindings, findings...)
 	}
+	// Several checks range over maps, so the order varies between runs.
+	SortFindings(allFindings)
 	return allFindings, nil
+}
+
+// SortFindings puts findings in a fixed order (directive, type, value,
+// severity, description), so the same policy always gives the same list and
+// an unchanged header is not recorded as a change (issue #65).
+func SortFindings(fs []Finding) {
+	slices.SortStableFunc(fs, compareFindings)
+}
+
+func compareFindings(a, b Finding) int {
+	return cmp.Or(
+		cmp.Compare(a.Directive, b.Directive),
+		cmp.Compare(a.Type, b.Type),
+		cmp.Compare(a.Value, b.Value),
+		cmp.Compare(a.Severity, b.Severity),
+		cmp.Compare(a.Description, b.Description),
+	)
+}
+
+// nonceSource matches a CSP nonce source such as 'nonce-r4nd0m'.
+var nonceSource = regexp.MustCompile(`'nonce-[^']*'`)
+
+// MaskNonces replaces every nonce in a header with 'nonce', so a per-request
+// nonce doesn't make an unchanged policy look different (issue #65).
+func MaskNonces(header string) string {
+	return nonceSource.ReplaceAllString(header, "'nonce'")
 }
 
 // Keyword constants
@@ -160,6 +190,7 @@ func (c *Csp) GetEffectiveDirectives(directives []string) []string {
 	for k := range effective {
 		result = append(result, k)
 	}
+	slices.Sort(result)
 	return result
 }
 
