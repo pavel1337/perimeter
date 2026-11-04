@@ -3,11 +3,17 @@
 <h1>Deleted targets</h1>
 <p class="text-muted" style="margin: -12px 0 20px;">Deleted targets are not scanned. Restoring or re-importing one brings it back with its history. Purging removes it for good.</p>
 
+<p style="margin: -8px 0 16px;">
+  {{if .OnlyLive}}Showing targets that answered when deleted. <a href="/targets/deleted">Show all {{.Total}}</a>
+  {{else}}<a href="/targets/deleted?state=ok">Only targets that answered when deleted</a>{{end}}
+</p>
+
 {{if .Targets}}
 <table>
   <thead>
     <tr>
       <th>Target</th>
+      <th>Last state</th>
       <th>Deleted</th>
       <th></th>
     </tr>
@@ -18,6 +24,11 @@
       <td>
         <span class="mono">{{.Input}}</span>
         {{range .Edges.Tags}}<span class="badge" style="background: {{.Color}}20; color: {{.Color}}; margin-left: 4px;">{{.Name}}</span>{{end}}
+      </td>
+      <td>
+        {{if eq .Reachability "ok"}}<span class="badge badge-green" title="It answered in its last scan before it was deleted">ok</span>
+        {{else if eq .Reachability "pending"}}<span class="badge badge-gray">pending</span>
+        {{else}}<span class="badge badge-red">{{.Reachability}}</span>{{end}}
       </td>
       <td class="text-muted">{{with .DeletedAt}}{{.Format "Jan 02, 2006 15:04"}}{{end}}</td>
       <td>

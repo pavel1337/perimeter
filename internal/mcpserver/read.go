@@ -70,7 +70,7 @@ type listTargetsIn struct {
 	Port               int    `json:"port,omitempty" jsonschema:"Keep targets with this TCP port open on one of their IP addresses, 1 to 65535."`
 	CSP                string `json:"csp,omitempty" jsonschema:"CSP filter: issues (has findings), ok (no findings) or none (never checked)."`
 	ExpiringWithinDays int    `json:"expiring_within_days,omitempty" jsonschema:"Keep targets whose certificate expires within this many days. Expired certificates are included."`
-	Deleted            bool   `json:"deleted,omitempty" jsonschema:"List soft-deleted targets instead, most recently deleted first. Only query can be combined with it."`
+	Deleted            bool   `json:"deleted,omitempty" jsonschema:"List soft-deleted targets instead, most recently deleted first, with the reachability they had when deleted. Only query and states can be combined with it: states ok finds targets that still answered when deleted."`
 	Sort               string `json:"sort,omitempty" jsonschema:"Sort field: target (default, by name), csp, ports, ssl (best grade first) or expiry (soonest first)."`
 	Desc               bool   `json:"desc,omitempty" jsonschema:"Reverse the sort order."`
 	Limit              int    `json:"limit,omitempty" jsonschema:"Targets per page. Default 25, at most 100."`

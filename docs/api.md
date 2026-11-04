@@ -143,7 +143,7 @@ Lists live targets. Every parameter is optional, and they combine with AND.
 | `csp` | `issues` (has findings), `ok` (no findings) or `none` (never checked). |
 | `port` | Some IP address of the target has this TCP port open, 1 to 65535. |
 | `expiring_within_days` | The certificate expires within this many days from now, counting the whole last day. Expired certificates are included. |
-| `deleted` | `true` lists soft-deleted targets instead, most recently deleted first. Only `q`, `limit` and `cursor` may be combined with it. |
+| `deleted` | `true` lists soft-deleted targets instead, most recently deleted first, each with the reachability it had when deleted. Only `q`, `state`, `limit` and `cursor` may be combined with it; `state=ok` lists the targets that still answered when they were deleted. |
 | `sort` | `target` (the default, by input), `csp`, `ports`, `ssl` (best grade first) or `expiry` (soonest first). |
 | `order` | `asc` (the default) or `desc`. |
 | `limit`, `cursor` | Paging, see above. |
