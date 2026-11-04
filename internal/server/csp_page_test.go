@@ -28,6 +28,21 @@ func TestTargetPageShowsCSPProbeDetails(t *testing.T) {
 		t.Fatalf("create csp scan: %v", err)
 	}
 
+	sso, err := client.Target.Create().SetInput("sso.example").SetReachability("ok").Save(ctx)
+	if err != nil {
+		t.Fatalf("create target: %v", err)
+	}
+	if _, err := client.CSPScan.Create().SetTarget(sso).SetScannedAt(now).SetLastSeenAt(now).
+		SetCspHeader("").SetStatusCode(302).SetFinalURL("https://sso.example/").SetRedirectHost("login.idp.example").Save(ctx); err != nil {
+		t.Fatalf("create csp scan: %v", err)
+	}
+	if page := send(t, srv, token, "GET", "/targets/"+strconv.Itoa(sso.ID), "", ""); !strings.Contains(page.Body, "redirects to login.idp.example") {
+		t.Errorf("target page lacks the redirect host (status %d)", page.StatusCode)
+	}
+	if dash := send(t, srv, token, "GET", "/", "", ""); !strings.Contains(dash.Body, "login.idp.example") {
+		t.Errorf("dashboard lacks the redirect host (status %d)", dash.StatusCode)
+	}
+
 	resp := send(t, srv, token, "GET", "/targets/"+strconv.Itoa(tg.ID), "", "")
 	if resp.StatusCode != 200 {
 		t.Fatalf("GET target page: status %d", resp.StatusCode)

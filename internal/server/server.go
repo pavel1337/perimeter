@@ -1896,13 +1896,14 @@ type exportSSL struct {
 }
 
 type exportCSP struct {
-	ScannedAt  string `json:"scanned_at"`
-	Header     string `json:"csp_header"`
-	Findings   int    `json:"findings_count"`
-	ProbeError string `json:"probe_error,omitempty"`
-	StatusCode int    `json:"status_code,omitempty"`
-	FinalURL   string `json:"final_url,omitempty"`
-	TLSProblem string `json:"tls_problem,omitempty"`
+	ScannedAt    string `json:"scanned_at"`
+	Header       string `json:"csp_header"`
+	Findings     int    `json:"findings_count"`
+	ProbeError   string `json:"probe_error,omitempty"`
+	StatusCode   int    `json:"status_code,omitempty"`
+	FinalURL     string `json:"final_url,omitempty"`
+	TLSProblem   string `json:"tls_problem,omitempty"`
+	RedirectHost string `json:"redirect_host,omitempty"`
 }
 
 // newExportData gathers the export view of a target. The target must come
@@ -1950,13 +1951,14 @@ func newExportData(t *ent.Target) exportData {
 
 	for _, scan := range t.Edges.CspScans {
 		data.CSP = append(data.CSP, exportCSP{
-			ScannedAt:  scan.ScannedAt.Format(time.RFC3339),
-			Header:     scan.CspHeader,
-			Findings:   len(scan.Findings),
-			ProbeError: scan.ProbeError,
-			StatusCode: scan.StatusCode,
-			FinalURL:   scan.FinalURL,
-			TLSProblem: scan.TLSProblem,
+			ScannedAt:    scan.ScannedAt.Format(time.RFC3339),
+			Header:       scan.CspHeader,
+			Findings:     len(scan.Findings),
+			ProbeError:   scan.ProbeError,
+			StatusCode:   scan.StatusCode,
+			FinalURL:     scan.FinalURL,
+			TLSProblem:   scan.TLSProblem,
+			RedirectHost: scan.RedirectHost,
 		})
 	}
 
@@ -1989,6 +1991,8 @@ func exportCSVRows(d exportData) [][]string {
 		detail := strconv.Itoa(scan.Findings) + " findings"
 		if scan.ProbeError != "" {
 			detail = "no HTTP response: " + scan.ProbeError
+		} else if scan.RedirectHost != "" {
+			detail = "redirects to " + scan.RedirectHost
 		} else if scan.StatusCode != 0 && !storage.StatusServesApp(scan.StatusCode) {
 			detail = fmt.Sprintf("no application served (%d)", scan.StatusCode)
 		}

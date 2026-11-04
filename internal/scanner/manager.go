@@ -24,6 +24,8 @@ import (
 	"perimeter/scanner/csp"
 	"perimeter/scanner/ports"
 	"perimeter/scanner/ssl"
+
+	"golang.org/x/net/publicsuffix"
 )
 
 type ScannerConfig struct {
@@ -241,7 +243,7 @@ func (m *Manager) runWorker(ctx context.Context, id int) {
 	sslScanner := m.sslScanner
 
 	cspEvaluator := csp.NewEvaluator()
-	clientHttp := http.Client{Timeout: 5 * time.Second}
+	clientHttp := http.Client{Timeout: 5 * time.Second, CheckRedirect: cspCheckRedirect}
 
 	for {
 		j, err := m.queue.Dequeue(ctx)
@@ -669,6 +671,37 @@ type cspProbe struct {
 	// tlsProblem is why the certificate failed verification, when the
 	// response was read without verifying it (#68).
 	tlsProblem string
+	// redirectHost is the other site the target redirects to (#70).
+	redirectHost string
+}
+
+// cspCheckRedirect follows redirects within the target's site (http to
+// https, example.com to www.example.com) and stops at the first one to
+// another registrable domain, such as a third-party sign-in page: that
+// site's policy isn't the target's, and it varies between requests (#70).
+func cspCheckRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+	if !sameSite(via[0].URL.Hostname(), req.URL.Hostname()) {
+		return http.ErrUseLastResponse
+	}
+	return nil
+}
+
+// sameSite reports whether two hosts share a registrable domain (eTLD+1).
+// IP addresses and single-label names only match themselves.
+func sameSite(a, b string) bool {
+	a, b = strings.ToLower(a), strings.ToLower(b)
+	if a == b {
+		return true
+	}
+	if net.ParseIP(a) != nil || net.ParseIP(b) != nil {
+		return false
+	}
+	ra, errA := publicsuffix.EffectiveTLDPlusOne(a)
+	rb, errB := publicsuffix.EffectiveTLDPlusOne(b)
+	return errA == nil && errB == nil && ra == rb
 }
 
 // fetchCSPHeaders GETs https://host and reads the CSP headers of the final
@@ -700,6 +733,12 @@ func fetchCSPHeaders(client http.Client, host string) (cspProbe, error) {
 		reportOnly: resp.Header.Get("Content-Security-Policy-Report-Only"),
 		status:     resp.StatusCode,
 		tlsProblem: tlsProblem,
+	}
+	// Stopped at a redirect to another site: record where it goes.
+	if resp.StatusCode/100 == 3 {
+		if loc, err := resp.Location(); err == nil {
+			p.redirectHost = loc.Hostname()
+		}
 	}
 	if resp.Request != nil && resp.Request.URL != nil {
 		u := *resp.Request.URL
@@ -736,11 +775,12 @@ func (m *Manager) processCSPScan(ctx context.Context, j Job, client http.Client,
 	}
 
 	err = m.storage.SaveCSPResponse(ctx, j.Input, storage.CSPResponse{
-		Header:     cspHeader,
-		Findings:   findings,
-		StatusCode: probe.status,
-		FinalURL:   probe.finalURL,
-		TLSProblem: probe.tlsProblem,
+		Header:       cspHeader,
+		Findings:     findings,
+		StatusCode:   probe.status,
+		FinalURL:     probe.finalURL,
+		TLSProblem:   probe.tlsProblem,
+		RedirectHost: probe.redirectHost,
 	})
 	if err != nil {
 		log.Printf("Worker: Failed to save CSP for %s: %v", j.Input, err)

@@ -33,6 +33,10 @@ func (CSPScan) Fields() []ent.Field {
 		// skip it to read the response, e.g. "certificate not trusted:
 		// self-signed or unknown issuer" (issue #68). Empty when it verified.
 		field.String("tls_problem").Optional(),
+		// The host a target redirects to when that is another site, e.g. an
+		// OAuth provider's sign-in page. The probe stops there: the other
+		// site's policy isn't the target's, so there are no findings (#70).
+		field.String("redirect_host").Optional(),
 	}
 }
 

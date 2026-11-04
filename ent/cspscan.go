@@ -38,6 +38,8 @@ type CSPScan struct {
 	FinalURL string `json:"final_url,omitempty"`
 	// TLSProblem holds the value of the "tls_problem" field.
 	TLSProblem string `json:"tls_problem,omitempty"`
+	// RedirectHost holds the value of the "redirect_host" field.
+	RedirectHost string `json:"redirect_host,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the CSPScanQuery when eager-loading is set.
 	Edges            CSPScanEdges `json:"edges"`
@@ -74,7 +76,7 @@ func (*CSPScan) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case cspscan.FieldID, cspscan.FieldCheckCount, cspscan.FieldStatusCode:
 			values[i] = new(sql.NullInt64)
-		case cspscan.FieldCspHeader, cspscan.FieldProbeError, cspscan.FieldFinalURL, cspscan.FieldTLSProblem:
+		case cspscan.FieldCspHeader, cspscan.FieldProbeError, cspscan.FieldFinalURL, cspscan.FieldTLSProblem, cspscan.FieldRedirectHost:
 			values[i] = new(sql.NullString)
 		case cspscan.FieldScannedAt, cspscan.FieldLastSeenAt:
 			values[i] = new(sql.NullTime)
@@ -157,6 +159,12 @@ func (_m *CSPScan) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.TLSProblem = value.String
 			}
+		case cspscan.FieldRedirectHost:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field redirect_host", values[i])
+			} else if value.Valid {
+				_m.RedirectHost = value.String
+			}
 		case cspscan.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for edge-field target_csp_scans", value)
@@ -231,6 +239,9 @@ func (_m *CSPScan) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("tls_problem=")
 	builder.WriteString(_m.TLSProblem)
+	builder.WriteString(", ")
+	builder.WriteString("redirect_host=")
+	builder.WriteString(_m.RedirectHost)
 	builder.WriteByte(')')
 	return builder.String()
 }

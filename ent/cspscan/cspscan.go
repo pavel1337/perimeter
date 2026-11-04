@@ -30,6 +30,8 @@ const (
 	FieldFinalURL = "final_url"
 	// FieldTLSProblem holds the string denoting the tls_problem field in the database.
 	FieldTLSProblem = "tls_problem"
+	// FieldRedirectHost holds the string denoting the redirect_host field in the database.
+	FieldRedirectHost = "redirect_host"
 	// EdgeTarget holds the string denoting the target edge name in mutations.
 	EdgeTarget = "target"
 	// Table holds the table name of the cspscan in the database.
@@ -55,6 +57,7 @@ var Columns = []string{
 	FieldStatusCode,
 	FieldFinalURL,
 	FieldTLSProblem,
+	FieldRedirectHost,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "csp_scans"
@@ -129,6 +132,11 @@ func ByFinalURL(opts ...sql.OrderTermOption) OrderOption {
 // ByTLSProblem orders the results by the tls_problem field.
 func ByTLSProblem(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTLSProblem, opts...).ToFunc()
+}
+
+// ByRedirectHost orders the results by the redirect_host field.
+func ByRedirectHost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRedirectHost, opts...).ToFunc()
 }
 
 // ByTargetField orders the results by target field.

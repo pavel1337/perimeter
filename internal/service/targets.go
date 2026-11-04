@@ -132,9 +132,11 @@ type CSPDetail struct {
 	// Why the certificate failed verification; the response was read
 	// without verifying it (#68). A final_url with the http scheme means the
 	// result came over plain HTTP: nothing answered TLS on port 443.
-	TLSProblem  string    `json:"tls_problem,omitempty"`
-	FirstSeen   time.Time `json:"first_seen"`
-	LastChecked time.Time `json:"last_checked"`
+	TLSProblem string `json:"tls_problem,omitempty"`
+	// The other site the target redirects to; not judged (#70).
+	RedirectHost string    `json:"redirect_host,omitempty"`
+	FirstSeen    time.Time `json:"first_seen"`
+	LastChecked  time.Time `json:"last_checked"`
 }
 
 // HistoryEntry is one SSL, CSP or port scan row in a target's history.
@@ -362,14 +364,15 @@ func (s *Service) GetTarget(ctx context.Context, id int) (*TargetDetail, error) 
 			findings = append(findings, CSPFinding{Finding: f, Level: f.Severity.Level()})
 		}
 		d.CSP = &CSPDetail{
-			Header:      sc.CspHeader,
-			Findings:    findings,
-			ProbeError:  sc.ProbeError,
-			StatusCode:  sc.StatusCode,
-			FinalURL:    sc.FinalURL,
-			TLSProblem:  sc.TLSProblem,
-			FirstSeen:   sc.ScannedAt,
-			LastChecked: sc.LastSeenAt,
+			Header:       sc.CspHeader,
+			Findings:     findings,
+			ProbeError:   sc.ProbeError,
+			StatusCode:   sc.StatusCode,
+			FinalURL:     sc.FinalURL,
+			TLSProblem:   sc.TLSProblem,
+			RedirectHost: sc.RedirectHost,
+			FirstSeen:    sc.ScannedAt,
+			LastChecked:  sc.LastSeenAt,
 		}
 	}
 	return d, nil
@@ -433,7 +436,9 @@ func (s *Service) TargetHistory(ctx context.Context, id, limit, offset int) (Pag
 	total += n
 	for _, sc := range cspScans {
 		e := HistoryEntry{Kind: "csp", FirstSeen: sc.ScannedAt, LastChecked: sc.LastSeenAt}
-		if code, ok := storage.CSPNoApp(sc); ok {
+		if sc.RedirectHost != "" {
+			e.Summary = "CSP not judged, redirects to " + sc.RedirectHost
+		} else if code, ok := storage.CSPNoApp(sc); ok {
 			e.Summary = fmt.Sprintf("CSP no application served (%d)", code)
 		} else if sc.ProbeError != "" {
 			e.Summary = "CSP " + cspNoResponse(sc.ProbeError)

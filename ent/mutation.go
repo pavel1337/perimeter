@@ -1766,6 +1766,7 @@ type CSPScanMutation struct {
 	addstatus_code *int
 	final_url      *string
 	tls_problem    *string
+	redirect_host  *string
 	clearedFields  map[string]struct{}
 	target         *int
 	clearedtarget  bool
@@ -2331,6 +2332,55 @@ func (m *CSPScanMutation) ResetTLSProblem() {
 	delete(m.clearedFields, cspscan.FieldTLSProblem)
 }
 
+// SetRedirectHost sets the "redirect_host" field.
+func (m *CSPScanMutation) SetRedirectHost(s string) {
+	m.redirect_host = &s
+}
+
+// RedirectHost returns the value of the "redirect_host" field in the mutation.
+func (m *CSPScanMutation) RedirectHost() (r string, exists bool) {
+	v := m.redirect_host
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRedirectHost returns the old "redirect_host" field's value of the CSPScan entity.
+// If the CSPScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CSPScanMutation) OldRedirectHost(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRedirectHost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRedirectHost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRedirectHost: %w", err)
+	}
+	return oldValue.RedirectHost, nil
+}
+
+// ClearRedirectHost clears the value of the "redirect_host" field.
+func (m *CSPScanMutation) ClearRedirectHost() {
+	m.redirect_host = nil
+	m.clearedFields[cspscan.FieldRedirectHost] = struct{}{}
+}
+
+// RedirectHostCleared returns if the "redirect_host" field was cleared in this mutation.
+func (m *CSPScanMutation) RedirectHostCleared() bool {
+	_, ok := m.clearedFields[cspscan.FieldRedirectHost]
+	return ok
+}
+
+// ResetRedirectHost resets all changes to the "redirect_host" field.
+func (m *CSPScanMutation) ResetRedirectHost() {
+	m.redirect_host = nil
+	delete(m.clearedFields, cspscan.FieldRedirectHost)
+}
+
 // SetTargetID sets the "target" edge to the Target entity by id.
 func (m *CSPScanMutation) SetTargetID(id int) {
 	m.target = &id
@@ -2404,7 +2454,7 @@ func (m *CSPScanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CSPScanMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 10)
 	if m.scanned_at != nil {
 		fields = append(fields, cspscan.FieldScannedAt)
 	}
@@ -2432,6 +2482,9 @@ func (m *CSPScanMutation) Fields() []string {
 	if m.tls_problem != nil {
 		fields = append(fields, cspscan.FieldTLSProblem)
 	}
+	if m.redirect_host != nil {
+		fields = append(fields, cspscan.FieldRedirectHost)
+	}
 	return fields
 }
 
@@ -2458,6 +2511,8 @@ func (m *CSPScanMutation) Field(name string) (ent.Value, bool) {
 		return m.FinalURL()
 	case cspscan.FieldTLSProblem:
 		return m.TLSProblem()
+	case cspscan.FieldRedirectHost:
+		return m.RedirectHost()
 	}
 	return nil, false
 }
@@ -2485,6 +2540,8 @@ func (m *CSPScanMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldFinalURL(ctx)
 	case cspscan.FieldTLSProblem:
 		return m.OldTLSProblem(ctx)
+	case cspscan.FieldRedirectHost:
+		return m.OldRedirectHost(ctx)
 	}
 	return nil, fmt.Errorf("unknown CSPScan field %s", name)
 }
@@ -2556,6 +2613,13 @@ func (m *CSPScanMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTLSProblem(v)
+		return nil
+	case cspscan.FieldRedirectHost:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRedirectHost(v)
 		return nil
 	}
 	return fmt.Errorf("unknown CSPScan field %s", name)
@@ -2632,6 +2696,9 @@ func (m *CSPScanMutation) ClearedFields() []string {
 	if m.FieldCleared(cspscan.FieldTLSProblem) {
 		fields = append(fields, cspscan.FieldTLSProblem)
 	}
+	if m.FieldCleared(cspscan.FieldRedirectHost) {
+		fields = append(fields, cspscan.FieldRedirectHost)
+	}
 	return fields
 }
 
@@ -2663,6 +2730,9 @@ func (m *CSPScanMutation) ClearField(name string) error {
 		return nil
 	case cspscan.FieldTLSProblem:
 		m.ClearTLSProblem()
+		return nil
+	case cspscan.FieldRedirectHost:
+		m.ClearRedirectHost()
 		return nil
 	}
 	return fmt.Errorf("unknown CSPScan nullable field %s", name)
@@ -2698,6 +2768,9 @@ func (m *CSPScanMutation) ResetField(name string) error {
 		return nil
 	case cspscan.FieldTLSProblem:
 		m.ResetTLSProblem()
+		return nil
+	case cspscan.FieldRedirectHost:
+		m.ResetRedirectHost()
 		return nil
 	}
 	return fmt.Errorf("unknown CSPScan field %s", name)

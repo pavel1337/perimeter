@@ -205,6 +205,26 @@ func (_u *CSPScanUpdate) ClearTLSProblem() *CSPScanUpdate {
 	return _u
 }
 
+// SetRedirectHost sets the "redirect_host" field.
+func (_u *CSPScanUpdate) SetRedirectHost(v string) *CSPScanUpdate {
+	_u.mutation.SetRedirectHost(v)
+	return _u
+}
+
+// SetNillableRedirectHost sets the "redirect_host" field if the given value is not nil.
+func (_u *CSPScanUpdate) SetNillableRedirectHost(v *string) *CSPScanUpdate {
+	if v != nil {
+		_u.SetRedirectHost(*v)
+	}
+	return _u
+}
+
+// ClearRedirectHost clears the value of the "redirect_host" field.
+func (_u *CSPScanUpdate) ClearRedirectHost() *CSPScanUpdate {
+	_u.mutation.ClearRedirectHost()
+	return _u
+}
+
 // SetTargetID sets the "target" edge to the Target entity by ID.
 func (_u *CSPScanUpdate) SetTargetID(id int) *CSPScanUpdate {
 	_u.mutation.SetTargetID(id)
@@ -329,6 +349,12 @@ func (_u *CSPScanUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.TLSProblemCleared() {
 		_spec.ClearField(cspscan.FieldTLSProblem, field.TypeString)
+	}
+	if value, ok := _u.mutation.RedirectHost(); ok {
+		_spec.SetField(cspscan.FieldRedirectHost, field.TypeString, value)
+	}
+	if _u.mutation.RedirectHostCleared() {
+		_spec.ClearField(cspscan.FieldRedirectHost, field.TypeString)
 	}
 	if _u.mutation.TargetCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -553,6 +579,26 @@ func (_u *CSPScanUpdateOne) ClearTLSProblem() *CSPScanUpdateOne {
 	return _u
 }
 
+// SetRedirectHost sets the "redirect_host" field.
+func (_u *CSPScanUpdateOne) SetRedirectHost(v string) *CSPScanUpdateOne {
+	_u.mutation.SetRedirectHost(v)
+	return _u
+}
+
+// SetNillableRedirectHost sets the "redirect_host" field if the given value is not nil.
+func (_u *CSPScanUpdateOne) SetNillableRedirectHost(v *string) *CSPScanUpdateOne {
+	if v != nil {
+		_u.SetRedirectHost(*v)
+	}
+	return _u
+}
+
+// ClearRedirectHost clears the value of the "redirect_host" field.
+func (_u *CSPScanUpdateOne) ClearRedirectHost() *CSPScanUpdateOne {
+	_u.mutation.ClearRedirectHost()
+	return _u
+}
+
 // SetTargetID sets the "target" edge to the Target entity by ID.
 func (_u *CSPScanUpdateOne) SetTargetID(id int) *CSPScanUpdateOne {
 	_u.mutation.SetTargetID(id)
@@ -707,6 +753,12 @@ func (_u *CSPScanUpdateOne) sqlSave(ctx context.Context) (_node *CSPScan, err er
 	}
 	if _u.mutation.TLSProblemCleared() {
 		_spec.ClearField(cspscan.FieldTLSProblem, field.TypeString)
+	}
+	if value, ok := _u.mutation.RedirectHost(); ok {
+		_spec.SetField(cspscan.FieldRedirectHost, field.TypeString, value)
+	}
+	if _u.mutation.RedirectHostCleared() {
+		_spec.ClearField(cspscan.FieldRedirectHost, field.TypeString)
 	}
 	if _u.mutation.TargetCleared() {
 		edge := &sqlgraph.EdgeSpec{
