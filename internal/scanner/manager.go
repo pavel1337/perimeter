@@ -716,6 +716,11 @@ func (m *Manager) processCSPScan(ctx context.Context, j Job, client http.Client,
 		findings = append(findings, f...)
 	}
 
+	prevFindings, hadPrev, perr := m.storage.GetPreviousCSPFindings(ctx, j.Input)
+	if perr != nil {
+		log.Printf("Worker: failed to read previous CSP findings for %s: %v", j.Input, perr)
+	}
+
 	err = m.storage.SaveCSPScan(ctx, j.Input, cspHeader, findings)
 	if err != nil {
 		log.Printf("Worker: Failed to save CSP for %s: %v", j.Input, err)
@@ -726,22 +731,47 @@ func (m *Manager) processCSPScan(ctx context.Context, j Job, client http.Client,
 	log.Printf("Worker: Saved CSP for %s", j.Input)
 	m.completeJob(ctx, j)
 
-	// Notify on high-severity CSP findings
-	var highFindings []string
-	for _, f := range findings {
-		if f.Severity <= csp.SeverityMedium {
-			highFindings = append(highFindings, f.Description)
+	// Notify on medium or higher findings the last answered scan didn't have.
+	// If the previous lookup failed, notify as for a first result.
+	issues := newCSPIssues(prevFindings, hadPrev && perr == nil, findings)
+	if len(issues) > 0 {
+		descs := make([]string, len(issues))
+		for i, f := range issues {
+			descs[i] = f.Description
 		}
-	}
-	if len(highFindings) > 0 {
 		m.dispatcher.Dispatch(ctx, notifier.Event{
 			Type:      notifier.EventCSPIssues,
 			Target:    j.Input,
-			Message:   fmt.Sprintf("CSP issues found on %s: %s", j.Input, strings.Join(highFindings, "; ")),
-			Details:   map[string]any{"findings_count": len(highFindings)},
+			Message:   fmt.Sprintf("CSP issues found on %s: %s", j.Input, strings.Join(descs, "; ")),
+			Details:   map[string]any{"findings_count": len(issues)},
 			Timestamp: time.Now(),
 		})
 	}
+}
+
+// newCSPIssues returns the findings of medium or higher severity in cur that
+// prev doesn't have. A target's first result (hadPrev false) returns all of
+// them. Findings are compared with nonces masked, so a per-request nonce
+// isn't a new finding (issue #66).
+func newCSPIssues(prev []csp.Finding, hadPrev bool, cur []csp.Finding) []csp.Finding {
+	key := func(f csp.Finding) csp.Finding {
+		f.Value = csp.MaskNonces(f.Value)
+		f.Description = csp.MaskNonces(f.Description)
+		return f
+	}
+	seen := make(map[csp.Finding]bool, len(prev))
+	if hadPrev {
+		for _, f := range prev {
+			seen[key(f)] = true
+		}
+	}
+	var out []csp.Finding
+	for _, f := range cur {
+		if f.Severity <= csp.SeverityMedium && !seen[key(f)] {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 // --- Helpers ---
