@@ -313,6 +313,48 @@ func TestSaveSSLScan(t *testing.T) {
 	}
 }
 
+// GetPreviousSSLGrade skips error rows and ungraded results, so a target that
+// recovers is diffed against its last real grade (#63).
+func TestGetPreviousSSLGradeSkipsErrorsAndUngraded(t *testing.T) {
+	s := newTestStorage(t)
+	ctx := context.Background()
+
+	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
+		t.Fatalf("ImportTargets: %v", err)
+	}
+	save := func(res storage.SSLResult) {
+		t.Helper()
+		if err := s.SaveSSLScan(ctx, "example.com", res); err != nil {
+			t.Fatalf("SaveSSLScan(%+v): %v", res, err)
+		}
+		time.Sleep(2 * time.Millisecond) // keep ScannedAt order unambiguous
+	}
+	got := func() string {
+		t.Helper()
+		grade, err := s.GetPreviousSSLGrade(ctx, "example.com")
+		if err != nil {
+			t.Fatalf("GetPreviousSSLGrade: %v", err)
+		}
+		return grade
+	}
+
+	save(storage.SSLResult{Grade: "A", Status: "Ready"})
+	save(storage.SSLResult{Grade: "F", Status: "Error: scan timed out"})
+	if grade := got(); grade != "A" {
+		t.Errorf("after error row: got %q, want A", grade)
+	}
+
+	save(storage.SSLResult{Grade: "-", Status: "No HTTPS service on port 443"})
+	if grade := got(); grade != "A" {
+		t.Errorf("after ungraded row: got %q, want A", grade)
+	}
+
+	save(storage.SSLResult{Grade: "B", Status: "Ready"})
+	if grade := got(); grade != "B" {
+		t.Errorf("after recovery: got %q, want B", grade)
+	}
+}
+
 func TestGetSSLScansPage(t *testing.T) {
 	s := newTestStorage(t)
 	ctx := context.Background()

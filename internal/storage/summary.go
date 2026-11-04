@@ -33,6 +33,12 @@ var gradeRanks = map[string]int{
 	"F": 1, "T": 1, "M": 1,
 }
 
+// GradeRank returns how good an SSL Labs grade is: higher is better, 0 for
+// a missing or unknown grade.
+func GradeRank(grade string) int {
+	return gradeRanks[grade]
+}
+
 // summarize derives the summary from a target whose edges hold only its
 // newest scans: each IP's newest port scan with its ports, and the newest
 // SSL and CSP scan. refreshSummary and BackfillSummary load that shape in

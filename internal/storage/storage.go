@@ -806,8 +806,14 @@ func (s *EntStorage) GetPreviousSSLGrade(ctx context.Context, input string) (str
 		return "", err
 	}
 
+	// Skip error rows and ungraded results ("-" for no HTTPS, "" for an
+	// assessment that did not finish), so a target that recovered is diffed
+	// against its last real grade.
 	scan, err := s.client.SSLScan.Query().
 		Where(sslscan.HasTargetWith(target.IDEQ(t.ID))).
+		Where(sslscan.Not(sslscan.StatusHasPrefix("Error"))).
+		Where(sslscan.GradeNEQ("-")).
+		Where(sslscan.GradeNEQ("")).
 		Order(ent.Desc(sslscan.FieldScannedAt)).
 		First(ctx)
 	if err != nil {
