@@ -115,6 +115,34 @@ func (_c *TargetCreate) SetNillableResolveError(v *string) *TargetCreate {
 	return _c
 }
 
+// SetResolvedAt sets the "resolved_at" field.
+func (_c *TargetCreate) SetResolvedAt(v time.Time) *TargetCreate {
+	_c.mutation.SetResolvedAt(v)
+	return _c
+}
+
+// SetNillableResolvedAt sets the "resolved_at" field if the given value is not nil.
+func (_c *TargetCreate) SetNillableResolvedAt(v *time.Time) *TargetCreate {
+	if v != nil {
+		_c.SetResolvedAt(*v)
+	}
+	return _c
+}
+
+// SetNextResolveAt sets the "next_resolve_at" field.
+func (_c *TargetCreate) SetNextResolveAt(v time.Time) *TargetCreate {
+	_c.mutation.SetNextResolveAt(v)
+	return _c
+}
+
+// SetNillableNextResolveAt sets the "next_resolve_at" field if the given value is not nil.
+func (_c *TargetCreate) SetNillableNextResolveAt(v *time.Time) *TargetCreate {
+	if v != nil {
+		_c.SetNextResolveAt(*v)
+	}
+	return _c
+}
+
 // SetRescanRequestedAt sets the "rescan_requested_at" field.
 func (_c *TargetCreate) SetRescanRequestedAt(v time.Time) *TargetCreate {
 	_c.mutation.SetRescanRequestedAt(v)
@@ -488,6 +516,14 @@ func (_c *TargetCreate) createSpec() (*Target, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ResolveError(); ok {
 		_spec.SetField(target.FieldResolveError, field.TypeString, value)
 		_node.ResolveError = value
+	}
+	if value, ok := _c.mutation.ResolvedAt(); ok {
+		_spec.SetField(target.FieldResolvedAt, field.TypeTime, value)
+		_node.ResolvedAt = &value
+	}
+	if value, ok := _c.mutation.NextResolveAt(); ok {
+		_spec.SetField(target.FieldNextResolveAt, field.TypeTime, value)
+		_node.NextResolveAt = &value
 	}
 	if value, ok := _c.mutation.RescanRequestedAt(); ok {
 		_spec.SetField(target.FieldRescanRequestedAt, field.TypeTime, value)

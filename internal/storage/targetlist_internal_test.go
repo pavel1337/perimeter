@@ -107,7 +107,7 @@ func TestStateCounts(t *testing.T) {
 	// has not been checked yet.
 	for i, in := range []string{"ok1.test", "ok2.test"} {
 		addr := fmt.Sprintf("10.2.0.%d", i+1)
-		if err := s.SaveIPs(ctx, in, []string{addr}); err != nil {
+		if err := s.SaveIPs(ctx, in, []string{addr}, time.Hour); err != nil {
 			t.Fatalf("SaveIPs %s: %v", in, err)
 		}
 		if err := s.SavePortScan(ctx, addr, []int{80}); err != nil {
@@ -117,7 +117,7 @@ func TestStateCounts(t *testing.T) {
 	if err := s.SaveCSPUnreachable(ctx, "dark.test", "refused"); err != nil {
 		t.Fatalf("SaveCSPUnreachable: %v", err)
 	}
-	if err := s.RecordResolveFailure(ctx, "lost.test", "no A record"); err != nil {
+	if err := s.RecordResolveFailure(ctx, "lost.test", ResolveFailure{Message: "no A record"}); err != nil {
 		t.Fatalf("RecordResolveFailure: %v", err)
 	}
 

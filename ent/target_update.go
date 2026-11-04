@@ -128,6 +128,46 @@ func (_u *TargetUpdate) ClearResolveError() *TargetUpdate {
 	return _u
 }
 
+// SetResolvedAt sets the "resolved_at" field.
+func (_u *TargetUpdate) SetResolvedAt(v time.Time) *TargetUpdate {
+	_u.mutation.SetResolvedAt(v)
+	return _u
+}
+
+// SetNillableResolvedAt sets the "resolved_at" field if the given value is not nil.
+func (_u *TargetUpdate) SetNillableResolvedAt(v *time.Time) *TargetUpdate {
+	if v != nil {
+		_u.SetResolvedAt(*v)
+	}
+	return _u
+}
+
+// ClearResolvedAt clears the value of the "resolved_at" field.
+func (_u *TargetUpdate) ClearResolvedAt() *TargetUpdate {
+	_u.mutation.ClearResolvedAt()
+	return _u
+}
+
+// SetNextResolveAt sets the "next_resolve_at" field.
+func (_u *TargetUpdate) SetNextResolveAt(v time.Time) *TargetUpdate {
+	_u.mutation.SetNextResolveAt(v)
+	return _u
+}
+
+// SetNillableNextResolveAt sets the "next_resolve_at" field if the given value is not nil.
+func (_u *TargetUpdate) SetNillableNextResolveAt(v *time.Time) *TargetUpdate {
+	if v != nil {
+		_u.SetNextResolveAt(*v)
+	}
+	return _u
+}
+
+// ClearNextResolveAt clears the value of the "next_resolve_at" field.
+func (_u *TargetUpdate) ClearNextResolveAt() *TargetUpdate {
+	_u.mutation.ClearNextResolveAt()
+	return _u
+}
+
 // SetRescanRequestedAt sets the "rescan_requested_at" field.
 func (_u *TargetUpdate) SetRescanRequestedAt(v time.Time) *TargetUpdate {
 	_u.mutation.SetRescanRequestedAt(v)
@@ -563,6 +603,18 @@ func (_u *TargetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.ResolveErrorCleared() {
 		_spec.ClearField(target.FieldResolveError, field.TypeString)
 	}
+	if value, ok := _u.mutation.ResolvedAt(); ok {
+		_spec.SetField(target.FieldResolvedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ResolvedAtCleared() {
+		_spec.ClearField(target.FieldResolvedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.NextResolveAt(); ok {
+		_spec.SetField(target.FieldNextResolveAt, field.TypeTime, value)
+	}
+	if _u.mutation.NextResolveAtCleared() {
+		_spec.ClearField(target.FieldNextResolveAt, field.TypeTime)
+	}
 	if value, ok := _u.mutation.RescanRequestedAt(); ok {
 		_spec.SetField(target.FieldRescanRequestedAt, field.TypeTime, value)
 	}
@@ -932,6 +984,46 @@ func (_u *TargetUpdateOne) SetNillableResolveError(v *string) *TargetUpdateOne {
 // ClearResolveError clears the value of the "resolve_error" field.
 func (_u *TargetUpdateOne) ClearResolveError() *TargetUpdateOne {
 	_u.mutation.ClearResolveError()
+	return _u
+}
+
+// SetResolvedAt sets the "resolved_at" field.
+func (_u *TargetUpdateOne) SetResolvedAt(v time.Time) *TargetUpdateOne {
+	_u.mutation.SetResolvedAt(v)
+	return _u
+}
+
+// SetNillableResolvedAt sets the "resolved_at" field if the given value is not nil.
+func (_u *TargetUpdateOne) SetNillableResolvedAt(v *time.Time) *TargetUpdateOne {
+	if v != nil {
+		_u.SetResolvedAt(*v)
+	}
+	return _u
+}
+
+// ClearResolvedAt clears the value of the "resolved_at" field.
+func (_u *TargetUpdateOne) ClearResolvedAt() *TargetUpdateOne {
+	_u.mutation.ClearResolvedAt()
+	return _u
+}
+
+// SetNextResolveAt sets the "next_resolve_at" field.
+func (_u *TargetUpdateOne) SetNextResolveAt(v time.Time) *TargetUpdateOne {
+	_u.mutation.SetNextResolveAt(v)
+	return _u
+}
+
+// SetNillableNextResolveAt sets the "next_resolve_at" field if the given value is not nil.
+func (_u *TargetUpdateOne) SetNillableNextResolveAt(v *time.Time) *TargetUpdateOne {
+	if v != nil {
+		_u.SetNextResolveAt(*v)
+	}
+	return _u
+}
+
+// ClearNextResolveAt clears the value of the "next_resolve_at" field.
+func (_u *TargetUpdateOne) ClearNextResolveAt() *TargetUpdateOne {
+	_u.mutation.ClearNextResolveAt()
 	return _u
 }
 
@@ -1399,6 +1491,18 @@ func (_u *TargetUpdateOne) sqlSave(ctx context.Context) (_node *Target, err erro
 	}
 	if _u.mutation.ResolveErrorCleared() {
 		_spec.ClearField(target.FieldResolveError, field.TypeString)
+	}
+	if value, ok := _u.mutation.ResolvedAt(); ok {
+		_spec.SetField(target.FieldResolvedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ResolvedAtCleared() {
+		_spec.ClearField(target.FieldResolvedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.NextResolveAt(); ok {
+		_spec.SetField(target.FieldNextResolveAt, field.TypeTime, value)
+	}
+	if _u.mutation.NextResolveAtCleared() {
+		_spec.ClearField(target.FieldNextResolveAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.RescanRequestedAt(); ok {
 		_spec.SetField(target.FieldRescanRequestedAt, field.TypeTime, value)

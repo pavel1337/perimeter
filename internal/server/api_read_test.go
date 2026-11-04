@@ -66,7 +66,7 @@ func seedReadData(t *testing.T, client *ent.Client) map[string]int {
 		Grade: "C", Status: "READY", CertIssuer: "Test CA", CertExpiry: time.Now().Add(200 * 24 * time.Hour),
 	}))
 	must(st.SaveCSPScan(ctx, "a.example.com", "default-src 'self'", make([]csp.Finding, 2)))
-	must(st.SaveIPs(ctx, "b.example.com", []string{"192.0.2.10"}))
+	must(st.SaveIPs(ctx, "b.example.com", []string{"192.0.2.10"}, time.Hour))
 	must(st.SavePortScan(ctx, "192.0.2.10", []int{22, 443}))
 	must(client.Target.UpdateOneID(ids["a.example.com"]).AddTagIDs(createTags(t, client, "prod")...).Exec(ctx))
 	return ids

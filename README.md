@@ -62,6 +62,7 @@ Set values in `.env` or pass CLI flags (flags win). Common ones:
 | `PORT_TIMEOUT` | `--portTimeout` | `1s` | Timeout for a single port probe |
 | `SSL_INTERVAL` | `--sslInterval` | `12h` | Time between SSL scans |
 | `CSP_INTERVAL` | `--cspInterval` | `1h` | Time between CSP scans |
+| `RESOLVE_INTERVAL` | `--resolveInterval` | `1h` | Time between DNS lookups of a name that resolved, so moved and removed records are noticed |
 | `CERT_EXPIRY_WINDOW` | `--certExpiryWindow` | `720h` | How close to expiry a certificate is flagged on the dashboard |
 | `RESCAN_COOLDOWN` | — | `10m` | Minimum time between on-demand rescans of one target |
 

@@ -73,6 +73,8 @@ var (
 	portTimeout  = getEnvOrDefaultDuration("PORT_TIMEOUT", 1*time.Second)
 	sslInterval  = getEnvOrDefaultDuration("SSL_INTERVAL", 12*time.Hour)
 	cspInterval  = getEnvOrDefaultDuration("CSP_INTERVAL", 1*time.Hour)
+	// How often a name that resolved is looked up again (issue #59).
+	resolveInterval = getEnvOrDefaultDuration("RESOLVE_INTERVAL", 1*time.Hour)
 
 	certExpiryWindow = getEnvOrDefaultDuration("CERT_EXPIRY_WINDOW", 30*24*time.Hour)
 
@@ -107,6 +109,7 @@ func main() {
 	flag.DurationVar(&portTimeout, "portTimeout", portTimeout, "Timeout for a single port probe")
 	flag.DurationVar(&sslInterval, "sslInterval", sslInterval, "Interval for SSL scans")
 	flag.DurationVar(&cspInterval, "cspInterval", cspInterval, "Interval for CSP scans")
+	flag.DurationVar(&resolveInterval, "resolveInterval", resolveInterval, "Interval for looking up resolved names again")
 
 	flag.DurationVar(&certExpiryWindow, "certExpiryWindow", certExpiryWindow, "How close to expiry a certificate is flagged on the dashboard")
 	flag.IntVar(&dashboardPageSize, "dashboardPageSize", dashboardPageSize, "How many targets the dashboard shows per page")
@@ -235,6 +238,7 @@ func main() {
 		PortTimeout:      portTimeout,
 		SSLScanInterval:  sslInterval,
 		CSPScanInterval:  cspInterval,
+		ResolveInterval:  resolveInterval,
 		SSLEmail:         email,
 		WorkerCount:      workerCount,
 		UseDBQueue:       true,

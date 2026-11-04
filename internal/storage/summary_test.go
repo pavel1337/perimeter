@@ -160,10 +160,10 @@ func TestSummaryOpenPortCount(t *testing.T) {
 	if _, err := s.ImportTargets(ctx, []string{"a.example", "b.example"}); err != nil {
 		t.Fatalf("ImportTargets: %v", err)
 	}
-	if err := s.SaveIPs(ctx, "a.example", []string{"10.0.0.1", "10.0.0.2"}); err != nil {
+	if err := s.SaveIPs(ctx, "a.example", []string{"10.0.0.1", "10.0.0.2"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs a: %v", err)
 	}
-	if err := s.SaveIPs(ctx, "b.example", []string{"10.0.0.2"}); err != nil {
+	if err := s.SaveIPs(ctx, "b.example", []string{"10.0.0.2"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs b: %v", err)
 	}
 	ports := func(name string, wantA, wantB int) {
@@ -194,7 +194,7 @@ func TestSummaryOpenPortCount(t *testing.T) {
 	if _, err := s.ImportTargets(ctx, []string{"c.example"}); err != nil {
 		t.Fatalf("ImportTargets c: %v", err)
 	}
-	if err := s.SaveIPs(ctx, "c.example", []string{"10.0.0.1"}); err != nil {
+	if err := s.SaveIPs(ctx, "c.example", []string{"10.0.0.1"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs c: %v", err)
 	}
 	if got := targetByInput(t, s, "c.example").OpenPortCount; got != 2 {

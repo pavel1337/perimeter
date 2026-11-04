@@ -118,14 +118,14 @@ func (f *fixture) seed() {
 	_, err := f.st.ImportTargets(f.ctx, []string{"example.com", "mail.example.org", "expired.test", "gone.example"})
 	f.must(err)
 
-	f.must(f.st.SaveIPs(f.ctx, "example.com", []string{"10.0.0.1"}))
+	f.must(f.st.SaveIPs(f.ctx, "example.com", []string{"10.0.0.1"}, time.Hour))
 	f.must(f.st.SavePortScan(f.ctx, "10.0.0.1", []int{22, 443}))
 	f.must(f.st.SaveSSLScan(f.ctx, "example.com", storage.SSLResult{
 		Grade: "A", Status: "READY", CertIssuer: "Test CA", CertExpiry: time.Now().Add(100 * 24 * time.Hour),
 	}))
 	f.tag("example.com", "prod")
 
-	f.must(f.st.SaveIPs(f.ctx, "mail.example.org", []string{"10.0.0.2"}))
+	f.must(f.st.SaveIPs(f.ctx, "mail.example.org", []string{"10.0.0.2"}, time.Hour))
 	f.must(f.st.SavePortScan(f.ctx, "10.0.0.2", nil))
 	f.must(f.st.SaveSSLScan(f.ctx, "mail.example.org", storage.SSLResult{
 		Grade: "C", Status: "READY", CertIssuer: "Test CA", CertExpiry: time.Now().Add(5 * 24 * time.Hour),
@@ -139,7 +139,7 @@ func (f *fixture) seed() {
 		Grade: "F", Status: "READY", CertIssuer: "Test CA", CertExpiry: time.Now().Add(-3 * 24 * time.Hour),
 	}))
 
-	f.must(f.st.RecordResolveFailure(f.ctx, "gone.example", "no such host"))
+	f.must(f.st.RecordResolveFailure(f.ctx, "gone.example", storage.ResolveFailure{Message: "no such host"}))
 }
 
 // tag creates a tag if needed and attaches it to the target.

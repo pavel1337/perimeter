@@ -11269,6 +11269,8 @@ type TargetMutation struct {
 	resolve_attempts            *int
 	addresolve_attempts         *int
 	resolve_error               *string
+	resolved_at                 *time.Time
+	next_resolve_at             *time.Time
 	rescan_requested_at         *time.Time
 	ssl_rescan_pending          *bool
 	csp_rescan_pending          *bool
@@ -11695,6 +11697,104 @@ func (m *TargetMutation) ResolveErrorCleared() bool {
 func (m *TargetMutation) ResetResolveError() {
 	m.resolve_error = nil
 	delete(m.clearedFields, target.FieldResolveError)
+}
+
+// SetResolvedAt sets the "resolved_at" field.
+func (m *TargetMutation) SetResolvedAt(t time.Time) {
+	m.resolved_at = &t
+}
+
+// ResolvedAt returns the value of the "resolved_at" field in the mutation.
+func (m *TargetMutation) ResolvedAt() (r time.Time, exists bool) {
+	v := m.resolved_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolvedAt returns the old "resolved_at" field's value of the Target entity.
+// If the Target object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TargetMutation) OldResolvedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolvedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolvedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolvedAt: %w", err)
+	}
+	return oldValue.ResolvedAt, nil
+}
+
+// ClearResolvedAt clears the value of the "resolved_at" field.
+func (m *TargetMutation) ClearResolvedAt() {
+	m.resolved_at = nil
+	m.clearedFields[target.FieldResolvedAt] = struct{}{}
+}
+
+// ResolvedAtCleared returns if the "resolved_at" field was cleared in this mutation.
+func (m *TargetMutation) ResolvedAtCleared() bool {
+	_, ok := m.clearedFields[target.FieldResolvedAt]
+	return ok
+}
+
+// ResetResolvedAt resets all changes to the "resolved_at" field.
+func (m *TargetMutation) ResetResolvedAt() {
+	m.resolved_at = nil
+	delete(m.clearedFields, target.FieldResolvedAt)
+}
+
+// SetNextResolveAt sets the "next_resolve_at" field.
+func (m *TargetMutation) SetNextResolveAt(t time.Time) {
+	m.next_resolve_at = &t
+}
+
+// NextResolveAt returns the value of the "next_resolve_at" field in the mutation.
+func (m *TargetMutation) NextResolveAt() (r time.Time, exists bool) {
+	v := m.next_resolve_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNextResolveAt returns the old "next_resolve_at" field's value of the Target entity.
+// If the Target object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TargetMutation) OldNextResolveAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNextResolveAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNextResolveAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNextResolveAt: %w", err)
+	}
+	return oldValue.NextResolveAt, nil
+}
+
+// ClearNextResolveAt clears the value of the "next_resolve_at" field.
+func (m *TargetMutation) ClearNextResolveAt() {
+	m.next_resolve_at = nil
+	m.clearedFields[target.FieldNextResolveAt] = struct{}{}
+}
+
+// NextResolveAtCleared returns if the "next_resolve_at" field was cleared in this mutation.
+func (m *TargetMutation) NextResolveAtCleared() bool {
+	_, ok := m.clearedFields[target.FieldNextResolveAt]
+	return ok
+}
+
+// ResetNextResolveAt resets all changes to the "next_resolve_at" field.
+func (m *TargetMutation) ResetNextResolveAt() {
+	m.next_resolve_at = nil
+	delete(m.clearedFields, target.FieldNextResolveAt)
 }
 
 // SetRescanRequestedAt sets the "rescan_requested_at" field.
@@ -12423,7 +12523,7 @@ func (m *TargetMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TargetMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 18)
 	if m.create_time != nil {
 		fields = append(fields, target.FieldCreateTime)
 	}
@@ -12444,6 +12544,12 @@ func (m *TargetMutation) Fields() []string {
 	}
 	if m.resolve_error != nil {
 		fields = append(fields, target.FieldResolveError)
+	}
+	if m.resolved_at != nil {
+		fields = append(fields, target.FieldResolvedAt)
+	}
+	if m.next_resolve_at != nil {
+		fields = append(fields, target.FieldNextResolveAt)
 	}
 	if m.rescan_requested_at != nil {
 		fields = append(fields, target.FieldRescanRequestedAt)
@@ -12494,6 +12600,10 @@ func (m *TargetMutation) Field(name string) (ent.Value, bool) {
 		return m.ResolveAttempts()
 	case target.FieldResolveError:
 		return m.ResolveError()
+	case target.FieldResolvedAt:
+		return m.ResolvedAt()
+	case target.FieldNextResolveAt:
+		return m.NextResolveAt()
 	case target.FieldRescanRequestedAt:
 		return m.RescanRequestedAt()
 	case target.FieldSslRescanPending:
@@ -12535,6 +12645,10 @@ func (m *TargetMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldResolveAttempts(ctx)
 	case target.FieldResolveError:
 		return m.OldResolveError(ctx)
+	case target.FieldResolvedAt:
+		return m.OldResolvedAt(ctx)
+	case target.FieldNextResolveAt:
+		return m.OldNextResolveAt(ctx)
 	case target.FieldRescanRequestedAt:
 		return m.OldRescanRequestedAt(ctx)
 	case target.FieldSslRescanPending:
@@ -12610,6 +12724,20 @@ func (m *TargetMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetResolveError(v)
+		return nil
+	case target.FieldResolvedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolvedAt(v)
+		return nil
+	case target.FieldNextResolveAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNextResolveAt(v)
 		return nil
 	case target.FieldRescanRequestedAt:
 		v, ok := value.(time.Time)
@@ -12761,6 +12889,12 @@ func (m *TargetMutation) ClearedFields() []string {
 	if m.FieldCleared(target.FieldResolveError) {
 		fields = append(fields, target.FieldResolveError)
 	}
+	if m.FieldCleared(target.FieldResolvedAt) {
+		fields = append(fields, target.FieldResolvedAt)
+	}
+	if m.FieldCleared(target.FieldNextResolveAt) {
+		fields = append(fields, target.FieldNextResolveAt)
+	}
 	if m.FieldCleared(target.FieldRescanRequestedAt) {
 		fields = append(fields, target.FieldRescanRequestedAt)
 	}
@@ -12792,6 +12926,12 @@ func (m *TargetMutation) ClearField(name string) error {
 		return nil
 	case target.FieldResolveError:
 		m.ClearResolveError()
+		return nil
+	case target.FieldResolvedAt:
+		m.ClearResolvedAt()
+		return nil
+	case target.FieldNextResolveAt:
+		m.ClearNextResolveAt()
 		return nil
 	case target.FieldRescanRequestedAt:
 		m.ClearRescanRequestedAt()
@@ -12833,6 +12973,12 @@ func (m *TargetMutation) ResetField(name string) error {
 		return nil
 	case target.FieldResolveError:
 		m.ResetResolveError()
+		return nil
+	case target.FieldResolvedAt:
+		m.ResetResolvedAt()
+		return nil
+	case target.FieldNextResolveAt:
+		m.ResetNextResolveAt()
 		return nil
 	case target.FieldRescanRequestedAt:
 		m.ResetRescanRequestedAt()

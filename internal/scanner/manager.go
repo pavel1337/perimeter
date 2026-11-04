@@ -35,6 +35,10 @@ type ScannerConfig struct {
 	WorkerCount        int
 	UseDBQueue         bool
 	JobTimeout         time.Duration
+	// ResolveInterval is how often a name that resolved is looked up again,
+	// so moved and removed records are noticed (issue #59). A failed lookup
+	// is retried sooner, on the ResolutionInterval backoff.
+	ResolveInterval time.Duration
 }
 
 type Manager struct {
@@ -46,11 +50,17 @@ type Manager struct {
 	// inFlight is only used with InMemoryQueue
 	inFlight   map[string]struct{}
 	inFlightMu sync.Mutex
+
+	// lookupIP resolves a target; net.DefaultResolver.LookupIP outside tests.
+	lookupIP func(ctx context.Context, network, host string) ([]net.IP, error)
 }
 
 func NewManager(s *storage.EntStorage, cfg ScannerConfig, dispatcher *notifier.Dispatcher) *Manager {
 	if cfg.ResolutionInterval == 0 {
 		cfg.ResolutionInterval = 1 * time.Minute
+	}
+	if cfg.ResolveInterval == 0 {
+		cfg.ResolveInterval = 1 * time.Hour
 	}
 	if cfg.WorkerCount < 0 {
 		cfg.WorkerCount = 0
@@ -72,6 +82,7 @@ func NewManager(s *storage.EntStorage, cfg ScannerConfig, dispatcher *notifier.D
 		queue:      q,
 		dispatcher: dispatcher,
 		inFlight:   make(map[string]struct{}),
+		lookupIP:   net.DefaultResolver.LookupIP,
 	}
 }
 
@@ -256,7 +267,9 @@ func (m *Manager) runResolutionProducer() {
 	log.Println("Starting Resolution Producer")
 	ctx := context.Background()
 	for {
-		targets, err := m.storage.GetUnresolvedTargets(ctx, 10, m.config.ResolutionInterval)
+		// Only due targets come back, retry backoff included, so every one
+		// can be queued. One still in flight is skipped by enqueue.
+		targets, err := m.storage.GetTargetsDueForResolution(ctx, m.resolutionBatchSize(), time.Now())
 		if err != nil {
 			log.Printf("Producer: Error fetching targets: %v", err)
 			time.Sleep(10 * time.Second)
@@ -268,16 +281,25 @@ func (m *Manager) runResolutionProducer() {
 			continue
 		}
 
-		now := time.Now()
+		queued := 0
 		for _, t := range targets {
-			// Fibonacci backoff (capped 1h) keyed off the last attempt time.
-			if now.Sub(t.UpdateTime) < resolveBackoff(t.ResolveAttempts, m.config.ResolutionInterval) {
-				continue
+			if m.enqueue(ctx, Job{Type: JobTypeResolution, Input: t.Input}) {
+				queued++
 			}
-			m.enqueue(ctx, Job{Type: JobTypeResolution, Input: t.Input})
 		}
-		time.Sleep(1 * time.Second)
+		if queued == 0 {
+			// Whole batch is still in flight; don't spin on it.
+			time.Sleep(1 * time.Second)
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
+}
+
+// resolutionBatchSize is how many due targets the resolution producer pulls
+// per round. A target stays due until its lookup is stored, so like
+// portScanBatchSize it has to cover the worker pool.
+func (m *Manager) resolutionBatchSize() int {
+	return max(10, m.portScanBatchSize())
 }
 
 // portScanBatchSize is how many outdated IPs the producer pulls per round. An
@@ -376,23 +398,37 @@ func sslJob(t *ent.Target) Job {
 
 func (m *Manager) processResolution(ctx context.Context, j Job) {
 	log.Printf("Worker: Resolving %s", j.Input)
-	ips, err := net.LookupIP(j.Input)
+	ips, err := m.lookupIP(ctx, "ip", j.Input)
+	if err == nil && len(ips) == 0 {
+		// NODATA: the name exists but has no address.
+		err = &net.DNSError{Err: "no such host", Name: j.Input, IsNotFound: true}
+	}
 	if err != nil {
 		msg := dnsErrorMessage(err)
 		log.Printf("Worker: Failed to resolve %s: %s", j.Input, msg)
-		if terr := m.storage.RecordResolveFailure(ctx, j.Input, msg); terr != nil {
+		// NXDOMAIN or NODATA means the name is gone: unlink its IPs. A
+		// timeout or SERVFAIL keeps them until a lookup succeeds (issue #59).
+		var dnsErr *net.DNSError
+		gone := errors.As(err, &dnsErr) && dnsErr.IsNotFound
+		if terr := m.storage.RecordResolveFailure(ctx, j.Input, storage.ResolveFailure{
+			Message:  msg,
+			NameGone: gone,
+			RetryIn: func(attempts int) time.Duration {
+				return resolveBackoff(attempts, m.config.ResolutionInterval)
+			},
+		}); terr != nil {
 			log.Printf("Worker: failed to record resolve failure for %s: %v", j.Input, terr)
 		}
 		m.failJob(ctx, j, msg)
 		return
 	}
 
-	var ipStrings []string
+	ipStrings := make([]string, 0, len(ips))
 	for _, ipAddr := range ips {
 		ipStrings = append(ipStrings, ipAddr.String())
 	}
 
-	err = m.storage.SaveIPs(ctx, j.Input, ipStrings)
+	err = m.storage.SaveIPs(ctx, j.Input, ipStrings, m.config.ResolveInterval)
 	if err != nil {
 		log.Printf("Worker: Failed to save IPs for %s: %v", j.Input, err)
 		m.failJob(ctx, j, err.Error())

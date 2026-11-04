@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -92,12 +94,12 @@ type Storage interface {
 	// Scanning Logic
 	GetOldestOutdatedTarget(ctx context.Context, scanType ScanType, threshold time.Duration) (*ent.Target, error)
 	GetOutdatedIPs(ctx context.Context, limit int, threshold time.Duration) ([]*ent.IP, error)
-	GetUnresolvedTargets(ctx context.Context, limit int, threshold time.Duration) ([]*ent.Target, error)
-	RecordResolveFailure(ctx context.Context, input, msg string) error
+	GetTargetsDueForResolution(ctx context.Context, limit int, now time.Time) ([]*ent.Target, error)
+	RecordResolveFailure(ctx context.Context, input string, f ResolveFailure) error
 	TouchTarget(ctx context.Context, input string) error
 
 	// Saving Results
-	SaveIPs(ctx context.Context, targetInput string, ipAddresses []string) error
+	SaveIPs(ctx context.Context, targetInput string, ipAddresses []string, resolveIn time.Duration) error
 	SavePortScan(ctx context.Context, ipAddress string, openPorts []int) error
 	// SavePortScanError records a port scan that got no answer from the host
 	// (issue #29): a scan row with no ports and scan_error set to msg, so the
@@ -446,29 +448,63 @@ func oldestScanFirst() *sql.OrderExprTerm {
 	}
 }
 
-// GetUnresolvedTargets returns up to limit targets with no IPs, oldest-attempt
-// first. The caller applies per-target backoff (see scanner.resolveBackoff);
-// oldest-first ordering means if the head isn't due yet, none are.
-func (s *EntStorage) GetUnresolvedTargets(ctx context.Context, limit int, _ time.Duration) ([]*ent.Target, error) {
+// GetTargetsDueForResolution returns up to limit targets whose next lookup
+// is due at now, most overdue first. Targets never scheduled (new, or with a
+// rescan requested) come first. The schedule lives in next_resolve_at, so a
+// target waiting out its retry backoff is never returned and can't hold up
+// the targets behind it (issue #59).
+func (s *EntStorage) GetTargetsDueForResolution(ctx context.Context, limit int, now time.Time) ([]*ent.Target, error) {
 	return s.client.Target.Query().
-		Where(target.Not(target.HasIps())).
-		Order(ent.Asc(target.FieldUpdateTime)).
+		Where(target.Or(target.NextResolveAtIsNil(), target.NextResolveAtLTE(now))).
+		Order(target.ByNextResolveAt(sql.OrderNullsFirst()), target.ByID()).
 		Limit(limit).
 		All(ctx)
 }
 
-// RecordResolveFailure bumps the attempt counter and stores a status message.
-// UpdateTime is the backoff clock, so it is reset to now.
-func (s *EntStorage) RecordResolveFailure(ctx context.Context, input, msg string) error {
-	if err := s.client.Target.Update().
-		Where(target.Input(input)).
-		AddResolveAttempts(1).
-		SetResolveError(msg).
-		SetUpdateTime(time.Now()).
-		Exec(ctx); err != nil {
+// ResolveFailure is a failed lookup, for RecordResolveFailure.
+type ResolveFailure struct {
+	Message string
+	// NameGone is set for NXDOMAIN and NODATA: the name has no address any
+	// more, so every IP is unlinked and the target becomes unresolved. A
+	// temporary failure (timeout, SERVFAIL) keeps the links (issue #59).
+	NameGone bool
+	// RetryIn is how long to wait before the next lookup, given the number
+	// of consecutive failures including this one. Nil retries at once.
+	RetryIn func(attempts int) time.Duration
+}
+
+// RecordResolveFailure bumps the attempt counter, stores the message and
+// schedules the retry. IP rows stay when they are unlinked: other targets may
+// share them, and an IP no live target links is no longer port-scanned.
+func (s *EntStorage) RecordResolveFailure(ctx context.Context, input string, f ResolveFailure) error {
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
 		return err
 	}
-	return refreshSummary(ctx, s.client, target.Input(input))
+	t, err := tx.Target.Query().Where(target.Input(input)).First(ctx)
+	if err != nil {
+		return rollback(tx, err)
+	}
+	now := time.Now()
+	attempts := t.ResolveAttempts + 1
+	next := now
+	if f.RetryIn != nil {
+		next = now.Add(f.RetryIn(attempts))
+	}
+	u := tx.Target.UpdateOne(t).
+		SetResolveAttempts(attempts).
+		SetResolveError(f.Message).
+		SetNextResolveAt(next)
+	if f.NameGone {
+		u.ClearIps()
+	}
+	if err := u.Exec(ctx); err != nil {
+		return rollback(tx, err)
+	}
+	if err := refreshSummary(ctx, tx.Client(), target.ID(t.ID)); err != nil {
+		return rollback(tx, err)
+	}
+	return tx.Commit()
 }
 
 func (s *EntStorage) TouchTarget(ctx context.Context, input string) error {
@@ -478,34 +514,28 @@ func (s *EntStorage) TouchTarget(ctx context.Context, input string) error {
 		Exec(ctx)
 }
 
-func (s *EntStorage) SaveIPs(ctx context.Context, targetInput string, ipAddresses []string) error {
-	t, err := s.client.Target.Query().Where(target.Input(targetInput)).First(ctx)
+// SaveIPs records a successful lookup: the target is linked to exactly the
+// addresses in the answer, and resolved again in resolveIn. Addresses no
+// longer in the answer are unlinked, but their IP rows stay: other targets may
+// share them, and an IP no live target links is no longer port-scanned
+// (issue #59).
+func (s *EntStorage) SaveIPs(ctx context.Context, targetInput string, ipAddresses []string, resolveIn time.Duration) error {
+	t, err := s.client.Target.Query().
+		Where(target.Input(targetInput)).
+		WithIps().
+		First(ctx)
 	if err != nil {
 		return err
 	}
 
-	// For each IP, find or create, then add to target.
-	// Bulk operations are tricky with "Find or Create", so loop is fine for now.
+	// Find or create every IP in the answer. IP.Address is unique; a
+	// concurrent create loses the race and reads the winner's row.
+	want := make(map[int]bool, len(ipAddresses))
 	for _, ipAddr := range ipAddresses {
-		// Use Upsert approach or just Check Exist -> Create
-		// Ent Upsert support varies by driver (sqlite supports ON CONFLICT)
-		// Let's try simple check-create
-
-		// Create IP if not exists
-		// We CAN use the ID if we want, but finding by address is safer.
-		// Note: IP.Address is unique.
-
-		// Attempt to create. If fails (unique violation), query it.
-		// Or query first.
-
-		// 1. Query
 		i, err := s.client.IP.Query().Where(ip.Address(ipAddr)).First(ctx)
 		if ent.IsNotFound(err) {
-			// 2. Create
 			i, err = s.client.IP.Create().SetAddress(ipAddr).Save(ctx)
 			if err != nil {
-				// Race condition possible? Yes. But for this tool, probably accept failure or retry.
-				// If we get "constraint failed", we try to fetch again.
 				i, err = s.client.IP.Query().Where(ip.Address(ipAddr)).First(ctx)
 				if err != nil {
 					log.Printf("Failed to recover IP creation for %s: %v", ipAddr, err)
@@ -515,21 +545,30 @@ func (s *EntStorage) SaveIPs(ctx context.Context, targetInput string, ipAddresse
 		} else if err != nil {
 			return err
 		}
-
-		// 3. Link to Target (AddIps handles deduplication on edge?)
-		// Ent Many-to-Many additions:
-		err = s.client.Target.UpdateOne(t).AddIps(i).Exec(ctx)
-		if err != nil {
-			log.Printf("Failed to link IP %s to target %s: %v", ipAddr, t.Input, err)
-		}
+		want[i.ID] = true
 	}
 
-	// Resolved successfully: clear backoff state and update timestamp.
+	var stale []int
+	for _, i := range t.Edges.Ips {
+		if !want[i.ID] {
+			stale = append(stale, i.ID)
+		}
+		delete(want, i.ID)
+	}
+	added := slices.Collect(maps.Keys(want))
+
+	// One update: relink, record the success, clear the backoff state and
+	// schedule the next lookup.
+	now := time.Now()
 	if err := s.client.Target.UpdateOne(t).
+		RemoveIPIDs(stale...).
+		AddIPIDs(added...).
+		SetResolvedAt(now).
+		SetNextResolveAt(now.Add(resolveIn)).
 		SetResolveAttempts(0).
 		SetResolveError("").
-		SetUpdateTime(time.Now()).Exec(ctx); err != nil {
-		log.Printf("Failed to update target timestamp for %s: %v", t.Input, err)
+		Exec(ctx); err != nil {
+		return err
 	}
 
 	// New IPs may already have port scans from other targets sharing them.

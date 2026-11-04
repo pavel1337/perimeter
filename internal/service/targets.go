@@ -81,6 +81,7 @@ type TargetSummary struct {
 type TargetDetail struct {
 	TargetSummary
 	ResolveError string     `json:"resolve_error,omitempty"`
+	ResolvedAt   *time.Time `json:"resolved_at,omitempty"`
 	IPs          []IPDetail `json:"ips"`
 	SSL          *SSLDetail `json:"ssl,omitempty"`
 	CSP          *CSPDetail `json:"csp,omitempty"`
@@ -292,6 +293,7 @@ func (s *Service) GetTarget(ctx context.Context, id int) (*TargetDetail, error) 
 	d := &TargetDetail{
 		TargetSummary: toSummary(t, time.Now()),
 		ResolveError:  t.ResolveError,
+		ResolvedAt:    t.ResolvedAt,
 		IPs:           []IPDetail{},
 	}
 	for _, i := range t.Edges.Ips {

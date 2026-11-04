@@ -186,7 +186,7 @@ curl -H "Authorization: Bearer prm_..." https://perimeter.example.com/api/v1/tar
 {"id":12,"input":"shop.example.com","is_ip":false,"reachability":"ok","tags":["prod"],"ssl_grade":"C","open_ports":2,"created_at":"2026-03-01T10:00:00Z","ips":[{"address":"203.0.113.10","open_ports":[80,443],"last_checked":"2026-10-12T09:00:00Z"}],"ssl":{"grade":"C","status":"READY","cert_subject":"shop.example.com","cert_issuer":"Example CA","cert_expiry":"2026-11-20T00:00:00Z","protocols":["TLS 1.2","TLS 1.3"],"first_seen":"...","last_checked":"..."},"csp":{"header":"default-src 'self'","findings":[ ... ],"first_seen":"...","last_checked":"..."}}
 ```
 
-The target summary fields are followed by `ips`, and by `ssl` and `csp` when those have been scanned. `resolve_error` is present when the name does not resolve. `ssl.status` is the SSL Labs status of the scan.
+The target summary fields are followed by `ips`, and by `ssl` and `csp` when those have been scanned. `resolve_error` is present when the last lookup failed, and `resolved_at` is the time of the last lookup that succeeded. Names are looked up again every `RESOLVE_INTERVAL` (1h by default): a name that no longer resolves loses its IPs and becomes `unresolved`, and a moved name is linked to its new IPs. `ssl.status` is the SSL Labs status of the scan.
 
 ### GET /api/v1/targets/{id}/history
 

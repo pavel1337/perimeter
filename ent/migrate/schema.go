@@ -358,6 +358,8 @@ var (
 		{Name: "is_ip", Type: field.TypeBool, Default: false},
 		{Name: "resolve_attempts", Type: field.TypeInt, Default: 0},
 		{Name: "resolve_error", Type: field.TypeString, Nullable: true},
+		{Name: "resolved_at", Type: field.TypeTime, Nullable: true},
+		{Name: "next_resolve_at", Type: field.TypeTime, Nullable: true},
 		{Name: "rescan_requested_at", Type: field.TypeTime, Nullable: true},
 		{Name: "ssl_rescan_pending", Type: field.TypeBool, Default: false},
 		{Name: "csp_rescan_pending", Type: field.TypeBool, Default: false},
@@ -377,7 +379,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "targets_users_targets",
-				Columns:    []*schema.Column{TargetsColumns[17]},
+				Columns:    []*schema.Column{TargetsColumns[19]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -391,27 +393,32 @@ var (
 			{
 				Name:    "target_reachability",
 				Unique:  false,
-				Columns: []*schema.Column{TargetsColumns[11]},
+				Columns: []*schema.Column{TargetsColumns[13]},
+			},
+			{
+				Name:    "target_next_resolve_at",
+				Unique:  false,
+				Columns: []*schema.Column{TargetsColumns[9]},
 			},
 			{
 				Name:    "target_latest_ssl_grade_rank",
 				Unique:  false,
-				Columns: []*schema.Column{TargetsColumns[13]},
+				Columns: []*schema.Column{TargetsColumns[15]},
 			},
 			{
 				Name:    "target_latest_cert_expiry",
 				Unique:  false,
-				Columns: []*schema.Column{TargetsColumns[14]},
+				Columns: []*schema.Column{TargetsColumns[16]},
 			},
 			{
 				Name:    "target_latest_csp_finding_count",
 				Unique:  false,
-				Columns: []*schema.Column{TargetsColumns[15]},
+				Columns: []*schema.Column{TargetsColumns[17]},
 			},
 			{
 				Name:    "target_open_port_count",
 				Unique:  false,
-				Columns: []*schema.Column{TargetsColumns[16]},
+				Columns: []*schema.Column{TargetsColumns[18]},
 			},
 		},
 	}
