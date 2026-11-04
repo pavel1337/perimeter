@@ -436,7 +436,7 @@ func (s *Service) TargetHistory(ctx context.Context, id, limit, offset int) (Pag
 		if code, ok := storage.CSPNoApp(sc); ok {
 			e.Summary = fmt.Sprintf("CSP no application served (%d)", code)
 		} else if sc.ProbeError != "" {
-			e.Summary = "CSP no response"
+			e.Summary = "CSP " + cspNoResponse(sc.ProbeError)
 			e.Error = sc.ProbeError
 		} else {
 			count := len(sc.Findings)

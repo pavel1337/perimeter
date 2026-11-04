@@ -712,6 +712,12 @@ func fetchCSPHeaders(client http.Client, host string) (cspProbe, error) {
 func (m *Manager) processCSPScan(ctx context.Context, j Job, client http.Client, evaluator csp.Evaluator) {
 	log.Printf("Worker: CSP Scanning %s", j.Input)
 	probe, err := fetchCSPHeaders(client, j.Input)
+	if err != nil && cspRetryable(err) {
+		// Slow targets flapped between a result and "timed out" every hour:
+		// try once more before storing the error (issue #69).
+		time.Sleep(cspRetryWait)
+		probe, err = fetchCSPHeaders(client, j.Input)
+	}
 
 	if err != nil {
 		log.Printf("Worker: CSP Failed to connect to %s: %v", j.Input, err)
@@ -900,6 +906,21 @@ func dnsErrorMessage(err error) string {
 // probeErrorMessage turns an HTTP client error into a short status. It is
 // stored on the scan row, and identical consecutive rows are collapsed, so it
 // must not embed per-attempt detail like addresses or durations.
+// cspRetryWait is the pause before a failed CSP probe is tried again.
+// A variable so tests need not wait.
+var cspRetryWait = 3 * time.Second
+
+// cspRetryable reports whether a failed CSP probe is worth a second try: not
+// a name that doesn't exist or a redirect loop, which won't change in
+// seconds.
+func cspRetryable(err error) bool {
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) && dnsErr.IsNotFound {
+		return false
+	}
+	return probeErrorMessage(err) != "redirect loop"
+}
+
 // certProblem describes a certificate verification error in a few words, or
 // returns "" when err is not one.
 func certProblem(err error) string {

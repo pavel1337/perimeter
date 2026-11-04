@@ -14,6 +14,7 @@ import (
 	"perimeter/ent/sslscan"
 	"perimeter/ent/target"
 	"perimeter/internal/storage"
+	"perimeter/scanner/csp"
 )
 
 // Change kinds.
@@ -234,18 +235,19 @@ func (s *Service) cspChanges(ctx context.Context, since time.Time) ([]Change, er
 		}
 		if p := prev[tg.ID]; p == nil {
 			out = append(out, cspFirstChange(tg, sc))
-		} else {
-			out = append(out, cspChange(tg, p, sc))
+		} else if c, ok := cspChange(tg, p, sc); ok {
+			out = append(out, c)
 		}
 		prev[tg.ID] = sc
 	}
 	return out, nil
 }
 
-// cspState describes a CSP row in a few words: no response, or a finding count.
+// cspState describes a CSP row in a few words: the probe error, an error
+// page, or a finding count.
 func cspState(sc *ent.CSPScan) string {
 	if sc.ProbeError != "" {
-		return "no response"
+		return cspNoResponse(sc.ProbeError)
 	}
 	if code, ok := storage.CSPNoApp(sc); ok {
 		return fmt.Sprintf("no application served (%d)", code)
@@ -270,13 +272,32 @@ func findingCount(n int) string {
 	return fmt.Sprintf("%d findings", n)
 }
 
-func cspChange(tg *ent.Target, p, r *ent.CSPScan) Change {
+// cspNoResponse is how a probe error reads: "no response (timed out)".
+func cspNoResponse(probeErr string) string {
+	if probeErr == "" || probeErr == "no response" {
+		return "no response"
+	}
+	return "no response (" + probeErr + ")"
+}
+
+// cspChange reports what changed between CSP rows p and r, if it is worth a
+// change (issue #69). One probe error after another is not: the target was
+// unreachable before and still is. "Policy changed" is only said when both
+// rows got an answer and the header changed but the state reads the same.
+func cspChange(tg *ent.Target, p, r *ent.CSPScan) (Change, bool) {
+	if p.ProbeError != "" && r.ProbeError != "" {
+		return Change{}, false
+	}
 	before, after := cspState(p), cspState(r)
 	summary := fmt.Sprintf("%s: CSP %s → %s", tg.Input, before, after)
 	if before == after {
+		if csp.MaskNonces(p.CspHeader) == csp.MaskNonces(r.CspHeader) {
+			// Only the status, URL or certificate note moved.
+			return Change{}, false
+		}
 		summary = tg.Input + ": CSP policy changed"
 	}
-	return newChange(tg, r.ScannedAt, ChangeCSPChanged, before, after, "", summary)
+	return newChange(tg, r.ScannedAt, ChangeCSPChanged, before, after, "", summary), true
 }
 
 // portState is what a port-scan baseline needs: the previous row of an IP,

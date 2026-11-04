@@ -1,11 +1,14 @@
 package scanner
 
 import (
+	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -99,5 +102,22 @@ func TestFetchCSPRedirectLoop(t *testing.T) {
 	}
 	if got := probeErrorMessage(err); got != "redirect loop" {
 		t.Errorf("message = %q, want redirect loop", got)
+	}
+}
+
+// Timeouts and resets are tried again; a missing name or a redirect loop is
+// not (issue #69).
+func TestCSPRetryable(t *testing.T) {
+	if cspRetryable(&net.DNSError{Err: "no such host", IsNotFound: true}) {
+		t.Error("NXDOMAIN retried")
+	}
+	if cspRetryable(errors.New(`Get "https://x/": stopped after 10 redirects`)) {
+		t.Error("redirect loop retried")
+	}
+	if !cspRetryable(&net.OpError{Op: "read", Err: syscall.ECONNRESET}) {
+		t.Error("connection reset not retried")
+	}
+	if !cspRetryable(&net.DNSError{Err: "i/o timeout", IsTimeout: true}) {
+		t.Error("DNS timeout not retried")
 	}
 }
