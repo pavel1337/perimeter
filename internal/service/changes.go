@@ -238,6 +238,24 @@ func (s *Service) sslChanges(ctx context.Context, since time.Time) ([]Change, er
 	return out, nil
 }
 
+// sslHistorySummary describes what an SSL row changed against the previous
+// result, with the same comparison as sslTransitions (issue #78): a new row
+// is also written when only the certificate changes, so "grade A → A" was
+// wrong for a renewal.
+func sslHistorySummary(p, r *ent.SSLScan) string {
+	var parts []string
+	if p.Grade != r.Grade {
+		parts = append(parts, fmt.Sprintf("grade %s → %s", orNone(p.Grade), orNone(r.Grade)))
+	}
+	if !p.CertExpiry.IsZero() && r.CertExpiry.After(p.CertExpiry) {
+		parts = append(parts, "certificate renewed, now expires "+r.CertExpiry.Format("2006-01-02"))
+	}
+	if len(parts) == 0 {
+		return "certificate changed"
+	}
+	return strings.Join(parts, "; ")
+}
+
 // sslTransitions returns what changed between the previous SSL row p (nil if
 // none) and the new row r.
 func sslTransitions(tg *ent.Target, p, r *ent.SSLScan) []Change {
