@@ -28,6 +28,8 @@ const (
 	FieldStatusCode = "status_code"
 	// FieldFinalURL holds the string denoting the final_url field in the database.
 	FieldFinalURL = "final_url"
+	// FieldTLSProblem holds the string denoting the tls_problem field in the database.
+	FieldTLSProblem = "tls_problem"
 	// EdgeTarget holds the string denoting the target edge name in mutations.
 	EdgeTarget = "target"
 	// Table holds the table name of the cspscan in the database.
@@ -52,6 +54,7 @@ var Columns = []string{
 	FieldProbeError,
 	FieldStatusCode,
 	FieldFinalURL,
+	FieldTLSProblem,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "csp_scans"
@@ -121,6 +124,11 @@ func ByStatusCode(opts ...sql.OrderTermOption) OrderOption {
 // ByFinalURL orders the results by the final_url field.
 func ByFinalURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFinalURL, opts...).ToFunc()
+}
+
+// ByTLSProblem orders the results by the tls_problem field.
+func ByTLSProblem(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTLSProblem, opts...).ToFunc()
 }
 
 // ByTargetField orders the results by target field.

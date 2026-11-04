@@ -38,6 +38,8 @@
         <span class="badge badge-red">missing</span>
         {{end}}
         {{if .FinalURL}}<div class="text-muted mono"><small>{{.StatusCode}} {{.FinalURL}}</small></div>{{end}}
+        {{if .TLSProblem}}<div><span class="badge badge-amber">{{.TLSProblem}}</span> <small class="text-muted">read without verifying it</small></div>{{end}}
+        {{if hasPrefix .FinalURL "http://"}}<div><span class="badge badge-amber">plain HTTP</span> <small class="text-muted">nothing answered TLS on port 443</small></div>{{end}}
       </td>
     </tr>
     {{else}}

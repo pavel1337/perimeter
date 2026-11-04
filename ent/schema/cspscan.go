@@ -29,6 +29,10 @@ func (CSPScan) Fields() []ent.Field {
 		// 2xx responses only. 0 on rows stored before #67 and on probe errors.
 		field.Int("status_code").Optional(),
 		field.String("final_url").Optional(),
+		// Why the certificate failed verification when the probe had to
+		// skip it to read the response, e.g. "certificate not trusted:
+		// self-signed or unknown issuer" (issue #68). Empty when it verified.
+		field.String("tls_problem").Optional(),
 	}
 }
 

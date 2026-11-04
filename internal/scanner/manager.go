@@ -3,6 +3,7 @@ package scanner
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
@@ -665,11 +666,28 @@ type cspProbe struct {
 	// finalURL is where the response came from after redirects, without
 	// query string, fragment or user info, so rows still collapse (#67).
 	finalURL string
+	// tlsProblem is why the certificate failed verification, when the
+	// response was read without verifying it (#68).
+	tlsProblem string
 }
 
+// fetchCSPHeaders GETs https://host and reads the CSP headers of the final
+// response (#68):
+//   - A certificate that fails verification is fetched again without
+//     verifying it, and the problem is recorded; the response is judged
+//     like any other.
+//   - Plain HTTP is tried only when nothing answers TLS on port 443; the
+//     final URL then shows the http scheme.
+//   - Any other error, a redirect loop for example, is returned as is.
 func fetchCSPHeaders(client http.Client, host string) (cspProbe, error) {
 	resp, err := client.Get("https://" + host)
-	if err != nil {
+	var tlsProblem string
+	switch {
+	case err == nil:
+	case certProblem(err) != "":
+		tlsProblem = certProblem(err)
+		resp, err = insecureClient(client).Get("https://" + host)
+	case noTLSOn443(err):
 		resp, err = client.Get("http://" + host)
 	}
 	if err != nil {
@@ -681,6 +699,7 @@ func fetchCSPHeaders(client http.Client, host string) (cspProbe, error) {
 		enforce:    resp.Header.Get("Content-Security-Policy"),
 		reportOnly: resp.Header.Get("Content-Security-Policy-Report-Only"),
 		status:     resp.StatusCode,
+		tlsProblem: tlsProblem,
 	}
 	if resp.Request != nil && resp.Request.URL != nil {
 		u := *resp.Request.URL
@@ -715,6 +734,7 @@ func (m *Manager) processCSPScan(ctx context.Context, j Job, client http.Client,
 		Findings:   findings,
 		StatusCode: probe.status,
 		FinalURL:   probe.finalURL,
+		TLSProblem: probe.tlsProblem,
 	})
 	if err != nil {
 		log.Printf("Worker: Failed to save CSP for %s: %v", j.Input, err)
@@ -880,11 +900,67 @@ func dnsErrorMessage(err error) string {
 // probeErrorMessage turns an HTTP client error into a short status. It is
 // stored on the scan row, and identical consecutive rows are collapsed, so it
 // must not embed per-attempt detail like addresses or durations.
+// certProblem describes a certificate verification error in a few words, or
+// returns "" when err is not one.
+func certProblem(err error) string {
+	var (
+		unknown  x509.UnknownAuthorityError
+		hostname x509.HostnameError
+		invalid  x509.CertificateInvalidError
+		verify   *tls.CertificateVerificationError
+	)
+	switch {
+	case errors.As(err, &unknown):
+		return "certificate not trusted: self-signed or unknown issuer"
+	case errors.As(err, &hostname):
+		return "certificate not trusted: name mismatch"
+	case errors.As(err, &invalid):
+		if invalid.Reason == x509.Expired {
+			return "certificate not trusted: expired or not yet valid"
+		}
+		return "certificate not trusted: invalid"
+	case errors.As(err, &verify):
+		return "certificate not trusted"
+	}
+	return ""
+}
+
+// noTLSOn443 reports whether an HTTPS request failed because nothing speaks
+// TLS on port 443: the connection could not be made, or the server answered
+// in plain HTTP. Only then is plain HTTP tried (#68).
+func noTLSOn443(err error) bool {
+	var opErr *net.OpError
+	var recErr tls.RecordHeaderError
+	return (errors.As(err, &opErr) && opErr.Op == "dial") ||
+		errors.As(err, &recErr) ||
+		strings.Contains(err.Error(), "server gave HTTP response to HTTPS client")
+}
+
+// insecureClient is client with certificate verification off, to read the
+// response of a host whose certificate failed verification. The problem is
+// recorded separately; SSL Labs grades the certificate itself.
+func insecureClient(client http.Client) *http.Client {
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	if t, ok := client.Transport.(*http.Transport); ok && t != nil {
+		tr = t.Clone()
+	}
+	if tr.TLSClientConfig == nil {
+		tr.TLSClientConfig = &tls.Config{}
+	}
+	tr.TLSClientConfig.InsecureSkipVerify = true //nolint:gosec // reading the CSP only
+	client.Transport = tr
+	return &client
+}
+
 func probeErrorMessage(err error) string {
 	var dnsErr *net.DNSError
 	switch {
 	case errors.As(err, &dnsErr):
 		return dnsErrorMessage(err)
+	case certProblem(err) != "":
+		return certProblem(err)
+	case strings.Contains(err.Error(), "stopped after") && strings.Contains(err.Error(), "redirects"):
+		return "redirect loop"
 	case errors.Is(err, syscall.ECONNREFUSED):
 		return "connection refused"
 	case errors.Is(err, syscall.EHOSTUNREACH), errors.Is(err, syscall.ENETUNREACH):

@@ -181,6 +181,12 @@ func (t *toolset) getTarget(ctx context.Context, _ *mcp.CallToolRequest, in targ
 		fmt.Fprintf(&b, ", checked %s)", formatTime(d.CSP.LastChecked))
 	default:
 		b.WriteString("\n" + cspText(len(d.CSP.Findings)) + " (checked " + formatTime(d.CSP.LastChecked) + ")")
+		if d.CSP.TLSProblem != "" {
+			b.WriteString("\nCSP read without verifying the certificate: " + d.CSP.TLSProblem)
+		}
+		if strings.HasPrefix(d.CSP.FinalURL, "http://") {
+			b.WriteString("\nCSP read over plain HTTP: nothing answered TLS on port 443")
+		}
 		for _, f := range d.CSP.Findings {
 			b.WriteString("\n" + cspFindingLine(f))
 		}
