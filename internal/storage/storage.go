@@ -59,6 +59,7 @@ type Storage interface {
 	GetIPScansPage(ctx context.Context, ipID, limit, offset int) ([]*ent.PortScan, int, error)
 	GetSSLScansPage(ctx context.Context, targetID, limit, offset int) ([]*ent.SSLScan, int, error)
 	GetDNSChangesPage(ctx context.Context, targetID, limit, offset int) ([]*ent.DNSChange, int, error)
+	StaleCounts(ctx context.Context, sslCutoff, cspCutoff, portCutoff time.Time) (ssl, csp, ports int, err error)
 	GetLatestSSL(ctx context.Context, input string) (result, failed *ent.SSLScan, err error)
 	GetCSPScansPage(ctx context.Context, targetID, limit, offset int) ([]*ent.CSPScan, int, error)
 	// DeleteTarget soft-deletes a live target: it disappears from every
@@ -389,6 +390,39 @@ func (s *EntStorage) GetCSPScansPage(ctx context.Context, targetID, limit, offse
 	}
 
 	return scans, total, nil
+}
+
+// StaleCounts counts live results whose last check is older than their
+// cutoff (issue #76): targets whose newest SSL or CSP scan was last seen
+// before sslCutoff or cspCutoff, and IPs of live targets whose newest port
+// scan was last seen before portCutoff. A zero cutoff skips that kind.
+func (s *EntStorage) StaleCounts(ctx context.Context, sslCutoff, cspCutoff, portCutoff time.Time) (ssl, cspN, ports int, err error) {
+	if !sslCutoff.IsZero() {
+		if ssl, err = s.client.Target.Query().Where(
+			target.IsIP(false),
+			target.HasSslScans(),
+			target.Not(target.HasSslScansWith(sslscan.LastSeenAtGTE(sslCutoff))),
+		).Count(ctx); err != nil {
+			return
+		}
+	}
+	if !cspCutoff.IsZero() {
+		if cspN, err = s.client.Target.Query().Where(
+			target.IsIP(false),
+			target.HasCspScans(),
+			target.Not(target.HasCspScansWith(cspscan.LastSeenAtGTE(cspCutoff))),
+		).Count(ctx); err != nil {
+			return
+		}
+	}
+	if !portCutoff.IsZero() {
+		ports, err = s.client.IP.Query().Where(
+			ip.HasTargetsWith(target.DeletedAtIsNil()),
+			ip.HasScans(),
+			ip.Not(ip.HasScansWith(portscan.LastSeenAtGTE(portCutoff))),
+		).Count(ctx)
+	}
+	return
 }
 
 // GetDNSChangesPage returns a page of a target's DNS changes, newest first,

@@ -3,6 +3,7 @@ package server
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/csv"
 	"encoding/json"
@@ -57,6 +58,8 @@ type Server struct {
 	apiLimiter fiber.Handler
 	// rescanCooldown is how long a target waits between rescan requests.
 	rescanCooldown time.Duration
+	// intervals are the scan intervals staleness is judged against (#76).
+	intervals service.ScanIntervals
 	// sslScanning is whether SSL Labs scanning runs; a rescan only flags SSL
 	// when a producer will pick it up.
 	sslScanning bool
@@ -110,6 +113,13 @@ func (s *Server) SetImporterSyncer(sy importerSyncer) {
 func (s *Server) SetRescanCooldown(d time.Duration) {
 	s.rescanCooldown = d
 	s.svc.SetRescanConfig(s.rescanCooldown, s.sslScanning)
+}
+
+// SetScanIntervals sets the scan intervals results are judged stale against
+// (issue #76), for the pages and the service behind the API and MCP.
+func (s *Server) SetScanIntervals(iv service.ScanIntervals) {
+	s.intervals = iv
+	s.svc.SetScanIntervals(iv)
 }
 
 // SetSSLScanning tells the server whether SSL Labs scanning runs, so that a
@@ -789,6 +799,8 @@ type ipScanRow struct {
 	IP         *ent.IP
 	Scans      []portScanView
 	Pagination pagination
+	// Stale is set when the IP's newest port scan is stale (#76).
+	Stale bool
 }
 
 func ipPageKey(ipID int) string { return fmt.Sprintf("ip_%d_page", ipID) }
@@ -880,7 +892,11 @@ func (s *Server) ipHistoryData(ctx context.Context, c *fiber.Ctx, i *ent.IP) (ip
 		}
 		page = settled
 	}
-	return ipScanRow{IP: i, Scans: diffPortScans(items), Pagination: buildPagination(c, ipPageKey(i.ID), page, total)}, nil
+	row := ipScanRow{IP: i, Scans: diffPortScans(items), Pagination: buildPagination(c, ipPageKey(i.ID), page, total)}
+	if newest, _, err := s.storage.GetIPScansPage(ctx, i.ID, 1, 0); err == nil && len(newest) > 0 {
+		row.Stale = service.Stale(newest[0].LastSeenAt, s.intervals.Ports, time.Now())
+	}
+	return row, nil
 }
 
 // diffPortScans annotates each row with the ports gained and lost relative to
@@ -1007,9 +1023,19 @@ func (s *Server) handleTargetDetails(c *fiber.Ctx) error {
 	}
 
 	allTags, _ := s.client.Tag.Query().All(c.Context())
-	_, sslFailed, err := s.storage.GetLatestSSL(c.Context(), target.Input)
+	sslResult, sslFailed, err := s.storage.GetLatestSSL(c.Context(), target.Input)
 	if err != nil {
 		return err
+	}
+	// Stale results (#76): judged by the newest check of each kind.
+	now := time.Now()
+	sslStale := false
+	if newest := cmp.Or(sslFailed, sslResult); newest != nil && s.sslScanning {
+		sslStale = service.Stale(newest.LastSeenAt, s.intervals.SSL, now)
+	}
+	cspStale := false
+	if newest, _, err := s.storage.GetCSPScansPage(c.Context(), target.ID, 1, 0); err == nil && len(newest) > 0 {
+		cspStale = service.Stale(newest[0].LastSeenAt, s.intervals.CSP, now)
 	}
 	dnsChanges, _, err := s.storage.GetDNSChangesPage(c.Context(), target.ID, 10, 0)
 	if err != nil {
@@ -1025,6 +1051,8 @@ func (s *Server) handleTargetDetails(c *fiber.Ctx) error {
 		"SSLScans":        sslScans,
 		"SSLPagination":   sslPagination,
 		"SSLFailed":       sslFailed,
+		"SSLStale":        sslStale,
+		"CSPStale":        cspStale,
 		"DNSChanges":      dnsChanges,
 		"CSPScans":        cspScans,
 		"CSPPagination":   cspPagination,

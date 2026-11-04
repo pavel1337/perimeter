@@ -136,7 +136,7 @@ func (t *toolset) getTarget(ctx context.Context, _ *mcp.CallToolRequest, in targ
 	for _, ip := range d.IPs {
 		fmt.Fprintf(&b, "\nIP %s: %s", ip.Address, portsText(ip))
 		if ip.LastChecked != nil {
-			fmt.Fprintf(&b, " (checked %s)", formatTime(*ip.LastChecked))
+			fmt.Fprintf(&b, " (checked %s%s)", formatTime(*ip.LastChecked), staleNote(ip.Stale))
 		}
 	}
 	switch {
@@ -159,7 +159,7 @@ func (t *toolset) getTarget(ctx context.Context, _ *mcp.CallToolRequest, in targ
 		if len(d.SSL.Vulnerabilities) > 0 {
 			b.WriteString(", vulnerabilities: " + strings.Join(d.SSL.Vulnerabilities, ", "))
 		}
-		fmt.Fprintf(&b, " (checked %s)", formatTime(d.SSL.LastChecked))
+		fmt.Fprintf(&b, " (checked %s%s)", formatTime(d.SSL.LastChecked), staleNote(d.SSL.Stale))
 	}
 	if d.SSL != nil && d.SSL.LastCheckError != "" {
 		fmt.Fprintf(&b, "\nSSL last check failed")
@@ -185,7 +185,7 @@ func (t *toolset) getTarget(ctx context.Context, _ *mcp.CallToolRequest, in targ
 		}
 		fmt.Fprintf(&b, ", checked %s)", formatTime(d.CSP.LastChecked))
 	default:
-		b.WriteString("\n" + cspText(len(d.CSP.Findings)) + " (checked " + formatTime(d.CSP.LastChecked) + ")")
+		b.WriteString("\n" + cspText(len(d.CSP.Findings)) + " (checked " + formatTime(d.CSP.LastChecked) + staleNote(d.CSP.Stale) + ")")
 		if d.CSP.TLSProblem != "" {
 			b.WriteString("\nCSP read without verifying the certificate: " + d.CSP.TLSProblem)
 		}
@@ -197,6 +197,14 @@ func (t *toolset) getTarget(ctx context.Context, _ *mcp.CallToolRequest, in targ
 		}
 	}
 	return reply(b.String(), *d)
+}
+
+// staleNote marks a stale result in a "(checked ...)" note (#76).
+func staleNote(stale bool) string {
+	if stale {
+		return ", stale"
+	}
+	return ""
 }
 
 // cspFindingLine is one CSP finding: level, directive, value, short
@@ -557,6 +565,10 @@ func (t *toolset) summary(ctx context.Context, _ *mcp.CallToolRequest, _ noArgs)
 	fmt.Fprintf(&b, "certificates: %d expiring within %d days, %d expired; weak SSL (below B): %d; open ports: %d; CSP issues: %d\n",
 		tot.ExpiringCerts, int(t.svc.CertExpiryWindow()/(24*time.Hour)), tot.ExpiredCerts,
 		tot.WeakSSL, tot.OpenPorts, tot.CSPIssues)
+	if st := tot.Stale; st.SSL+st.CSP+st.Ports > 0 {
+		fmt.Fprintf(&b, "stale results (last checked over two scan intervals ago, a scanner may be behind): %d SSL, %d CSP, %d port scans\n",
+			st.SSL, st.CSP, st.Ports)
+	}
 	// Say so instead of zero counts reading as "all clean".
 	if !sum.SSLScanning {
 		b.WriteString("SSL scanning is off on this server, so SSL grades and certificate expiry are not checked.\n")
