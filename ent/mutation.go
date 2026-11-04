@@ -1762,6 +1762,9 @@ type CSPScanMutation struct {
 	findings       *[]csp.Finding
 	appendfindings []csp.Finding
 	probe_error    *string
+	status_code    *int
+	addstatus_code *int
+	final_url      *string
 	clearedFields  map[string]struct{}
 	target         *int
 	clearedtarget  bool
@@ -2159,6 +2162,125 @@ func (m *CSPScanMutation) ResetProbeError() {
 	delete(m.clearedFields, cspscan.FieldProbeError)
 }
 
+// SetStatusCode sets the "status_code" field.
+func (m *CSPScanMutation) SetStatusCode(i int) {
+	m.status_code = &i
+	m.addstatus_code = nil
+}
+
+// StatusCode returns the value of the "status_code" field in the mutation.
+func (m *CSPScanMutation) StatusCode() (r int, exists bool) {
+	v := m.status_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatusCode returns the old "status_code" field's value of the CSPScan entity.
+// If the CSPScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CSPScanMutation) OldStatusCode(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatusCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatusCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatusCode: %w", err)
+	}
+	return oldValue.StatusCode, nil
+}
+
+// AddStatusCode adds i to the "status_code" field.
+func (m *CSPScanMutation) AddStatusCode(i int) {
+	if m.addstatus_code != nil {
+		*m.addstatus_code += i
+	} else {
+		m.addstatus_code = &i
+	}
+}
+
+// AddedStatusCode returns the value that was added to the "status_code" field in this mutation.
+func (m *CSPScanMutation) AddedStatusCode() (r int, exists bool) {
+	v := m.addstatus_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearStatusCode clears the value of the "status_code" field.
+func (m *CSPScanMutation) ClearStatusCode() {
+	m.status_code = nil
+	m.addstatus_code = nil
+	m.clearedFields[cspscan.FieldStatusCode] = struct{}{}
+}
+
+// StatusCodeCleared returns if the "status_code" field was cleared in this mutation.
+func (m *CSPScanMutation) StatusCodeCleared() bool {
+	_, ok := m.clearedFields[cspscan.FieldStatusCode]
+	return ok
+}
+
+// ResetStatusCode resets all changes to the "status_code" field.
+func (m *CSPScanMutation) ResetStatusCode() {
+	m.status_code = nil
+	m.addstatus_code = nil
+	delete(m.clearedFields, cspscan.FieldStatusCode)
+}
+
+// SetFinalURL sets the "final_url" field.
+func (m *CSPScanMutation) SetFinalURL(s string) {
+	m.final_url = &s
+}
+
+// FinalURL returns the value of the "final_url" field in the mutation.
+func (m *CSPScanMutation) FinalURL() (r string, exists bool) {
+	v := m.final_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFinalURL returns the old "final_url" field's value of the CSPScan entity.
+// If the CSPScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CSPScanMutation) OldFinalURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFinalURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFinalURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFinalURL: %w", err)
+	}
+	return oldValue.FinalURL, nil
+}
+
+// ClearFinalURL clears the value of the "final_url" field.
+func (m *CSPScanMutation) ClearFinalURL() {
+	m.final_url = nil
+	m.clearedFields[cspscan.FieldFinalURL] = struct{}{}
+}
+
+// FinalURLCleared returns if the "final_url" field was cleared in this mutation.
+func (m *CSPScanMutation) FinalURLCleared() bool {
+	_, ok := m.clearedFields[cspscan.FieldFinalURL]
+	return ok
+}
+
+// ResetFinalURL resets all changes to the "final_url" field.
+func (m *CSPScanMutation) ResetFinalURL() {
+	m.final_url = nil
+	delete(m.clearedFields, cspscan.FieldFinalURL)
+}
+
 // SetTargetID sets the "target" edge to the Target entity by id.
 func (m *CSPScanMutation) SetTargetID(id int) {
 	m.target = &id
@@ -2232,7 +2354,7 @@ func (m *CSPScanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CSPScanMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 8)
 	if m.scanned_at != nil {
 		fields = append(fields, cspscan.FieldScannedAt)
 	}
@@ -2250,6 +2372,12 @@ func (m *CSPScanMutation) Fields() []string {
 	}
 	if m.probe_error != nil {
 		fields = append(fields, cspscan.FieldProbeError)
+	}
+	if m.status_code != nil {
+		fields = append(fields, cspscan.FieldStatusCode)
+	}
+	if m.final_url != nil {
+		fields = append(fields, cspscan.FieldFinalURL)
 	}
 	return fields
 }
@@ -2271,6 +2399,10 @@ func (m *CSPScanMutation) Field(name string) (ent.Value, bool) {
 		return m.Findings()
 	case cspscan.FieldProbeError:
 		return m.ProbeError()
+	case cspscan.FieldStatusCode:
+		return m.StatusCode()
+	case cspscan.FieldFinalURL:
+		return m.FinalURL()
 	}
 	return nil, false
 }
@@ -2292,6 +2424,10 @@ func (m *CSPScanMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldFindings(ctx)
 	case cspscan.FieldProbeError:
 		return m.OldProbeError(ctx)
+	case cspscan.FieldStatusCode:
+		return m.OldStatusCode(ctx)
+	case cspscan.FieldFinalURL:
+		return m.OldFinalURL(ctx)
 	}
 	return nil, fmt.Errorf("unknown CSPScan field %s", name)
 }
@@ -2343,6 +2479,20 @@ func (m *CSPScanMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetProbeError(v)
 		return nil
+	case cspscan.FieldStatusCode:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatusCode(v)
+		return nil
+	case cspscan.FieldFinalURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFinalURL(v)
+		return nil
 	}
 	return fmt.Errorf("unknown CSPScan field %s", name)
 }
@@ -2354,6 +2504,9 @@ func (m *CSPScanMutation) AddedFields() []string {
 	if m.addcheck_count != nil {
 		fields = append(fields, cspscan.FieldCheckCount)
 	}
+	if m.addstatus_code != nil {
+		fields = append(fields, cspscan.FieldStatusCode)
+	}
 	return fields
 }
 
@@ -2364,6 +2517,8 @@ func (m *CSPScanMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case cspscan.FieldCheckCount:
 		return m.AddedCheckCount()
+	case cspscan.FieldStatusCode:
+		return m.AddedStatusCode()
 	}
 	return nil, false
 }
@@ -2379,6 +2534,13 @@ func (m *CSPScanMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddCheckCount(v)
+		return nil
+	case cspscan.FieldStatusCode:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddStatusCode(v)
 		return nil
 	}
 	return fmt.Errorf("unknown CSPScan numeric field %s", name)
@@ -2396,6 +2558,12 @@ func (m *CSPScanMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(cspscan.FieldProbeError) {
 		fields = append(fields, cspscan.FieldProbeError)
+	}
+	if m.FieldCleared(cspscan.FieldStatusCode) {
+		fields = append(fields, cspscan.FieldStatusCode)
+	}
+	if m.FieldCleared(cspscan.FieldFinalURL) {
+		fields = append(fields, cspscan.FieldFinalURL)
 	}
 	return fields
 }
@@ -2419,6 +2587,12 @@ func (m *CSPScanMutation) ClearField(name string) error {
 		return nil
 	case cspscan.FieldProbeError:
 		m.ClearProbeError()
+		return nil
+	case cspscan.FieldStatusCode:
+		m.ClearStatusCode()
+		return nil
+	case cspscan.FieldFinalURL:
+		m.ClearFinalURL()
 		return nil
 	}
 	return fmt.Errorf("unknown CSPScan nullable field %s", name)
@@ -2445,6 +2619,12 @@ func (m *CSPScanMutation) ResetField(name string) error {
 		return nil
 	case cspscan.FieldProbeError:
 		m.ResetProbeError()
+		return nil
+	case cspscan.FieldStatusCode:
+		m.ResetStatusCode()
+		return nil
+	case cspscan.FieldFinalURL:
+		m.ResetFinalURL()
 		return nil
 	}
 	return fmt.Errorf("unknown CSPScan field %s", name)

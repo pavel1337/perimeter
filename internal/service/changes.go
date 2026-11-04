@@ -247,6 +247,9 @@ func cspState(sc *ent.CSPScan) string {
 	if sc.ProbeError != "" {
 		return "no response"
 	}
+	if code, ok := storage.CSPNoApp(sc); ok {
+		return fmt.Sprintf("no application served (%d)", code)
+	}
 	return findingCount(len(sc.Findings))
 }
 

@@ -60,8 +60,9 @@ func summarize(t *ent.Target) summary {
 			sum.certExpiry = &exp
 		}
 	}
-	// A probe that got no response says nothing about the policy.
-	if len(t.Edges.CspScans) > 0 && t.Edges.CspScans[0].ProbeError == "" {
+	// A probe that got no response, or an error page (4xx/5xx), says nothing
+	// about the policy (#67).
+	if len(t.Edges.CspScans) > 0 && CSPAppServed(t.Edges.CspScans[0]) {
 		n := len(t.Edges.CspScans[0].Findings)
 		sum.cspFindingCount = &n
 	}

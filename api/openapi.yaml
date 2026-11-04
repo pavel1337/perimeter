@@ -849,6 +849,12 @@ components:
             $ref: "#/components/schemas/CSPFinding"
         probe_error:
           type: string
+        status_code:
+          type: integer
+          description: HTTP status of the response. CSP is judged on 2xx only; a 4xx or 5xx page has no findings and serves no application.
+        final_url:
+          type: string
+          description: Where the response came from after redirects, without query string or fragment.
         first_seen:
           type: string
           format: date-time

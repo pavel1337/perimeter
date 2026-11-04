@@ -138,6 +138,53 @@ func (_u *CSPScanUpdate) ClearProbeError() *CSPScanUpdate {
 	return _u
 }
 
+// SetStatusCode sets the "status_code" field.
+func (_u *CSPScanUpdate) SetStatusCode(v int) *CSPScanUpdate {
+	_u.mutation.ResetStatusCode()
+	_u.mutation.SetStatusCode(v)
+	return _u
+}
+
+// SetNillableStatusCode sets the "status_code" field if the given value is not nil.
+func (_u *CSPScanUpdate) SetNillableStatusCode(v *int) *CSPScanUpdate {
+	if v != nil {
+		_u.SetStatusCode(*v)
+	}
+	return _u
+}
+
+// AddStatusCode adds value to the "status_code" field.
+func (_u *CSPScanUpdate) AddStatusCode(v int) *CSPScanUpdate {
+	_u.mutation.AddStatusCode(v)
+	return _u
+}
+
+// ClearStatusCode clears the value of the "status_code" field.
+func (_u *CSPScanUpdate) ClearStatusCode() *CSPScanUpdate {
+	_u.mutation.ClearStatusCode()
+	return _u
+}
+
+// SetFinalURL sets the "final_url" field.
+func (_u *CSPScanUpdate) SetFinalURL(v string) *CSPScanUpdate {
+	_u.mutation.SetFinalURL(v)
+	return _u
+}
+
+// SetNillableFinalURL sets the "final_url" field if the given value is not nil.
+func (_u *CSPScanUpdate) SetNillableFinalURL(v *string) *CSPScanUpdate {
+	if v != nil {
+		_u.SetFinalURL(*v)
+	}
+	return _u
+}
+
+// ClearFinalURL clears the value of the "final_url" field.
+func (_u *CSPScanUpdate) ClearFinalURL() *CSPScanUpdate {
+	_u.mutation.ClearFinalURL()
+	return _u
+}
+
 // SetTargetID sets the "target" edge to the Target entity by ID.
 func (_u *CSPScanUpdate) SetTargetID(id int) *CSPScanUpdate {
 	_u.mutation.SetTargetID(id)
@@ -241,6 +288,21 @@ func (_u *CSPScanUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.ProbeErrorCleared() {
 		_spec.ClearField(cspscan.FieldProbeError, field.TypeString)
+	}
+	if value, ok := _u.mutation.StatusCode(); ok {
+		_spec.SetField(cspscan.FieldStatusCode, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedStatusCode(); ok {
+		_spec.AddField(cspscan.FieldStatusCode, field.TypeInt, value)
+	}
+	if _u.mutation.StatusCodeCleared() {
+		_spec.ClearField(cspscan.FieldStatusCode, field.TypeInt)
+	}
+	if value, ok := _u.mutation.FinalURL(); ok {
+		_spec.SetField(cspscan.FieldFinalURL, field.TypeString, value)
+	}
+	if _u.mutation.FinalURLCleared() {
+		_spec.ClearField(cspscan.FieldFinalURL, field.TypeString)
 	}
 	if _u.mutation.TargetCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -398,6 +460,53 @@ func (_u *CSPScanUpdateOne) ClearProbeError() *CSPScanUpdateOne {
 	return _u
 }
 
+// SetStatusCode sets the "status_code" field.
+func (_u *CSPScanUpdateOne) SetStatusCode(v int) *CSPScanUpdateOne {
+	_u.mutation.ResetStatusCode()
+	_u.mutation.SetStatusCode(v)
+	return _u
+}
+
+// SetNillableStatusCode sets the "status_code" field if the given value is not nil.
+func (_u *CSPScanUpdateOne) SetNillableStatusCode(v *int) *CSPScanUpdateOne {
+	if v != nil {
+		_u.SetStatusCode(*v)
+	}
+	return _u
+}
+
+// AddStatusCode adds value to the "status_code" field.
+func (_u *CSPScanUpdateOne) AddStatusCode(v int) *CSPScanUpdateOne {
+	_u.mutation.AddStatusCode(v)
+	return _u
+}
+
+// ClearStatusCode clears the value of the "status_code" field.
+func (_u *CSPScanUpdateOne) ClearStatusCode() *CSPScanUpdateOne {
+	_u.mutation.ClearStatusCode()
+	return _u
+}
+
+// SetFinalURL sets the "final_url" field.
+func (_u *CSPScanUpdateOne) SetFinalURL(v string) *CSPScanUpdateOne {
+	_u.mutation.SetFinalURL(v)
+	return _u
+}
+
+// SetNillableFinalURL sets the "final_url" field if the given value is not nil.
+func (_u *CSPScanUpdateOne) SetNillableFinalURL(v *string) *CSPScanUpdateOne {
+	if v != nil {
+		_u.SetFinalURL(*v)
+	}
+	return _u
+}
+
+// ClearFinalURL clears the value of the "final_url" field.
+func (_u *CSPScanUpdateOne) ClearFinalURL() *CSPScanUpdateOne {
+	_u.mutation.ClearFinalURL()
+	return _u
+}
+
 // SetTargetID sets the "target" edge to the Target entity by ID.
 func (_u *CSPScanUpdateOne) SetTargetID(id int) *CSPScanUpdateOne {
 	_u.mutation.SetTargetID(id)
@@ -531,6 +640,21 @@ func (_u *CSPScanUpdateOne) sqlSave(ctx context.Context) (_node *CSPScan, err er
 	}
 	if _u.mutation.ProbeErrorCleared() {
 		_spec.ClearField(cspscan.FieldProbeError, field.TypeString)
+	}
+	if value, ok := _u.mutation.StatusCode(); ok {
+		_spec.SetField(cspscan.FieldStatusCode, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedStatusCode(); ok {
+		_spec.AddField(cspscan.FieldStatusCode, field.TypeInt, value)
+	}
+	if _u.mutation.StatusCodeCleared() {
+		_spec.ClearField(cspscan.FieldStatusCode, field.TypeInt)
+	}
+	if value, ok := _u.mutation.FinalURL(); ok {
+		_spec.SetField(cspscan.FieldFinalURL, field.TypeString, value)
+	}
+	if _u.mutation.FinalURLCleared() {
+		_spec.ClearField(cspscan.FieldFinalURL, field.TypeString)
 	}
 	if _u.mutation.TargetCleared() {
 		edge := &sqlgraph.EdgeSpec{

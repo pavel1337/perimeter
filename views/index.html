@@ -127,6 +127,8 @@
         {{$latestCSP := index .Edges.CspScans 0}}
         {{if $latestCSP.ProbeError}}
         <span class="text-muted" title="{{$latestCSP.ProbeError}}">no HTTP response</span>
+        {{else if cspNoApp $latestCSP}}
+        <span class="text-muted" title="{{$latestCSP.FinalURL}}">no app ({{$latestCSP.StatusCode}})</span>
         {{else if eq $latestCSP.CspHeader ""}}
         <span class="badge badge-red">no CSP header</span>
         {{else if $latestCSP.Findings}}

@@ -38,7 +38,7 @@ func TestResolveBackoff(t *testing.T) {
 func TestFetchCSPHeadersUsesGETAfterRedirect(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/login", http.StatusFound)
+		http.Redirect(w, r, "/login?state=r4nd0m#frag", http.StatusFound)
 	})
 	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodHead {
@@ -55,15 +55,19 @@ func TestFetchCSPHeadersUsesGETAfterRedirect(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	enforce, reportOnly, err := fetchCSPHeaders(*srv.Client(), u.Host)
+	p, err := fetchCSPHeaders(*srv.Client(), u.Host)
 	if err != nil {
 		t.Fatalf("fetchCSPHeaders: %v", err)
 	}
-	if enforce != "default-src 'self'" {
-		t.Fatalf("enforcing CSP = %q, want policy from GET /login", enforce)
+	if p.enforce != "default-src 'self'" {
+		t.Fatalf("enforcing CSP = %q, want policy from GET /login", p.enforce)
 	}
-	if reportOnly != "" {
-		t.Fatalf("report-only = %q, want empty", reportOnly)
+	if p.reportOnly != "" {
+		t.Fatalf("report-only = %q, want empty", p.reportOnly)
+	}
+	// The final URL is recorded without the query and fragment (#67).
+	if want := srv.URL + "/login"; p.finalURL != want || p.status != http.StatusOK {
+		t.Fatalf("final = %d %q, want 200 %q", p.status, p.finalURL, want)
 	}
 }
 
@@ -77,12 +81,12 @@ func TestFetchCSPHeadersReadsReportOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	enforce, reportOnly, err := fetchCSPHeaders(*srv.Client(), u.Host)
+	p, err := fetchCSPHeaders(*srv.Client(), u.Host)
 	if err != nil {
 		t.Fatalf("fetchCSPHeaders: %v", err)
 	}
-	if enforce != "" || reportOnly != "default-src 'none'" {
-		t.Fatalf("got enforce=%q reportOnly=%q", enforce, reportOnly)
+	if p.enforce != "" || p.reportOnly != "default-src 'none'" {
+		t.Fatalf("got enforce=%q reportOnly=%q", p.enforce, p.reportOnly)
 	}
 }
 

@@ -49,10 +49,17 @@ func sameSSL(scan *ent.SSLScan, res SSLResult) bool {
 // sameCSP reports whether a stored CSP scan carries the same result. The
 // order of findings and per-request nonces don't count: rows stored before
 // issue #65 have their findings in random order.
-func sameCSP(scan *ent.CSPScan, header string, findings []csp.Finding, probeErr string) bool {
-	return csp.MaskNonces(scan.CspHeader) == csp.MaskNonces(header) &&
-		sameFindings(scan.Findings, findings) &&
-		scan.ProbeError == probeErr
+func sameCSP(scan *ent.CSPScan, r CSPResponse, probeErr string) bool {
+	return csp.MaskNonces(scan.CspHeader) == csp.MaskNonces(r.Header) &&
+		sameFindings(scan.Findings, r.Findings) &&
+		scan.ProbeError == probeErr &&
+		scan.StatusCode == r.StatusCode &&
+		scan.FinalURL == r.FinalURL
+}
+
+// cspResponseOf is the CSPResponse a stored row was saved from.
+func cspResponseOf(sc *ent.CSPScan) CSPResponse {
+	return CSPResponse{Header: sc.CspHeader, Findings: sc.Findings, StatusCode: sc.StatusCode, FinalURL: sc.FinalURL}
 }
 
 // sameFindings reports whether a and b hold the same findings in any order.
@@ -281,7 +288,7 @@ func collapseCSPScans(ctx context.Context, client *ent.Client, targetID int, sta
 	var drop []int
 	for start := 0; start < len(scans); {
 		end := start + 1
-		for end < len(scans) && sameCSP(scans[start], scans[end].CspHeader, scans[end].Findings, scans[end].ProbeError) {
+		for end < len(scans) && sameCSP(scans[start], cspResponseOf(scans[end]), scans[end].ProbeError) {
 			end++
 		}
 

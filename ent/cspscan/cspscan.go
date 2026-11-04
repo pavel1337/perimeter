@@ -24,6 +24,10 @@ const (
 	FieldFindings = "findings"
 	// FieldProbeError holds the string denoting the probe_error field in the database.
 	FieldProbeError = "probe_error"
+	// FieldStatusCode holds the string denoting the status_code field in the database.
+	FieldStatusCode = "status_code"
+	// FieldFinalURL holds the string denoting the final_url field in the database.
+	FieldFinalURL = "final_url"
 	// EdgeTarget holds the string denoting the target edge name in mutations.
 	EdgeTarget = "target"
 	// Table holds the table name of the cspscan in the database.
@@ -46,6 +50,8 @@ var Columns = []string{
 	FieldCspHeader,
 	FieldFindings,
 	FieldProbeError,
+	FieldStatusCode,
+	FieldFinalURL,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "csp_scans"
@@ -105,6 +111,16 @@ func ByCspHeader(opts ...sql.OrderTermOption) OrderOption {
 // ByProbeError orders the results by the probe_error field.
 func ByProbeError(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProbeError, opts...).ToFunc()
+}
+
+// ByStatusCode orders the results by the status_code field.
+func ByStatusCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStatusCode, opts...).ToFunc()
+}
+
+// ByFinalURL orders the results by the final_url field.
+func ByFinalURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFinalURL, opts...).ToFunc()
 }
 
 // ByTargetField orders the results by target field.

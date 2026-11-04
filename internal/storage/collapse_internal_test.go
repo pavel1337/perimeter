@@ -126,16 +126,16 @@ func TestSameCSPIgnoresOrderAndNonces(t *testing.T) {
 	b := csp.Finding{Type: 2, Directive: "object-src", Description: "b", Severity: csp.SeverityMedium}
 	stored := &ent.CSPScan{CspHeader: "script-src 'nonce-111'", Findings: []csp.Finding{b, a}}
 
-	if !sameCSP(stored, "script-src 'nonce-222'", []csp.Finding{a, b}, "") {
+	if !sameCSP(stored, CSPResponse{Header: "script-src 'nonce-222'", Findings: []csp.Finding{a, b}}, "") {
 		t.Error("same findings in another order with a new nonce: want same")
 	}
-	if sameCSP(stored, "script-src 'nonce-222'", []csp.Finding{a}, "") {
+	if sameCSP(stored, CSPResponse{Header: "script-src 'nonce-222'", Findings: []csp.Finding{a}}, "") {
 		t.Error("one finding fewer: want different")
 	}
-	if sameCSP(stored, "script-src 'self'", []csp.Finding{a, b}, "") {
+	if sameCSP(stored, CSPResponse{Header: "script-src 'self'", Findings: []csp.Finding{a, b}}, "") {
 		t.Error("another header: want different")
 	}
-	if sameCSP(stored, "script-src 'nonce-111'", []csp.Finding{a, a}, "") {
+	if sameCSP(stored, CSPResponse{Header: "script-src 'nonce-111'", Findings: []csp.Finding{a, a}}, "") {
 		t.Error("a duplicated finding instead of b: want different")
 	}
 }
