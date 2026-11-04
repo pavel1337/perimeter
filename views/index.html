@@ -116,6 +116,7 @@
       <td><input type="checkbox" name="ids" value="{{.ID}}" form="bulk" class="bulk-row" aria-label="Select {{.Input}}"></td>
       <td>
         <a href="/targets/{{.ID}}"><strong>{{.Input}}</strong></a>
+        {{if hasThisHost .Edges.Ips}}<span class="badge badge-amber" title="this host: Perimeter runs on this address, so its scans never leave the machine and skip the provider's firewall. Results are not what the outside sees.">this host</span>{{end}}
         {{range .Edges.Tags}}<span class="badge" style="background: {{.Color}}20; color: {{.Color}}; margin-left: 4px;">{{.Name}}</span>{{end}}
       </td>
 

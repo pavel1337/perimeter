@@ -27,6 +27,7 @@ import (
 	"perimeter/ent/user"
 	"perimeter/internal/auth"
 	"perimeter/internal/importer"
+	"perimeter/internal/localaddr"
 	"perimeter/internal/notifier"
 	"perimeter/internal/service"
 	"perimeter/internal/storage"
@@ -162,6 +163,15 @@ func newViewEngine(viewsFS fs.FS) *html.Engine {
 	engine.AddFunc("certProblems", storage.CertProblems)
 	engine.AddFunc("join", strings.Join)
 	engine.AddFunc("dnsChangeSummary", service.DNSChangeSummary)
+	engine.AddFunc("isThisHost", localaddr.IsLocal)
+	engine.AddFunc("hasThisHost", func(ips []*ent.IP) bool {
+		for _, i := range ips {
+			if localaddr.IsLocal(i.Address) {
+				return true
+			}
+		}
+		return false
+	})
 	engine.AddFunc("eventLabel", notifierEventLabel)
 	engine.AddFunc("formValue", formValue)
 	engine.AddFunc("formChecked", formChecked)
