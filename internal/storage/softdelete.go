@@ -7,6 +7,7 @@ import (
 
 	"perimeter/ent"
 	"perimeter/ent/cspscan"
+	"perimeter/ent/dnschange"
 	"perimeter/ent/schema"
 	"perimeter/ent/sslscan"
 	"perimeter/ent/target"
@@ -86,6 +87,10 @@ func (s *EntStorage) PurgeTarget(ctx context.Context, id int) error {
 		return rollback(tx, err)
 	}
 	_, err = tx.CSPScan.Delete().Where(cspscan.HasTargetWith(target.ID(id))).Exec(ctx)
+	if err != nil {
+		return rollback(tx, err)
+	}
+	_, err = tx.DNSChange.Delete().Where(dnschange.HasTargetWith(target.ID(id))).Exec(ctx)
 	if err != nil {
 		return rollback(tx, err)
 	}

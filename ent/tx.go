@@ -18,6 +18,8 @@ type Tx struct {
 	AuditEvent *AuditEventClient
 	// CSPScan is the client for interacting with the CSPScan builders.
 	CSPScan *CSPScanClient
+	// DNSChange is the client for interacting with the DNSChange builders.
+	DNSChange *DNSChangeClient
 	// DataMigration is the client for interacting with the DataMigration builders.
 	DataMigration *DataMigrationClient
 	// IP is the client for interacting with the IP builders.
@@ -182,6 +184,7 @@ func (tx *Tx) init() {
 	tx.APIToken = NewAPITokenClient(tx.config)
 	tx.AuditEvent = NewAuditEventClient(tx.config)
 	tx.CSPScan = NewCSPScanClient(tx.config)
+	tx.DNSChange = NewDNSChangeClient(tx.config)
 	tx.DataMigration = NewDataMigrationClient(tx.config)
 	tx.IP = NewIPClient(tx.config)
 	tx.ImporterConfig = NewImporterConfigClient(tx.config)

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"perimeter/ent/cspscan"
+	"perimeter/ent/dnschange"
 	"perimeter/ent/ip"
 	"perimeter/ent/sslscan"
 	"perimeter/ent/tag"
@@ -342,6 +343,21 @@ func (_c *TargetCreate) AddCspScans(v ...*CSPScan) *TargetCreate {
 	return _c.AddCspScanIDs(ids...)
 }
 
+// AddDNSChangeIDs adds the "dns_changes" edge to the DNSChange entity by IDs.
+func (_c *TargetCreate) AddDNSChangeIDs(ids ...int) *TargetCreate {
+	_c.mutation.AddDNSChangeIDs(ids...)
+	return _c
+}
+
+// AddDNSChanges adds the "dns_changes" edges to the DNSChange entity.
+func (_c *TargetCreate) AddDNSChanges(v ...*DNSChange) *TargetCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddDNSChangeIDs(ids...)
+}
+
 // SetOwnerID sets the "owner" edge to the User entity by ID.
 func (_c *TargetCreate) SetOwnerID(id int) *TargetCreate {
 	_c.mutation.SetOwnerID(id)
@@ -645,6 +661,22 @@ func (_c *TargetCreate) createSpec() (*Target, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(cspscan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.DNSChangesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.DNSChangesTable,
+			Columns: []string{target.DNSChangesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(dnschange.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

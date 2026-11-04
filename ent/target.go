@@ -73,13 +73,15 @@ type TargetEdges struct {
 	SslScans []*SSLScan `json:"ssl_scans,omitempty"`
 	// CspScans holds the value of the csp_scans edge.
 	CspScans []*CSPScan `json:"csp_scans,omitempty"`
+	// DNSChanges holds the value of the dns_changes edge.
+	DNSChanges []*DNSChange `json:"dns_changes,omitempty"`
 	// Owner holds the value of the owner edge.
 	Owner *User `json:"owner,omitempty"`
 	// Tags holds the value of the tags edge.
 	Tags []*Tag `json:"tags,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [5]bool
+	loadedTypes [6]bool
 }
 
 // IpsOrErr returns the Ips value or an error if the edge
@@ -109,12 +111,21 @@ func (e TargetEdges) CspScansOrErr() ([]*CSPScan, error) {
 	return nil, &NotLoadedError{edge: "csp_scans"}
 }
 
+// DNSChangesOrErr returns the DNSChanges value or an error if the edge
+// was not loaded in eager-loading.
+func (e TargetEdges) DNSChangesOrErr() ([]*DNSChange, error) {
+	if e.loadedTypes[3] {
+		return e.DNSChanges, nil
+	}
+	return nil, &NotLoadedError{edge: "dns_changes"}
+}
+
 // OwnerOrErr returns the Owner value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
 func (e TargetEdges) OwnerOrErr() (*User, error) {
 	if e.Owner != nil {
 		return e.Owner, nil
-	} else if e.loadedTypes[3] {
+	} else if e.loadedTypes[4] {
 		return nil, &NotFoundError{label: user.Label}
 	}
 	return nil, &NotLoadedError{edge: "owner"}
@@ -123,7 +134,7 @@ func (e TargetEdges) OwnerOrErr() (*User, error) {
 // TagsOrErr returns the Tags value or an error if the edge
 // was not loaded in eager-loading.
 func (e TargetEdges) TagsOrErr() ([]*Tag, error) {
-	if e.loadedTypes[4] {
+	if e.loadedTypes[5] {
 		return e.Tags, nil
 	}
 	return nil, &NotLoadedError{edge: "tags"}
@@ -325,6 +336,11 @@ func (_m *Target) QuerySslScans() *SSLScanQuery {
 // QueryCspScans queries the "csp_scans" edge of the Target entity.
 func (_m *Target) QueryCspScans() *CSPScanQuery {
 	return NewTargetClient(_m.config).QueryCspScans(_m)
+}
+
+// QueryDNSChanges queries the "dns_changes" edge of the Target entity.
+func (_m *Target) QueryDNSChanges() *DNSChangeQuery {
+	return NewTargetClient(_m.config).QueryDNSChanges(_m)
 }
 
 // QueryOwner queries the "owner" edge of the Target entity.

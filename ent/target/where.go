@@ -1074,6 +1074,29 @@ func HasCspScansWith(preds ...predicate.CSPScan) predicate.Target {
 	})
 }
 
+// HasDNSChanges applies the HasEdge predicate on the "dns_changes" edge.
+func HasDNSChanges() predicate.Target {
+	return predicate.Target(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, DNSChangesTable, DNSChangesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasDNSChangesWith applies the HasEdge predicate on the "dns_changes" edge with a given conditions (other predicates).
+func HasDNSChangesWith(preds ...predicate.DNSChange) predicate.Target {
+	return predicate.Target(func(s *sql.Selector) {
+		step := newDNSChangesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasOwner applies the HasEdge predicate on the "owner" edge.
 func HasOwner() predicate.Target {
 	return predicate.Target(func(s *sql.Selector) {

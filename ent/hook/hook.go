@@ -44,6 +44,18 @@ func (f CSPScanFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CSPScanMutation", m)
 }
 
+// The DNSChangeFunc type is an adapter to allow the use of ordinary
+// function as DNSChange mutator.
+type DNSChangeFunc func(context.Context, *ent.DNSChangeMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DNSChangeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DNSChangeMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DNSChangeMutation", m)
+}
+
 // The DataMigrationFunc type is an adapter to allow the use of ordinary
 // function as DataMigration mutator.
 type DataMigrationFunc func(context.Context, *ent.DataMigrationMutation) (ent.Value, error)

@@ -13,6 +13,7 @@ import (
 
 	"perimeter/ent"
 	"perimeter/ent/cspscan"
+	"perimeter/ent/dnschange"
 	"perimeter/ent/ip"
 	"perimeter/ent/portscan"
 	"perimeter/ent/predicate"
@@ -57,6 +58,7 @@ type Storage interface {
 	GetTargetBasic(ctx context.Context, id int) (*ent.Target, error)
 	GetIPScansPage(ctx context.Context, ipID, limit, offset int) ([]*ent.PortScan, int, error)
 	GetSSLScansPage(ctx context.Context, targetID, limit, offset int) ([]*ent.SSLScan, int, error)
+	GetDNSChangesPage(ctx context.Context, targetID, limit, offset int) ([]*ent.DNSChange, int, error)
 	GetLatestSSL(ctx context.Context, input string) (result, failed *ent.SSLScan, err error)
 	GetCSPScansPage(ctx context.Context, targetID, limit, offset int) ([]*ent.CSPScan, int, error)
 	// DeleteTarget soft-deletes a live target: it disappears from every
@@ -389,6 +391,22 @@ func (s *EntStorage) GetCSPScansPage(ctx context.Context, targetID, limit, offse
 	return scans, total, nil
 }
 
+// GetDNSChangesPage returns a page of a target's DNS changes, newest first,
+// and how many there are (issue #74).
+func (s *EntStorage) GetDNSChangesPage(ctx context.Context, targetID, limit, offset int) ([]*ent.DNSChange, int, error) {
+	q := s.client.DNSChange.Query().Where(dnschange.HasTargetWith(target.IDEQ(targetID)))
+	total, err := q.Clone().Count(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	rows, err := q.Order(ent.Desc(dnschange.FieldChangedAt), ent.Desc(dnschange.FieldID)).
+		Limit(limit).Offset(offset).All(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	return rows, total, nil
+}
+
 func rollback(tx *ent.Tx, err error) error {
 	if rerr := tx.Rollback(); rerr != nil {
 		err = fmt.Errorf("%w: %v", err, rerr)
@@ -549,7 +567,7 @@ func (s *EntStorage) RecordResolveFailure(ctx context.Context, input string, f R
 	if err != nil {
 		return err
 	}
-	t, err := tx.Target.Query().Where(target.Input(input)).First(ctx)
+	t, err := tx.Target.Query().Where(target.Input(input)).WithIps().First(ctx)
 	if err != nil {
 		return rollback(tx, err)
 	}
@@ -568,6 +586,18 @@ func (s *EntStorage) RecordResolveFailure(ctx context.Context, input string, f R
 	}
 	if err := u.Exec(ctx); err != nil {
 		return rollback(tx, err)
+	}
+	// The name resolved and now doesn't: that's a DNS change (#74).
+	if f.NameGone && len(t.Edges.Ips) > 0 {
+		var removed []string
+		for _, i := range t.Edges.Ips {
+			removed = append(removed, i.Address)
+		}
+		slices.Sort(removed)
+		if err := tx.DNSChange.Create().SetTarget(t).SetChangedAt(now).
+			SetKind(dnschange.KindGone).SetRemoved(removed).Exec(ctx); err != nil {
+			return rollback(tx, err)
+		}
 	}
 	if err := refreshSummary(ctx, tx.Client(), target.ID(t.ID)); err != nil {
 		return rollback(tx, err)
@@ -617,9 +647,11 @@ func (s *EntStorage) SaveIPs(ctx context.Context, targetInput string, ipAddresse
 	}
 
 	var stale []int
+	var removedAddrs []string
 	for _, i := range t.Edges.Ips {
 		if !want[i.ID] {
 			stale = append(stale, i.ID)
+			removedAddrs = append(removedAddrs, i.Address)
 		}
 		delete(want, i.ID)
 	}
@@ -639,12 +671,47 @@ func (s *EntStorage) SaveIPs(ctx context.Context, targetInput string, ipAddresse
 		return err
 	}
 
+	if err := s.recordDNSChange(ctx, t, now, added, removedAddrs); err != nil {
+		log.Printf("Failed to record DNS change for %s: %v", t.Input, err)
+	}
+
 	// New IPs may already have port scans from other targets sharing them.
 	if err := refreshSummary(ctx, s.client, target.ID(t.ID)); err != nil {
 		log.Printf("Failed to update reachability for %s: %v", t.Input, err)
 	}
 
 	return nil
+}
+
+// recordDNSChange stores what a successful lookup changed (issue #74): the
+// IPs added and removed, or that a name which had stopped resolving
+// resolves again. A first lookup, or one that changed nothing, isn't a
+// change. t is the target as it was before the lookup.
+func (s *EntStorage) recordDNSChange(ctx context.Context, t *ent.Target, now time.Time, addedIDs []int, removed []string) error {
+	var added []string
+	if len(addedIDs) > 0 {
+		ips, err := s.client.IP.Query().Where(ip.IDIn(addedIDs...)).All(ctx)
+		if err != nil {
+			return err
+		}
+		for _, i := range ips {
+			added = append(added, i.Address)
+		}
+	}
+	slices.Sort(added)
+	slices.Sort(removed)
+
+	kind := dnschange.KindChanged
+	switch {
+	case len(t.Edges.Ips) == 0 && t.ResolvedAt != nil:
+		// It resolved once, stopped (gone), and now resolves again.
+		kind = dnschange.KindBack
+	case len(t.Edges.Ips) == 0, len(added) == 0 && len(removed) == 0:
+		return nil
+	}
+	return s.client.DNSChange.Create().SetTarget(t).SetChangedAt(now).
+		SetKind(kind).SetAdded(added).SetRemoved(removed).
+		SetKept(len(t.Edges.Ips) - len(removed)).Exec(ctx)
 }
 
 // SavePortScan records a port scan result. Identical consecutive results are

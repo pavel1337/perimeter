@@ -15,6 +15,9 @@ type AuditEvent func(*sql.Selector)
 // CSPScan is the predicate function for cspscan builders.
 type CSPScan func(*sql.Selector)
 
+// DNSChange is the predicate function for dnschange builders.
+type DNSChange func(*sql.Selector)
+
 // DataMigration is the predicate function for datamigration builders.
 type DataMigration func(*sql.Selector)
 

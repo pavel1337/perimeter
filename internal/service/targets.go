@@ -439,6 +439,15 @@ func (s *Service) TargetHistory(ctx context.Context, id, limit, offset int) (Pag
 		all = append(all, e)
 	}
 
+	dnsRows, n, err := s.st.GetDNSChangesPage(ctx, id, need, 0)
+	if err != nil {
+		return Page[HistoryEntry]{}, err
+	}
+	total += n
+	for _, dc := range dnsRows {
+		all = append(all, HistoryEntry{Kind: "dns", FirstSeen: dc.ChangedAt, LastChecked: dc.ChangedAt, Summary: DNSChangeSummary(dc)})
+	}
+
 	cspScans, n, err := s.st.GetCSPScansPage(ctx, id, need, 0)
 	if err != nil {
 		return Page[HistoryEntry]{}, err

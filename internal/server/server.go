@@ -151,6 +151,7 @@ func newViewEngine(viewsFS fs.FS) *html.Engine {
 	engine.AddFunc("hasPrefix", strings.HasPrefix)
 	engine.AddFunc("certProblems", storage.CertProblems)
 	engine.AddFunc("join", strings.Join)
+	engine.AddFunc("dnsChangeSummary", service.DNSChangeSummary)
 	engine.AddFunc("eventLabel", notifierEventLabel)
 	engine.AddFunc("formValue", formValue)
 	engine.AddFunc("formChecked", formChecked)
@@ -1010,6 +1011,10 @@ func (s *Server) handleTargetDetails(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	dnsChanges, _, err := s.storage.GetDNSChangesPage(c.Context(), target.ID, 10, 0)
+	if err != nil {
+		return err
+	}
 
 	return c.Render("views/target", s.templateData(c, fiber.Map{
 		"Title":           "Target Details",
@@ -1020,6 +1025,7 @@ func (s *Server) handleTargetDetails(c *fiber.Ctx) error {
 		"SSLScans":        sslScans,
 		"SSLPagination":   sslPagination,
 		"SSLFailed":       sslFailed,
+		"DNSChanges":      dnsChanges,
 		"CSPScans":        cspScans,
 		"CSPPagination":   cspPagination,
 	}), "views/layouts/main")

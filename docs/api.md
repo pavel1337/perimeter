@@ -312,7 +312,7 @@ curl -H "Authorization: Bearer prm_..." "https://perimeter.example.com/api/v1/ch
 - A reply never splits changes that share a time, so it can hold a few more than `limit`, or a few less.
 - A target's first results count as changes: its first SSL grade (from none), its first CSP result (from `not checked`), and the ports open on its IP's first answered scan.
 
-Change kinds: `target_added`, `target_deleted`, `ssl_grade_changed`, `cert_renewed`, `ports_opened`, `ports_closed`, `csp_changed`, `became_unreachable` and `became_reachable`. `from` and `to` are set when the change has a before and an after value, and `ip` when it concerns one address.
+Change kinds: `target_added`, `target_deleted`, `ssl_grade_changed`, `cert_renewed`, `ports_opened`, `ports_closed`, `csp_changed`, `became_unreachable`, `became_reachable` and `dns_changed`. `dns_changed` is a name that moved to new IPs (none of the old ones kept), no longer resolves, or resolves again; IP changes that keep some old IPs, as CDNs rotate them, are only in the target history. `from` and `to` are set when the change has a before and an after value, and `ip` when it concerns one address.
 
 ## Audit log
 

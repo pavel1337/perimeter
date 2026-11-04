@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"perimeter/ent/cspscan"
+	"perimeter/ent/dnschange"
 	"perimeter/ent/ip"
 	"perimeter/ent/predicate"
 	"perimeter/ent/sslscan"
@@ -425,6 +426,21 @@ func (_u *TargetUpdate) AddCspScans(v ...*CSPScan) *TargetUpdate {
 	return _u.AddCspScanIDs(ids...)
 }
 
+// AddDNSChangeIDs adds the "dns_changes" edge to the DNSChange entity by IDs.
+func (_u *TargetUpdate) AddDNSChangeIDs(ids ...int) *TargetUpdate {
+	_u.mutation.AddDNSChangeIDs(ids...)
+	return _u
+}
+
+// AddDNSChanges adds the "dns_changes" edges to the DNSChange entity.
+func (_u *TargetUpdate) AddDNSChanges(v ...*DNSChange) *TargetUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDNSChangeIDs(ids...)
+}
+
 // SetOwnerID sets the "owner" edge to the User entity by ID.
 func (_u *TargetUpdate) SetOwnerID(id int) *TargetUpdate {
 	_u.mutation.SetOwnerID(id)
@@ -525,6 +541,27 @@ func (_u *TargetUpdate) RemoveCspScans(v ...*CSPScan) *TargetUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveCspScanIDs(ids...)
+}
+
+// ClearDNSChanges clears all "dns_changes" edges to the DNSChange entity.
+func (_u *TargetUpdate) ClearDNSChanges() *TargetUpdate {
+	_u.mutation.ClearDNSChanges()
+	return _u
+}
+
+// RemoveDNSChangeIDs removes the "dns_changes" edge to DNSChange entities by IDs.
+func (_u *TargetUpdate) RemoveDNSChangeIDs(ids ...int) *TargetUpdate {
+	_u.mutation.RemoveDNSChangeIDs(ids...)
+	return _u
+}
+
+// RemoveDNSChanges removes "dns_changes" edges to DNSChange entities.
+func (_u *TargetUpdate) RemoveDNSChanges(v ...*DNSChange) *TargetUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDNSChangeIDs(ids...)
 }
 
 // ClearOwner clears the "owner" edge to the User entity.
@@ -844,6 +881,51 @@ func (_u *TargetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(cspscan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DNSChangesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.DNSChangesTable,
+			Columns: []string{target.DNSChangesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(dnschange.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDNSChangesIDs(); len(nodes) > 0 && !_u.mutation.DNSChangesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.DNSChangesTable,
+			Columns: []string{target.DNSChangesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(dnschange.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DNSChangesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.DNSChangesTable,
+			Columns: []string{target.DNSChangesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(dnschange.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -1337,6 +1419,21 @@ func (_u *TargetUpdateOne) AddCspScans(v ...*CSPScan) *TargetUpdateOne {
 	return _u.AddCspScanIDs(ids...)
 }
 
+// AddDNSChangeIDs adds the "dns_changes" edge to the DNSChange entity by IDs.
+func (_u *TargetUpdateOne) AddDNSChangeIDs(ids ...int) *TargetUpdateOne {
+	_u.mutation.AddDNSChangeIDs(ids...)
+	return _u
+}
+
+// AddDNSChanges adds the "dns_changes" edges to the DNSChange entity.
+func (_u *TargetUpdateOne) AddDNSChanges(v ...*DNSChange) *TargetUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDNSChangeIDs(ids...)
+}
+
 // SetOwnerID sets the "owner" edge to the User entity by ID.
 func (_u *TargetUpdateOne) SetOwnerID(id int) *TargetUpdateOne {
 	_u.mutation.SetOwnerID(id)
@@ -1437,6 +1534,27 @@ func (_u *TargetUpdateOne) RemoveCspScans(v ...*CSPScan) *TargetUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveCspScanIDs(ids...)
+}
+
+// ClearDNSChanges clears all "dns_changes" edges to the DNSChange entity.
+func (_u *TargetUpdateOne) ClearDNSChanges() *TargetUpdateOne {
+	_u.mutation.ClearDNSChanges()
+	return _u
+}
+
+// RemoveDNSChangeIDs removes the "dns_changes" edge to DNSChange entities by IDs.
+func (_u *TargetUpdateOne) RemoveDNSChangeIDs(ids ...int) *TargetUpdateOne {
+	_u.mutation.RemoveDNSChangeIDs(ids...)
+	return _u
+}
+
+// RemoveDNSChanges removes "dns_changes" edges to DNSChange entities.
+func (_u *TargetUpdateOne) RemoveDNSChanges(v ...*DNSChange) *TargetUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDNSChangeIDs(ids...)
 }
 
 // ClearOwner clears the "owner" edge to the User entity.
@@ -1786,6 +1904,51 @@ func (_u *TargetUpdateOne) sqlSave(ctx context.Context) (_node *Target, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(cspscan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DNSChangesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.DNSChangesTable,
+			Columns: []string{target.DNSChangesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(dnschange.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDNSChangesIDs(); len(nodes) > 0 && !_u.mutation.DNSChangesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.DNSChangesTable,
+			Columns: []string{target.DNSChangesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(dnschange.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DNSChangesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   target.DNSChangesTable,
+			Columns: []string{target.DNSChangesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(dnschange.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

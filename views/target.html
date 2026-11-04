@@ -39,6 +39,14 @@
 
 <h2>Resolved IPs &amp; Port Scans</h2>
 {{with .Target.ResolvedAt}}<p class="text-muted">Last resolved {{.Format "Jan 02, 2006 15:04"}}</p>{{end}}
+{{if .DNSChanges}}
+<details style="margin-bottom: 16px;">
+  <summary class="text-muted">DNS changes ({{len .DNSChanges}}{{if eq (len .DNSChanges) 10}}, newest{{end}})</summary>
+  <ul>
+    {{range .DNSChanges}}<li><span class="text-muted">{{.ChangedAt.Format "Jan 02, 2006 15:04"}}</span> {{dnsChangeSummary .}}</li>{{end}}
+  </ul>
+</details>
+{{end}}
 {{if .IPRows}}
 {{range .IPRows}}
 <h3 class="mono">{{.IP.Address}}</h3>

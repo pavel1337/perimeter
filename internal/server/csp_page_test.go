@@ -43,6 +43,10 @@ func TestTargetPageShowsCSPProbeDetails(t *testing.T) {
 		t.Errorf("dashboard lacks the redirect host (status %d)", dash.StatusCode)
 	}
 
+	if _, err := client.DNSChange.Create().SetTarget(tg).SetChangedAt(now).SetKind("changed").
+		SetAdded([]string{"198.51.100.20"}).SetRemoved([]string{"192.0.2.10"}).Save(ctx); err != nil {
+		t.Fatalf("create dns change: %v", err)
+	}
 	resp := send(t, srv, token, "GET", "/targets/"+strconv.Itoa(tg.ID), "", "")
 	if resp.StatusCode != 200 {
 		t.Fatalf("GET target page: status %d", resp.StatusCode)
@@ -53,6 +57,7 @@ func TestTargetPageShowsCSPProbeDetails(t *testing.T) {
 		"plain HTTP",
 		"certificate not trusted: name mismatch",
 		"200 https://csp.example/",
+		"DNS moved from 192.0.2.10 to 198.51.100.20",
 	} {
 		if !strings.Contains(resp.Body, want) {
 			t.Errorf("target page lacks %q", want)
