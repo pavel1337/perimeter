@@ -52,7 +52,9 @@ type TargetQuery struct {
 	ExpiringWithinDays int
 	// Expired keeps targets whose certificate has already expired.
 	Expired bool
-	Deleted bool
+	// CertTrust is "", "untrusted" (grade T or M) or "trusted".
+	CertTrust string
+	Deleted   bool
 	// Sort is one of storage.SortFields; empty sorts by input.
 	Sort string
 	Desc bool
@@ -63,12 +65,16 @@ type TargetQuery struct {
 
 // TargetSummary is a target as the lists show it.
 type TargetSummary struct {
-	ID           int        `json:"id"`
-	Input        string     `json:"input"`
-	IsIP         bool       `json:"is_ip"`
-	Reachability string     `json:"reachability"`
-	Tags         []string   `json:"tags"`
-	SSLGrade     string     `json:"ssl_grade,omitempty"`
+	ID           int      `json:"id"`
+	Input        string   `json:"input"`
+	IsIP         bool     `json:"is_ip"`
+	Reachability string   `json:"reachability"`
+	Tags         []string `json:"tags"`
+	SSLGrade     string   `json:"ssl_grade,omitempty"`
+	// CertProblems says why the certificate isn't trusted, e.g.
+	// ["self-signed"]: the reason behind a T or M grade (issue #73). A
+	// self-signed or name-mismatch certificate has no cert_expiry.
+	CertProblems []string   `json:"cert_problems,omitempty"`
 	CertExpiry   *time.Time `json:"cert_expiry,omitempty"`
 	CertDaysLeft *int       `json:"cert_days_left,omitempty"`
 	CSPFindings  *int       `json:"csp_findings,omitempty"`
@@ -106,8 +112,10 @@ type SSLDetail struct {
 	CertExpiry      *time.Time `json:"cert_expiry,omitempty"`
 	Protocols       []string   `json:"protocols,omitempty"`
 	Vulnerabilities []string   `json:"vulnerabilities,omitempty"`
-	FirstSeen       time.Time  `json:"first_seen"`
-	LastChecked     time.Time  `json:"last_checked"`
+	// CertProblems says why the certificate isn't trusted (#73).
+	CertProblems []string  `json:"cert_problems,omitempty"`
+	FirstSeen    time.Time `json:"first_seen"`
+	LastChecked  time.Time `json:"last_checked"`
 	// Set when the newest check failed.
 	LastCheckError    string     `json:"last_check_error,omitempty"`
 	LastCheckFailedAt *time.Time `json:"last_check_failed_at,omitempty"`
@@ -165,13 +173,14 @@ type Tag struct {
 // filter validates q and turns it into the storage filter.
 func (q TargetQuery) filter() (storage.TargetFilter, error) {
 	f := storage.TargetFilter{
-		Search:   q.Search,
-		Tag:      q.Tag,
-		CSP:      q.CSP,
-		SSLGrade: q.SSLGrade,
-		SSLBelow: q.SSLBelow,
-		Port:     q.Port,
-		Expired:  q.Expired,
+		Search:    q.Search,
+		Tag:       q.Tag,
+		CSP:       q.CSP,
+		SSLGrade:  q.SSLGrade,
+		SSLBelow:  q.SSLBelow,
+		Port:      q.Port,
+		Expired:   q.Expired,
+		CertTrust: q.CertTrust,
 	}
 	for _, name := range q.States {
 		st, ok := reachabilityByName[name]
@@ -339,6 +348,7 @@ func (s *Service) GetTarget(ctx context.Context, id int) (*TargetDetail, error) 
 			CertExpiry:      timePtr(sc.CertExpiry),
 			Protocols:       sc.Protocols,
 			Vulnerabilities: sc.Vulnerabilities,
+			CertProblems:    storage.CertProblems(sc.CertIssues),
 			FirstSeen:       sc.ScannedAt,
 			LastChecked:     sc.LastSeenAt,
 		}
@@ -516,6 +526,7 @@ func toSummary(t *ent.Target, now time.Time) TargetSummary {
 		Reachability: string(t.Reachability),
 		Tags:         tags,
 		SSLGrade:     t.LatestSslGrade,
+		CertProblems: storage.CertProblems(t.LatestCertIssues),
 		CertExpiry:   t.LatestCertExpiry,
 		CSPFindings:  t.LatestCspFindingCount,
 		OpenPorts:    t.OpenPortCount,

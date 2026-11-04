@@ -311,6 +311,27 @@ func (_u *TargetUpdate) ClearLatestCertExpiry() *TargetUpdate {
 	return _u
 }
 
+// SetLatestCertIssues sets the "latest_cert_issues" field.
+func (_u *TargetUpdate) SetLatestCertIssues(v int) *TargetUpdate {
+	_u.mutation.ResetLatestCertIssues()
+	_u.mutation.SetLatestCertIssues(v)
+	return _u
+}
+
+// SetNillableLatestCertIssues sets the "latest_cert_issues" field if the given value is not nil.
+func (_u *TargetUpdate) SetNillableLatestCertIssues(v *int) *TargetUpdate {
+	if v != nil {
+		_u.SetLatestCertIssues(*v)
+	}
+	return _u
+}
+
+// AddLatestCertIssues adds value to the "latest_cert_issues" field.
+func (_u *TargetUpdate) AddLatestCertIssues(v int) *TargetUpdate {
+	_u.mutation.AddLatestCertIssues(v)
+	return _u
+}
+
 // SetLatestCspFindingCount sets the "latest_csp_finding_count" field.
 func (_u *TargetUpdate) SetLatestCspFindingCount(v int) *TargetUpdate {
 	_u.mutation.ResetLatestCspFindingCount()
@@ -673,6 +694,12 @@ func (_u *TargetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.LatestCertExpiryCleared() {
 		_spec.ClearField(target.FieldLatestCertExpiry, field.TypeTime)
+	}
+	if value, ok := _u.mutation.LatestCertIssues(); ok {
+		_spec.SetField(target.FieldLatestCertIssues, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedLatestCertIssues(); ok {
+		_spec.AddField(target.FieldLatestCertIssues, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.LatestCspFindingCount(); ok {
 		_spec.SetField(target.FieldLatestCspFindingCount, field.TypeInt, value)
@@ -1196,6 +1223,27 @@ func (_u *TargetUpdateOne) ClearLatestCertExpiry() *TargetUpdateOne {
 	return _u
 }
 
+// SetLatestCertIssues sets the "latest_cert_issues" field.
+func (_u *TargetUpdateOne) SetLatestCertIssues(v int) *TargetUpdateOne {
+	_u.mutation.ResetLatestCertIssues()
+	_u.mutation.SetLatestCertIssues(v)
+	return _u
+}
+
+// SetNillableLatestCertIssues sets the "latest_cert_issues" field if the given value is not nil.
+func (_u *TargetUpdateOne) SetNillableLatestCertIssues(v *int) *TargetUpdateOne {
+	if v != nil {
+		_u.SetLatestCertIssues(*v)
+	}
+	return _u
+}
+
+// AddLatestCertIssues adds value to the "latest_cert_issues" field.
+func (_u *TargetUpdateOne) AddLatestCertIssues(v int) *TargetUpdateOne {
+	_u.mutation.AddLatestCertIssues(v)
+	return _u
+}
+
 // SetLatestCspFindingCount sets the "latest_csp_finding_count" field.
 func (_u *TargetUpdateOne) SetLatestCspFindingCount(v int) *TargetUpdateOne {
 	_u.mutation.ResetLatestCspFindingCount()
@@ -1588,6 +1636,12 @@ func (_u *TargetUpdateOne) sqlSave(ctx context.Context) (_node *Target, err erro
 	}
 	if _u.mutation.LatestCertExpiryCleared() {
 		_spec.ClearField(target.FieldLatestCertExpiry, field.TypeTime)
+	}
+	if value, ok := _u.mutation.LatestCertIssues(); ok {
+		_spec.SetField(target.FieldLatestCertIssues, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedLatestCertIssues(); ok {
+		_spec.AddField(target.FieldLatestCertIssues, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.LatestCspFindingCount(); ok {
 		_spec.SetField(target.FieldLatestCspFindingCount, field.TypeInt, value)

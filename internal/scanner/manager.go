@@ -624,6 +624,7 @@ func (m *Manager) processSSLScan(ctx context.Context, j Job, scanner *ssl.SSLLab
 		CertIssuer:      res.CertIssuer,
 		CertSubject:     res.CertSubject,
 		CertExpiry:      res.CertExpiry,
+		CertIssues:      res.CertIssues,
 		Protocols:       res.Protocols,
 		Vulnerabilities: res.Vulnerabilities,
 	}
@@ -649,8 +650,10 @@ func (m *Manager) processSSLScan(ctx context.Context, j Job, scanner *ssl.SSLLab
 		})
 	}
 
-	// Check for expiring cert (<30 days)
-	if !res.CertExpiry.IsZero() && time.Until(res.CertExpiry) < 30*24*time.Hour {
+	// Check for expiring cert (<30 days). A self-signed default certificate or
+	// someone else's (a CNAME to a third party) is nothing to renew (#73).
+	if !res.CertExpiry.IsZero() && !storage.CertNotOurs(res.CertIssues) &&
+		time.Until(res.CertExpiry) < 30*24*time.Hour {
 		m.dispatcher.Dispatch(ctx, notifier.Event{
 			Type:      notifier.EventCertExpiring,
 			Target:    j.Input,

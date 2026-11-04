@@ -32,6 +32,8 @@ const (
 	FieldProtocols = "protocols"
 	// FieldVulnerabilities holds the string denoting the vulnerabilities field in the database.
 	FieldVulnerabilities = "vulnerabilities"
+	// FieldCertIssues holds the string denoting the cert_issues field in the database.
+	FieldCertIssues = "cert_issues"
 	// EdgeTarget holds the string denoting the target edge name in mutations.
 	EdgeTarget = "target"
 	// Table holds the table name of the sslscan in the database.
@@ -58,6 +60,7 @@ var Columns = []string{
 	FieldCertExpiry,
 	FieldProtocols,
 	FieldVulnerabilities,
+	FieldCertIssues,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "ssl_scans"
@@ -132,6 +135,11 @@ func ByCertSubject(opts ...sql.OrderTermOption) OrderOption {
 // ByCertExpiry orders the results by the cert_expiry field.
 func ByCertExpiry(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCertExpiry, opts...).ToFunc()
+}
+
+// ByCertIssues orders the results by the cert_issues field.
+func ByCertIssues(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCertIssues, opts...).ToFunc()
 }
 
 // ByTargetField orders the results by target field.

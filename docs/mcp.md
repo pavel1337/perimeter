@@ -23,7 +23,7 @@ The token scope and your role decide which tools are listed. The server builds i
 | `list_targets` | Targets, one line each. Filters: `query`, `tag`, `state`, `ssl_below`, `port`, `csp`, `expiring_within_days`, `deleted`. Sort with `sort` and `desc`. |
 | `get_target` | One target: its IP addresses and open ports, the newest SSL scan and the newest CSP evaluation. |
 | `target_history` | Scan history of one target, newest first. |
-| `find_issues` | Targets that need attention, grouped by category with a reason for each. Categories: `weak_ssl`, `expiring_certs`, `expired_certs`, `csp_issues`, `unreachable`, `unresolved`, `open_port` (needs `port`). |
+| `find_issues` | Targets that need attention, grouped by category with a reason for each. Categories: `weak_ssl` (configuration grades worse than B), `untrusted_certs` (T or M grades, with the reason such as self-signed or name mismatch), `expiring_certs` (self-signed and name-mismatch certificates left out), `expired_certs`, `csp_issues`, `unreachable`, `unresolved`, `open_port` (needs `port`). |
 | `changes_since` | Changes after a time, oldest first. `since` is an RFC 3339 time, a duration such as `24h`, or whole days such as `7d`. |
 | `list_tags` | Every tag, with the number of live targets carrying it. |
 

@@ -179,6 +179,7 @@
         <a href="https://www.ssllabs.com/ssltest/analyze.html?d={{.Input}}" target="_blank" rel="noopener noreferrer" title="View the SSL Labs report">
           <span class="badge badge-blue">{{$latestSSL.Grade}}</span>
         </a>
+        {{with certProblems $latestSSL.CertIssues}}<small class="text-muted">{{join . ", "}}</small>{{end}}
         {{else}}
         {{/* No grade means SSL Labs could not finish the assessment. That is not
              a finding about the certificate, so don't render it like one. */}}

@@ -39,6 +39,8 @@ type SSLScan struct {
 	Protocols []string `json:"protocols,omitempty"`
 	// Vulnerabilities holds the value of the "vulnerabilities" field.
 	Vulnerabilities []string `json:"vulnerabilities,omitempty"`
+	// CertIssues holds the value of the "cert_issues" field.
+	CertIssues int `json:"cert_issues,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the SSLScanQuery when eager-loading is set.
 	Edges            SSLScanEdges `json:"edges"`
@@ -73,7 +75,7 @@ func (*SSLScan) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case sslscan.FieldProtocols, sslscan.FieldVulnerabilities:
 			values[i] = new([]byte)
-		case sslscan.FieldID, sslscan.FieldCheckCount:
+		case sslscan.FieldID, sslscan.FieldCheckCount, sslscan.FieldCertIssues:
 			values[i] = new(sql.NullInt64)
 		case sslscan.FieldGrade, sslscan.FieldStatus, sslscan.FieldCertIssuer, sslscan.FieldCertSubject:
 			values[i] = new(sql.NullString)
@@ -166,6 +168,12 @@ func (_m *SSLScan) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field vulnerabilities: %w", err)
 				}
 			}
+		case sslscan.FieldCertIssues:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field cert_issues", values[i])
+			} else if value.Valid {
+				_m.CertIssues = int(value.Int64)
+			}
 		case sslscan.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for edge-field target_ssl_scans", value)
@@ -243,6 +251,9 @@ func (_m *SSLScan) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("vulnerabilities=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Vulnerabilities))
+	builder.WriteString(", ")
+	builder.WriteString("cert_issues=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CertIssues))
 	builder.WriteByte(')')
 	return builder.String()
 }

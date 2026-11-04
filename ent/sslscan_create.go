@@ -121,6 +121,20 @@ func (_c *SSLScanCreate) SetVulnerabilities(v []string) *SSLScanCreate {
 	return _c
 }
 
+// SetCertIssues sets the "cert_issues" field.
+func (_c *SSLScanCreate) SetCertIssues(v int) *SSLScanCreate {
+	_c.mutation.SetCertIssues(v)
+	return _c
+}
+
+// SetNillableCertIssues sets the "cert_issues" field if the given value is not nil.
+func (_c *SSLScanCreate) SetNillableCertIssues(v *int) *SSLScanCreate {
+	if v != nil {
+		_c.SetCertIssues(*v)
+	}
+	return _c
+}
+
 // SetTargetID sets the "target" edge to the Target entity by ID.
 func (_c *SSLScanCreate) SetTargetID(id int) *SSLScanCreate {
 	_c.mutation.SetTargetID(id)
@@ -255,6 +269,10 @@ func (_c *SSLScanCreate) createSpec() (*SSLScan, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Vulnerabilities(); ok {
 		_spec.SetField(sslscan.FieldVulnerabilities, field.TypeJSON, value)
 		_node.Vulnerabilities = value
+	}
+	if value, ok := _c.mutation.CertIssues(); ok {
+		_spec.SetField(sslscan.FieldCertIssues, field.TypeInt, value)
+		_node.CertIssues = value
 	}
 	if nodes := _c.mutation.TargetIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

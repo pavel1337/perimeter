@@ -51,6 +51,10 @@ type TargetFilter struct {
 	ExpiringWithin time.Duration
 	// Expired keeps targets whose certificate has already expired.
 	Expired bool
+	// CertTrust is "", "untrusted" (newest grade T or M: the certificate
+	// itself isn't trusted) or "trusted" (any other grade), so weak grades
+	// can be listed apart from untrusted certificates (issue #73).
+	CertTrust string
 }
 
 // Sort fields accepted by TargetSort.Field.
@@ -90,6 +94,10 @@ type TargetStats struct {
 	// CSPIssues counts targets with latest_csp_finding_count > 0.
 	CSPIssues int
 }
+
+// untrustedGrades are the grades SSL Labs gives for the certificate rather
+// than the configuration: T (not trusted) and M (name mismatch).
+var untrustedGrades = []string{"T", "M"}
 
 // ErrInvalidGrade is returned for an SSLBelow grade not in gradeRanks.
 var ErrInvalidGrade = errors.New("invalid SSL grade")
@@ -153,6 +161,15 @@ func targetPredicates(f TargetFilter) ([]predicate.Target, error) {
 			target.LatestCertExpiryNotNil(),
 			target.LatestCertExpiryLT(time.Now().Add(f.ExpiringWithin+24*time.Hour)),
 		)
+	}
+	switch f.CertTrust {
+	case "":
+	case "untrusted":
+		ps = append(ps, target.LatestSslGradeIn(untrustedGrades...))
+	case "trusted":
+		ps = append(ps, target.LatestSslGradeNotIn(untrustedGrades...))
+	default:
+		return nil, fmt.Errorf("%w: cert trust %q", ErrInvalidGrade, f.CertTrust)
 	}
 	if f.Expired {
 		ps = append(ps,

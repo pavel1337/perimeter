@@ -255,6 +255,20 @@ func (_c *TargetCreate) SetNillableLatestCertExpiry(v *time.Time) *TargetCreate 
 	return _c
 }
 
+// SetLatestCertIssues sets the "latest_cert_issues" field.
+func (_c *TargetCreate) SetLatestCertIssues(v int) *TargetCreate {
+	_c.mutation.SetLatestCertIssues(v)
+	return _c
+}
+
+// SetNillableLatestCertIssues sets the "latest_cert_issues" field if the given value is not nil.
+func (_c *TargetCreate) SetNillableLatestCertIssues(v *int) *TargetCreate {
+	if v != nil {
+		_c.SetLatestCertIssues(*v)
+	}
+	return _c
+}
+
 // SetLatestCspFindingCount sets the "latest_csp_finding_count" field.
 func (_c *TargetCreate) SetLatestCspFindingCount(v int) *TargetCreate {
 	_c.mutation.SetLatestCspFindingCount(v)
@@ -429,6 +443,10 @@ func (_c *TargetCreate) defaults() {
 		v := target.DefaultLatestSslGradeRank
 		_c.mutation.SetLatestSslGradeRank(v)
 	}
+	if _, ok := _c.mutation.LatestCertIssues(); !ok {
+		v := target.DefaultLatestCertIssues
+		_c.mutation.SetLatestCertIssues(v)
+	}
 	if _, ok := _c.mutation.OpenPortCount(); !ok {
 		v := target.DefaultOpenPortCount
 		_c.mutation.SetOpenPortCount(v)
@@ -473,6 +491,9 @@ func (_c *TargetCreate) check() error {
 	}
 	if _, ok := _c.mutation.LatestSslGradeRank(); !ok {
 		return &ValidationError{Name: "latest_ssl_grade_rank", err: errors.New(`ent: missing required field "Target.latest_ssl_grade_rank"`)}
+	}
+	if _, ok := _c.mutation.LatestCertIssues(); !ok {
+		return &ValidationError{Name: "latest_cert_issues", err: errors.New(`ent: missing required field "Target.latest_cert_issues"`)}
 	}
 	if _, ok := _c.mutation.OpenPortCount(); !ok {
 		return &ValidationError{Name: "open_port_count", err: errors.New(`ent: missing required field "Target.open_port_count"`)}
@@ -570,6 +591,10 @@ func (_c *TargetCreate) createSpec() (*Target, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.LatestCertExpiry(); ok {
 		_spec.SetField(target.FieldLatestCertExpiry, field.TypeTime, value)
 		_node.LatestCertExpiry = &value
+	}
+	if value, ok := _c.mutation.LatestCertIssues(); ok {
+		_spec.SetField(target.FieldLatestCertIssues, field.TypeInt, value)
+		_node.LatestCertIssues = value
 	}
 	if value, ok := _c.mutation.LatestCspFindingCount(); ok {
 		_spec.SetField(target.FieldLatestCspFindingCount, field.TypeInt, value)

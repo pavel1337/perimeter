@@ -42,6 +42,7 @@ func sameSSL(scan *ent.SSLScan, res SSLResult) bool {
 		scan.CertIssuer == res.CertIssuer &&
 		scan.CertSubject == res.CertSubject &&
 		scan.CertExpiry.Equal(res.CertExpiry) &&
+		scan.CertIssues == res.CertIssues &&
 		slices.Equal(scan.Protocols, res.Protocols) &&
 		slices.Equal(scan.Vulnerabilities, res.Vulnerabilities)
 }

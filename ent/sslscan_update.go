@@ -209,6 +209,33 @@ func (_u *SSLScanUpdate) ClearVulnerabilities() *SSLScanUpdate {
 	return _u
 }
 
+// SetCertIssues sets the "cert_issues" field.
+func (_u *SSLScanUpdate) SetCertIssues(v int) *SSLScanUpdate {
+	_u.mutation.ResetCertIssues()
+	_u.mutation.SetCertIssues(v)
+	return _u
+}
+
+// SetNillableCertIssues sets the "cert_issues" field if the given value is not nil.
+func (_u *SSLScanUpdate) SetNillableCertIssues(v *int) *SSLScanUpdate {
+	if v != nil {
+		_u.SetCertIssues(*v)
+	}
+	return _u
+}
+
+// AddCertIssues adds value to the "cert_issues" field.
+func (_u *SSLScanUpdate) AddCertIssues(v int) *SSLScanUpdate {
+	_u.mutation.AddCertIssues(v)
+	return _u
+}
+
+// ClearCertIssues clears the value of the "cert_issues" field.
+func (_u *SSLScanUpdate) ClearCertIssues() *SSLScanUpdate {
+	_u.mutation.ClearCertIssues()
+	return _u
+}
+
 // SetTargetID sets the "target" edge to the Target entity by ID.
 func (_u *SSLScanUpdate) SetTargetID(id int) *SSLScanUpdate {
 	_u.mutation.SetTargetID(id)
@@ -338,6 +365,15 @@ func (_u *SSLScanUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.VulnerabilitiesCleared() {
 		_spec.ClearField(sslscan.FieldVulnerabilities, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.CertIssues(); ok {
+		_spec.SetField(sslscan.FieldCertIssues, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCertIssues(); ok {
+		_spec.AddField(sslscan.FieldCertIssues, field.TypeInt, value)
+	}
+	if _u.mutation.CertIssuesCleared() {
+		_spec.ClearField(sslscan.FieldCertIssues, field.TypeInt)
 	}
 	if _u.mutation.TargetCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -567,6 +603,33 @@ func (_u *SSLScanUpdateOne) ClearVulnerabilities() *SSLScanUpdateOne {
 	return _u
 }
 
+// SetCertIssues sets the "cert_issues" field.
+func (_u *SSLScanUpdateOne) SetCertIssues(v int) *SSLScanUpdateOne {
+	_u.mutation.ResetCertIssues()
+	_u.mutation.SetCertIssues(v)
+	return _u
+}
+
+// SetNillableCertIssues sets the "cert_issues" field if the given value is not nil.
+func (_u *SSLScanUpdateOne) SetNillableCertIssues(v *int) *SSLScanUpdateOne {
+	if v != nil {
+		_u.SetCertIssues(*v)
+	}
+	return _u
+}
+
+// AddCertIssues adds value to the "cert_issues" field.
+func (_u *SSLScanUpdateOne) AddCertIssues(v int) *SSLScanUpdateOne {
+	_u.mutation.AddCertIssues(v)
+	return _u
+}
+
+// ClearCertIssues clears the value of the "cert_issues" field.
+func (_u *SSLScanUpdateOne) ClearCertIssues() *SSLScanUpdateOne {
+	_u.mutation.ClearCertIssues()
+	return _u
+}
+
 // SetTargetID sets the "target" edge to the Target entity by ID.
 func (_u *SSLScanUpdateOne) SetTargetID(id int) *SSLScanUpdateOne {
 	_u.mutation.SetTargetID(id)
@@ -726,6 +789,15 @@ func (_u *SSLScanUpdateOne) sqlSave(ctx context.Context) (_node *SSLScan, err er
 	}
 	if _u.mutation.VulnerabilitiesCleared() {
 		_spec.ClearField(sslscan.FieldVulnerabilities, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.CertIssues(); ok {
+		_spec.SetField(sslscan.FieldCertIssues, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCertIssues(); ok {
+		_spec.AddField(sslscan.FieldCertIssues, field.TypeInt, value)
+	}
+	if _u.mutation.CertIssuesCleared() {
+		_spec.ClearField(sslscan.FieldCertIssues, field.TypeInt)
 	}
 	if _u.mutation.TargetCleared() {
 		edge := &sqlgraph.EdgeSpec{

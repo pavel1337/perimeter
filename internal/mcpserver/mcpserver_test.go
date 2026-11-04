@@ -478,7 +478,7 @@ func TestReadToolsAgainstSeededData(t *testing.T) {
 		for _, g := range out.Groups {
 			cats = append(cats, g.Category)
 		}
-		want := []string{"weak_ssl", "expiring_certs", "expired_certs", "csp_issues", "unreachable", "unresolved"}
+		want := []string{"weak_ssl", "untrusted_certs", "expiring_certs", "expired_certs", "csp_issues", "unreachable", "unresolved"}
 		if !slices.Equal(cats, want) {
 			t.Errorf("categories = %v, want %v", cats, want)
 		}

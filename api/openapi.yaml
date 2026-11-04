@@ -750,6 +750,11 @@ components:
             type: string
         ssl_grade:
           $ref: "#/components/schemas/SSLGrade"
+        cert_problems:
+          type: array
+          description: Why the certificate is not trusted, e.g. self-signed or name mismatch; the reason behind a T or M grade. Self-signed and name-mismatch certificates have no cert_expiry.
+          items:
+            type: string
         cert_expiry:
           type: string
           format: date-time
@@ -823,6 +828,11 @@ components:
             type: string
         vulnerabilities:
           type: array
+          items:
+            type: string
+        cert_problems:
+          type: array
+          description: Why the certificate is not trusted (self-signed, name mismatch, untrusted chain, expired, ...).
           items:
             type: string
         first_seen:
