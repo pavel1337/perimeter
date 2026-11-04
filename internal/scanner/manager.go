@@ -55,6 +55,8 @@ type Manager struct {
 	lookupIP func(ctx context.Context, network, host string) ([]net.IP, error)
 	// checkTLS is the SSL pre-check; servesTLS outside tests.
 	checkTLS func(ctx context.Context, host string) error
+	// sslScanner is shared by every worker; nil without SSL_EMAIL.
+	sslScanner *ssl.SSLLabsScanner
 }
 
 func NewManager(s *storage.EntStorage, cfg ScannerConfig, dispatcher *notifier.Dispatcher) *Manager {
@@ -78,7 +80,13 @@ func NewManager(s *storage.EntStorage, cfg ScannerConfig, dispatcher *notifier.D
 		q = NewInMemoryQueue(1000)
 	}
 
+	var sslScanner *ssl.SSLLabsScanner
+	if cfg.SSLEmail != "" {
+		sslScanner = ssl.NewSSLLabsScanner(cfg.SSLEmail)
+	}
+
 	return &Manager{
+		sslScanner: sslScanner,
 		storage:    s,
 		config:     cfg,
 		queue:      q,
@@ -220,10 +228,9 @@ func (m *Manager) runWorker(ctx context.Context, id int) {
 	// is enough (issue #29).
 	portScanner := ports.NewSimpleScanner(int(portTimeout.Milliseconds()), 50, 2, 1, 1000)
 
-	var sslScanner *ssl.SSLLabsScanner
-	if m.config.SSLEmail != "" {
-		sslScanner = ssl.NewSSLLabsScanner(m.config.SSLEmail)
-	}
+	// One SSL Labs client for all workers, so its assessment limit and
+	// cool-off cover the whole process (issue #62).
+	sslScanner := m.sslScanner
 
 	cspEvaluator := csp.NewEvaluator()
 	clientHttp := http.Client{Timeout: 5 * time.Second}
