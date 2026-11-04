@@ -62,6 +62,8 @@ const (
 	EdgeSslScans = "ssl_scans"
 	// EdgeCspScans holds the string denoting the csp_scans edge name in mutations.
 	EdgeCspScans = "csp_scans"
+	// EdgeDNSChanges holds the string denoting the dns_changes edge name in mutations.
+	EdgeDNSChanges = "dns_changes"
 	// EdgeOwner holds the string denoting the owner edge name in mutations.
 	EdgeOwner = "owner"
 	// EdgeTags holds the string denoting the tags edge name in mutations.
@@ -87,6 +89,13 @@ const (
 	CspScansInverseTable = "csp_scans"
 	// CspScansColumn is the table column denoting the csp_scans relation/edge.
 	CspScansColumn = "target_csp_scans"
+	// DNSChangesTable is the table that holds the dns_changes relation/edge.
+	DNSChangesTable = "dns_changes"
+	// DNSChangesInverseTable is the table name for the DNSChange entity.
+	// It exists in this package in order to avoid circular dependency with the "dnschange" package.
+	DNSChangesInverseTable = "dns_changes"
+	// DNSChangesColumn is the table column denoting the dns_changes relation/edge.
+	DNSChangesColumn = "target_dns_changes"
 	// OwnerTable is the table that holds the owner relation/edge.
 	OwnerTable = "targets"
 	// OwnerInverseTable is the table name for the User entity.
@@ -365,6 +374,20 @@ func ByCspScans(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByDNSChangesCount orders the results by dns_changes count.
+func ByDNSChangesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newDNSChangesStep(), opts...)
+	}
+}
+
+// ByDNSChanges orders the results by dns_changes terms.
+func ByDNSChanges(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newDNSChangesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByOwnerField orders the results by owner field.
 func ByOwnerField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -404,6 +427,13 @@ func newCspScansStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(CspScansInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, CspScansTable, CspScansColumn),
+	)
+}
+func newDNSChangesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(DNSChangesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, DNSChangesTable, DNSChangesColumn),
 	)
 }
 func newOwnerStep() *sqlgraph.Step {

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"perimeter/ent/cspscan"
+	"perimeter/ent/dnschange"
 	"perimeter/ent/ip"
 	"perimeter/ent/predicate"
 	"perimeter/ent/sslscan"
@@ -24,16 +25,17 @@ import (
 // TargetQuery is the builder for querying Target entities.
 type TargetQuery struct {
 	config
-	ctx          *QueryContext
-	order        []target.OrderOption
-	inters       []Interceptor
-	predicates   []predicate.Target
-	withIps      *IPQuery
-	withSslScans *SSLScanQuery
-	withCspScans *CSPScanQuery
-	withOwner    *UserQuery
-	withTags     *TagQuery
-	withFKs      bool
+	ctx            *QueryContext
+	order          []target.OrderOption
+	inters         []Interceptor
+	predicates     []predicate.Target
+	withIps        *IPQuery
+	withSslScans   *SSLScanQuery
+	withCspScans   *CSPScanQuery
+	withDNSChanges *DNSChangeQuery
+	withOwner      *UserQuery
+	withTags       *TagQuery
+	withFKs        bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -129,6 +131,28 @@ func (_q *TargetQuery) QueryCspScans() *CSPScanQuery {
 			sqlgraph.From(target.Table, target.FieldID, selector),
 			sqlgraph.To(cspscan.Table, cspscan.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, target.CspScansTable, target.CspScansColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryDNSChanges chains the current query on the "dns_changes" edge.
+func (_q *TargetQuery) QueryDNSChanges() *DNSChangeQuery {
+	query := (&DNSChangeClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(target.Table, target.FieldID, selector),
+			sqlgraph.To(dnschange.Table, dnschange.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, target.DNSChangesTable, target.DNSChangesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -367,16 +391,17 @@ func (_q *TargetQuery) Clone() *TargetQuery {
 		return nil
 	}
 	return &TargetQuery{
-		config:       _q.config,
-		ctx:          _q.ctx.Clone(),
-		order:        append([]target.OrderOption{}, _q.order...),
-		inters:       append([]Interceptor{}, _q.inters...),
-		predicates:   append([]predicate.Target{}, _q.predicates...),
-		withIps:      _q.withIps.Clone(),
-		withSslScans: _q.withSslScans.Clone(),
-		withCspScans: _q.withCspScans.Clone(),
-		withOwner:    _q.withOwner.Clone(),
-		withTags:     _q.withTags.Clone(),
+		config:         _q.config,
+		ctx:            _q.ctx.Clone(),
+		order:          append([]target.OrderOption{}, _q.order...),
+		inters:         append([]Interceptor{}, _q.inters...),
+		predicates:     append([]predicate.Target{}, _q.predicates...),
+		withIps:        _q.withIps.Clone(),
+		withSslScans:   _q.withSslScans.Clone(),
+		withCspScans:   _q.withCspScans.Clone(),
+		withDNSChanges: _q.withDNSChanges.Clone(),
+		withOwner:      _q.withOwner.Clone(),
+		withTags:       _q.withTags.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -413,6 +438,17 @@ func (_q *TargetQuery) WithCspScans(opts ...func(*CSPScanQuery)) *TargetQuery {
 		opt(query)
 	}
 	_q.withCspScans = query
+	return _q
+}
+
+// WithDNSChanges tells the query-builder to eager-load the nodes that are connected to
+// the "dns_changes" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TargetQuery) WithDNSChanges(opts ...func(*DNSChangeQuery)) *TargetQuery {
+	query := (&DNSChangeClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withDNSChanges = query
 	return _q
 }
 
@@ -517,10 +553,11 @@ func (_q *TargetQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Targe
 		nodes       = []*Target{}
 		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
-		loadedTypes = [5]bool{
+		loadedTypes = [6]bool{
 			_q.withIps != nil,
 			_q.withSslScans != nil,
 			_q.withCspScans != nil,
+			_q.withDNSChanges != nil,
 			_q.withOwner != nil,
 			_q.withTags != nil,
 		}
@@ -567,6 +604,13 @@ func (_q *TargetQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Targe
 		if err := _q.loadCspScans(ctx, query, nodes,
 			func(n *Target) { n.Edges.CspScans = []*CSPScan{} },
 			func(n *Target, e *CSPScan) { n.Edges.CspScans = append(n.Edges.CspScans, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withDNSChanges; query != nil {
+		if err := _q.loadDNSChanges(ctx, query, nodes,
+			func(n *Target) { n.Edges.DNSChanges = []*DNSChange{} },
+			func(n *Target, e *DNSChange) { n.Edges.DNSChanges = append(n.Edges.DNSChanges, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -704,6 +748,37 @@ func (_q *TargetQuery) loadCspScans(ctx context.Context, query *CSPScanQuery, no
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "target_csp_scans" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TargetQuery) loadDNSChanges(ctx context.Context, query *DNSChangeQuery, nodes []*Target, init func(*Target), assign func(*Target, *DNSChange)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Target)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.DNSChange(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(target.DNSChangesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.target_dns_changes
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "target_dns_changes" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "target_dns_changes" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

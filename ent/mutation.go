@@ -10,6 +10,7 @@ import (
 	"perimeter/ent/auditevent"
 	"perimeter/ent/cspscan"
 	"perimeter/ent/datamigration"
+	"perimeter/ent/dnschange"
 	"perimeter/ent/importerconfig"
 	"perimeter/ent/invite"
 	"perimeter/ent/ip"
@@ -45,6 +46,7 @@ const (
 	TypeAPIToken       = "APIToken"
 	TypeAuditEvent     = "AuditEvent"
 	TypeCSPScan        = "CSPScan"
+	TypeDNSChange      = "DNSChange"
 	TypeDataMigration  = "DataMigration"
 	TypeIP             = "IP"
 	TypeImporterConfig = "ImporterConfig"
@@ -2848,6 +2850,726 @@ func (m *CSPScanMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown CSPScan edge %s", name)
+}
+
+// DNSChangeMutation represents an operation that mutates the DNSChange nodes in the graph.
+type DNSChangeMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	changed_at    *time.Time
+	kind          *dnschange.Kind
+	added         *[]string
+	appendadded   []string
+	removed       *[]string
+	appendremoved []string
+	kept          *int
+	addkept       *int
+	clearedFields map[string]struct{}
+	target        *int
+	clearedtarget bool
+	done          bool
+	oldValue      func(context.Context) (*DNSChange, error)
+	predicates    []predicate.DNSChange
+}
+
+var _ ent.Mutation = (*DNSChangeMutation)(nil)
+
+// dnschangeOption allows management of the mutation configuration using functional options.
+type dnschangeOption func(*DNSChangeMutation)
+
+// newDNSChangeMutation creates new mutation for the DNSChange entity.
+func newDNSChangeMutation(c config, op Op, opts ...dnschangeOption) *DNSChangeMutation {
+	m := &DNSChangeMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeDNSChange,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withDNSChangeID sets the ID field of the mutation.
+func withDNSChangeID(id int) dnschangeOption {
+	return func(m *DNSChangeMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *DNSChange
+		)
+		m.oldValue = func(ctx context.Context) (*DNSChange, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().DNSChange.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withDNSChange sets the old DNSChange of the mutation.
+func withDNSChange(node *DNSChange) dnschangeOption {
+	return func(m *DNSChangeMutation) {
+		m.oldValue = func(context.Context) (*DNSChange, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m DNSChangeMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m DNSChangeMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *DNSChangeMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *DNSChangeMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().DNSChange.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetChangedAt sets the "changed_at" field.
+func (m *DNSChangeMutation) SetChangedAt(t time.Time) {
+	m.changed_at = &t
+}
+
+// ChangedAt returns the value of the "changed_at" field in the mutation.
+func (m *DNSChangeMutation) ChangedAt() (r time.Time, exists bool) {
+	v := m.changed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChangedAt returns the old "changed_at" field's value of the DNSChange entity.
+// If the DNSChange object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DNSChangeMutation) OldChangedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChangedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChangedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChangedAt: %w", err)
+	}
+	return oldValue.ChangedAt, nil
+}
+
+// ResetChangedAt resets all changes to the "changed_at" field.
+func (m *DNSChangeMutation) ResetChangedAt() {
+	m.changed_at = nil
+}
+
+// SetKind sets the "kind" field.
+func (m *DNSChangeMutation) SetKind(d dnschange.Kind) {
+	m.kind = &d
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *DNSChangeMutation) Kind() (r dnschange.Kind, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the DNSChange entity.
+// If the DNSChange object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DNSChangeMutation) OldKind(ctx context.Context) (v dnschange.Kind, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *DNSChangeMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetAdded sets the "added" field.
+func (m *DNSChangeMutation) SetAdded(s []string) {
+	m.added = &s
+	m.appendadded = nil
+}
+
+// Added returns the value of the "added" field in the mutation.
+func (m *DNSChangeMutation) Added() (r []string, exists bool) {
+	v := m.added
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAdded returns the old "added" field's value of the DNSChange entity.
+// If the DNSChange object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DNSChangeMutation) OldAdded(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAdded is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAdded requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAdded: %w", err)
+	}
+	return oldValue.Added, nil
+}
+
+// AppendAdded adds s to the "added" field.
+func (m *DNSChangeMutation) AppendAdded(s []string) {
+	m.appendadded = append(m.appendadded, s...)
+}
+
+// AppendedAdded returns the list of values that were appended to the "added" field in this mutation.
+func (m *DNSChangeMutation) AppendedAdded() ([]string, bool) {
+	if len(m.appendadded) == 0 {
+		return nil, false
+	}
+	return m.appendadded, true
+}
+
+// ClearAdded clears the value of the "added" field.
+func (m *DNSChangeMutation) ClearAdded() {
+	m.added = nil
+	m.appendadded = nil
+	m.clearedFields[dnschange.FieldAdded] = struct{}{}
+}
+
+// AddedCleared returns if the "added" field was cleared in this mutation.
+func (m *DNSChangeMutation) AddedCleared() bool {
+	_, ok := m.clearedFields[dnschange.FieldAdded]
+	return ok
+}
+
+// ResetAdded resets all changes to the "added" field.
+func (m *DNSChangeMutation) ResetAdded() {
+	m.added = nil
+	m.appendadded = nil
+	delete(m.clearedFields, dnschange.FieldAdded)
+}
+
+// SetRemoved sets the "removed" field.
+func (m *DNSChangeMutation) SetRemoved(s []string) {
+	m.removed = &s
+	m.appendremoved = nil
+}
+
+// Removed returns the value of the "removed" field in the mutation.
+func (m *DNSChangeMutation) Removed() (r []string, exists bool) {
+	v := m.removed
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRemoved returns the old "removed" field's value of the DNSChange entity.
+// If the DNSChange object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DNSChangeMutation) OldRemoved(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRemoved is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRemoved requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRemoved: %w", err)
+	}
+	return oldValue.Removed, nil
+}
+
+// AppendRemoved adds s to the "removed" field.
+func (m *DNSChangeMutation) AppendRemoved(s []string) {
+	m.appendremoved = append(m.appendremoved, s...)
+}
+
+// AppendedRemoved returns the list of values that were appended to the "removed" field in this mutation.
+func (m *DNSChangeMutation) AppendedRemoved() ([]string, bool) {
+	if len(m.appendremoved) == 0 {
+		return nil, false
+	}
+	return m.appendremoved, true
+}
+
+// ClearRemoved clears the value of the "removed" field.
+func (m *DNSChangeMutation) ClearRemoved() {
+	m.removed = nil
+	m.appendremoved = nil
+	m.clearedFields[dnschange.FieldRemoved] = struct{}{}
+}
+
+// RemovedCleared returns if the "removed" field was cleared in this mutation.
+func (m *DNSChangeMutation) RemovedCleared() bool {
+	_, ok := m.clearedFields[dnschange.FieldRemoved]
+	return ok
+}
+
+// ResetRemoved resets all changes to the "removed" field.
+func (m *DNSChangeMutation) ResetRemoved() {
+	m.removed = nil
+	m.appendremoved = nil
+	delete(m.clearedFields, dnschange.FieldRemoved)
+}
+
+// SetKept sets the "kept" field.
+func (m *DNSChangeMutation) SetKept(i int) {
+	m.kept = &i
+	m.addkept = nil
+}
+
+// Kept returns the value of the "kept" field in the mutation.
+func (m *DNSChangeMutation) Kept() (r int, exists bool) {
+	v := m.kept
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKept returns the old "kept" field's value of the DNSChange entity.
+// If the DNSChange object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DNSChangeMutation) OldKept(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKept is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKept requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKept: %w", err)
+	}
+	return oldValue.Kept, nil
+}
+
+// AddKept adds i to the "kept" field.
+func (m *DNSChangeMutation) AddKept(i int) {
+	if m.addkept != nil {
+		*m.addkept += i
+	} else {
+		m.addkept = &i
+	}
+}
+
+// AddedKept returns the value that was added to the "kept" field in this mutation.
+func (m *DNSChangeMutation) AddedKept() (r int, exists bool) {
+	v := m.addkept
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetKept resets all changes to the "kept" field.
+func (m *DNSChangeMutation) ResetKept() {
+	m.kept = nil
+	m.addkept = nil
+}
+
+// SetTargetID sets the "target" edge to the Target entity by id.
+func (m *DNSChangeMutation) SetTargetID(id int) {
+	m.target = &id
+}
+
+// ClearTarget clears the "target" edge to the Target entity.
+func (m *DNSChangeMutation) ClearTarget() {
+	m.clearedtarget = true
+}
+
+// TargetCleared reports if the "target" edge to the Target entity was cleared.
+func (m *DNSChangeMutation) TargetCleared() bool {
+	return m.clearedtarget
+}
+
+// TargetID returns the "target" edge ID in the mutation.
+func (m *DNSChangeMutation) TargetID() (id int, exists bool) {
+	if m.target != nil {
+		return *m.target, true
+	}
+	return
+}
+
+// TargetIDs returns the "target" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TargetID instead. It exists only for internal usage by the builders.
+func (m *DNSChangeMutation) TargetIDs() (ids []int) {
+	if id := m.target; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTarget resets all changes to the "target" edge.
+func (m *DNSChangeMutation) ResetTarget() {
+	m.target = nil
+	m.clearedtarget = false
+}
+
+// Where appends a list predicates to the DNSChangeMutation builder.
+func (m *DNSChangeMutation) Where(ps ...predicate.DNSChange) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the DNSChangeMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *DNSChangeMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.DNSChange, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *DNSChangeMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *DNSChangeMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (DNSChange).
+func (m *DNSChangeMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *DNSChangeMutation) Fields() []string {
+	fields := make([]string, 0, 5)
+	if m.changed_at != nil {
+		fields = append(fields, dnschange.FieldChangedAt)
+	}
+	if m.kind != nil {
+		fields = append(fields, dnschange.FieldKind)
+	}
+	if m.added != nil {
+		fields = append(fields, dnschange.FieldAdded)
+	}
+	if m.removed != nil {
+		fields = append(fields, dnschange.FieldRemoved)
+	}
+	if m.kept != nil {
+		fields = append(fields, dnschange.FieldKept)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *DNSChangeMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case dnschange.FieldChangedAt:
+		return m.ChangedAt()
+	case dnschange.FieldKind:
+		return m.Kind()
+	case dnschange.FieldAdded:
+		return m.Added()
+	case dnschange.FieldRemoved:
+		return m.Removed()
+	case dnschange.FieldKept:
+		return m.Kept()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *DNSChangeMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case dnschange.FieldChangedAt:
+		return m.OldChangedAt(ctx)
+	case dnschange.FieldKind:
+		return m.OldKind(ctx)
+	case dnschange.FieldAdded:
+		return m.OldAdded(ctx)
+	case dnschange.FieldRemoved:
+		return m.OldRemoved(ctx)
+	case dnschange.FieldKept:
+		return m.OldKept(ctx)
+	}
+	return nil, fmt.Errorf("unknown DNSChange field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DNSChangeMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case dnschange.FieldChangedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChangedAt(v)
+		return nil
+	case dnschange.FieldKind:
+		v, ok := value.(dnschange.Kind)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case dnschange.FieldAdded:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAdded(v)
+		return nil
+	case dnschange.FieldRemoved:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRemoved(v)
+		return nil
+	case dnschange.FieldKept:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKept(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DNSChange field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *DNSChangeMutation) AddedFields() []string {
+	var fields []string
+	if m.addkept != nil {
+		fields = append(fields, dnschange.FieldKept)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *DNSChangeMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case dnschange.FieldKept:
+		return m.AddedKept()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DNSChangeMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case dnschange.FieldKept:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddKept(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DNSChange numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *DNSChangeMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(dnschange.FieldAdded) {
+		fields = append(fields, dnschange.FieldAdded)
+	}
+	if m.FieldCleared(dnschange.FieldRemoved) {
+		fields = append(fields, dnschange.FieldRemoved)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *DNSChangeMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *DNSChangeMutation) ClearField(name string) error {
+	switch name {
+	case dnschange.FieldAdded:
+		m.ClearAdded()
+		return nil
+	case dnschange.FieldRemoved:
+		m.ClearRemoved()
+		return nil
+	}
+	return fmt.Errorf("unknown DNSChange nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *DNSChangeMutation) ResetField(name string) error {
+	switch name {
+	case dnschange.FieldChangedAt:
+		m.ResetChangedAt()
+		return nil
+	case dnschange.FieldKind:
+		m.ResetKind()
+		return nil
+	case dnschange.FieldAdded:
+		m.ResetAdded()
+		return nil
+	case dnschange.FieldRemoved:
+		m.ResetRemoved()
+		return nil
+	case dnschange.FieldKept:
+		m.ResetKept()
+		return nil
+	}
+	return fmt.Errorf("unknown DNSChange field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *DNSChangeMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.target != nil {
+		edges = append(edges, dnschange.EdgeTarget)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *DNSChangeMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case dnschange.EdgeTarget:
+		if id := m.target; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *DNSChangeMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *DNSChangeMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *DNSChangeMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedtarget {
+		edges = append(edges, dnschange.EdgeTarget)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *DNSChangeMutation) EdgeCleared(name string) bool {
+	switch name {
+	case dnschange.EdgeTarget:
+		return m.clearedtarget
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *DNSChangeMutation) ClearEdge(name string) error {
+	switch name {
+	case dnschange.EdgeTarget:
+		m.ClearTarget()
+		return nil
+	}
+	return fmt.Errorf("unknown DNSChange unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *DNSChangeMutation) ResetEdge(name string) error {
+	switch name {
+	case dnschange.EdgeTarget:
+		m.ResetTarget()
+		return nil
+	}
+	return fmt.Errorf("unknown DNSChange edge %s", name)
 }
 
 // DataMigrationMutation represents an operation that mutates the DataMigration nodes in the graph.
@@ -11729,6 +12451,9 @@ type TargetMutation struct {
 	csp_scans                   map[int]struct{}
 	removedcsp_scans            map[int]struct{}
 	clearedcsp_scans            bool
+	dns_changes                 map[int]struct{}
+	removeddns_changes          map[int]struct{}
+	cleareddns_changes          bool
 	owner                       *int
 	clearedowner                bool
 	tags                        map[int]struct{}
@@ -12937,6 +13662,60 @@ func (m *TargetMutation) ResetCspScans() {
 	m.removedcsp_scans = nil
 }
 
+// AddDNSChangeIDs adds the "dns_changes" edge to the DNSChange entity by ids.
+func (m *TargetMutation) AddDNSChangeIDs(ids ...int) {
+	if m.dns_changes == nil {
+		m.dns_changes = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.dns_changes[ids[i]] = struct{}{}
+	}
+}
+
+// ClearDNSChanges clears the "dns_changes" edge to the DNSChange entity.
+func (m *TargetMutation) ClearDNSChanges() {
+	m.cleareddns_changes = true
+}
+
+// DNSChangesCleared reports if the "dns_changes" edge to the DNSChange entity was cleared.
+func (m *TargetMutation) DNSChangesCleared() bool {
+	return m.cleareddns_changes
+}
+
+// RemoveDNSChangeIDs removes the "dns_changes" edge to the DNSChange entity by IDs.
+func (m *TargetMutation) RemoveDNSChangeIDs(ids ...int) {
+	if m.removeddns_changes == nil {
+		m.removeddns_changes = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.dns_changes, ids[i])
+		m.removeddns_changes[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedDNSChanges returns the removed IDs of the "dns_changes" edge to the DNSChange entity.
+func (m *TargetMutation) RemovedDNSChangesIDs() (ids []int) {
+	for id := range m.removeddns_changes {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// DNSChangesIDs returns the "dns_changes" edge IDs in the mutation.
+func (m *TargetMutation) DNSChangesIDs() (ids []int) {
+	for id := range m.dns_changes {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetDNSChanges resets all changes to the "dns_changes" edge.
+func (m *TargetMutation) ResetDNSChanges() {
+	m.dns_changes = nil
+	m.cleareddns_changes = false
+	m.removeddns_changes = nil
+}
+
 // SetOwnerID sets the "owner" edge to the User entity by id.
 func (m *TargetMutation) SetOwnerID(id int) {
 	m.owner = &id
@@ -13606,7 +14385,7 @@ func (m *TargetMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TargetMutation) AddedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.ips != nil {
 		edges = append(edges, target.EdgeIps)
 	}
@@ -13615,6 +14394,9 @@ func (m *TargetMutation) AddedEdges() []string {
 	}
 	if m.csp_scans != nil {
 		edges = append(edges, target.EdgeCspScans)
+	}
+	if m.dns_changes != nil {
+		edges = append(edges, target.EdgeDNSChanges)
 	}
 	if m.owner != nil {
 		edges = append(edges, target.EdgeOwner)
@@ -13647,6 +14429,12 @@ func (m *TargetMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case target.EdgeDNSChanges:
+		ids := make([]ent.Value, 0, len(m.dns_changes))
+		for id := range m.dns_changes {
+			ids = append(ids, id)
+		}
+		return ids
 	case target.EdgeOwner:
 		if id := m.owner; id != nil {
 			return []ent.Value{*id}
@@ -13663,7 +14451,7 @@ func (m *TargetMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TargetMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.removedips != nil {
 		edges = append(edges, target.EdgeIps)
 	}
@@ -13672,6 +14460,9 @@ func (m *TargetMutation) RemovedEdges() []string {
 	}
 	if m.removedcsp_scans != nil {
 		edges = append(edges, target.EdgeCspScans)
+	}
+	if m.removeddns_changes != nil {
+		edges = append(edges, target.EdgeDNSChanges)
 	}
 	if m.removedtags != nil {
 		edges = append(edges, target.EdgeTags)
@@ -13701,6 +14492,12 @@ func (m *TargetMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case target.EdgeDNSChanges:
+		ids := make([]ent.Value, 0, len(m.removeddns_changes))
+		for id := range m.removeddns_changes {
+			ids = append(ids, id)
+		}
+		return ids
 	case target.EdgeTags:
 		ids := make([]ent.Value, 0, len(m.removedtags))
 		for id := range m.removedtags {
@@ -13713,7 +14510,7 @@ func (m *TargetMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TargetMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.clearedips {
 		edges = append(edges, target.EdgeIps)
 	}
@@ -13722,6 +14519,9 @@ func (m *TargetMutation) ClearedEdges() []string {
 	}
 	if m.clearedcsp_scans {
 		edges = append(edges, target.EdgeCspScans)
+	}
+	if m.cleareddns_changes {
+		edges = append(edges, target.EdgeDNSChanges)
 	}
 	if m.clearedowner {
 		edges = append(edges, target.EdgeOwner)
@@ -13742,6 +14542,8 @@ func (m *TargetMutation) EdgeCleared(name string) bool {
 		return m.clearedssl_scans
 	case target.EdgeCspScans:
 		return m.clearedcsp_scans
+	case target.EdgeDNSChanges:
+		return m.cleareddns_changes
 	case target.EdgeOwner:
 		return m.clearedowner
 	case target.EdgeTags:
@@ -13773,6 +14575,9 @@ func (m *TargetMutation) ResetEdge(name string) error {
 		return nil
 	case target.EdgeCspScans:
 		m.ResetCspScans()
+		return nil
+	case target.EdgeDNSChanges:
+		m.ResetDNSChanges()
 		return nil
 	case target.EdgeOwner:
 		m.ResetOwner()

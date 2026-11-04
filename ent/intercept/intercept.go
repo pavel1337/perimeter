@@ -11,6 +11,7 @@ import (
 	"perimeter/ent/auditevent"
 	"perimeter/ent/cspscan"
 	"perimeter/ent/datamigration"
+	"perimeter/ent/dnschange"
 	"perimeter/ent/importerconfig"
 	"perimeter/ent/invite"
 	"perimeter/ent/ip"
@@ -165,6 +166,33 @@ func (f TraverseCSPScan) Traverse(ctx context.Context, q ent.Query) error {
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.CSPScanQuery", q)
+}
+
+// The DNSChangeFunc type is an adapter to allow the use of ordinary function as a Querier.
+type DNSChangeFunc func(context.Context, *ent.DNSChangeQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f DNSChangeFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.DNSChangeQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.DNSChangeQuery", q)
+}
+
+// The TraverseDNSChange type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseDNSChange func(context.Context, *ent.DNSChangeQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseDNSChange) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseDNSChange) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.DNSChangeQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.DNSChangeQuery", q)
 }
 
 // The DataMigrationFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -581,6 +609,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.AuditEventQuery, predicate.AuditEvent, auditevent.OrderOption]{typ: ent.TypeAuditEvent, tq: q}, nil
 	case *ent.CSPScanQuery:
 		return &query[*ent.CSPScanQuery, predicate.CSPScan, cspscan.OrderOption]{typ: ent.TypeCSPScan, tq: q}, nil
+	case *ent.DNSChangeQuery:
+		return &query[*ent.DNSChangeQuery, predicate.DNSChange, dnschange.OrderOption]{typ: ent.TypeDNSChange, tq: q}, nil
 	case *ent.DataMigrationQuery:
 		return &query[*ent.DataMigrationQuery, predicate.DataMigration, datamigration.OrderOption]{typ: ent.TypeDataMigration, tq: q}, nil
 	case *ent.IPQuery:

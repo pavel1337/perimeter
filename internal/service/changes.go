@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"perimeter/ent"
 	"perimeter/ent/cspscan"
+	"perimeter/ent/dnschange"
 	"perimeter/ent/ip"
 	"perimeter/ent/portscan"
 	"perimeter/ent/schema"
@@ -28,6 +30,9 @@ const (
 	ChangeCSPChanged        = "csp_changed"
 	ChangeBecameUnreachable = "became_unreachable"
 	ChangeBecameReachable   = "became_reachable"
+	// ChangeDNSChanged: a name moved to other IPs, no longer resolves, or
+	// resolves again (issue #74).
+	ChangeDNSChanged = "dns_changed"
 )
 
 // Change is one thing that happened to a target, dated when it was first
@@ -95,6 +100,7 @@ func (s *Service) allChangesSince(ctx context.Context, since time.Time) ([]Chang
 		s.sslChanges,
 		s.cspChanges,
 		s.portChanges,
+		s.dnsChanges,
 	} {
 		cs, err := collect(ctx, since)
 		if err != nil {
@@ -140,6 +146,59 @@ func (s *Service) targetChanges(ctx context.Context, since time.Time) ([]Change,
 		out = append(out, newChange(t, *t.DeletedAt, ChangeTargetDeleted, "", "", "", t.Input+" deleted"))
 	}
 	return out, nil
+}
+
+// dnsChanges reports the re-resolves recorded after since (issue #74). Names
+// behind CDNs rotate their IPs, so a change that keeps one of the old IPs is
+// left to the target's history; the feed reports a name that moved away
+// from all of its IPs, stopped resolving, or resolves again.
+func (s *Service) dnsChanges(ctx context.Context, since time.Time) ([]Change, error) {
+	rows, err := s.client.DNSChange.Query().
+		Where(dnschange.ChangedAtGT(since), dnschange.HasTargetWith(target.DeletedAtIsNil())).
+		Order(ent.Asc(dnschange.FieldChangedAt), ent.Asc(dnschange.FieldID)).
+		WithTarget().
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var out []Change
+	for _, dc := range rows {
+		tg := dc.Edges.Target
+		if tg == nil || (dc.Kind == dnschange.KindChanged && !dnsMovedAway(dc)) {
+			continue
+		}
+		out = append(out, newChange(tg, dc.ChangedAt, ChangeDNSChanged,
+			strings.Join(dc.Removed, ", "), strings.Join(dc.Added, ", "), "",
+			tg.Input+": "+DNSChangeSummary(dc)))
+	}
+	return out, nil
+}
+
+// dnsMovedAway reports whether a change kept none of the old IPs.
+func dnsMovedAway(dc *ent.DNSChange) bool {
+	return dc.Kept == 0 && len(dc.Added) > 0
+}
+
+// DNSChangeSummary describes a DNS change in a few words.
+func DNSChangeSummary(dc *ent.DNSChange) string {
+	switch dc.Kind {
+	case dnschange.KindGone:
+		return "name no longer resolves (was " + strings.Join(dc.Removed, ", ") + ")"
+	case dnschange.KindBack:
+		return "resolves again, to " + strings.Join(dc.Added, ", ")
+	}
+	var parts []string
+	if len(dc.Removed) > 0 {
+		parts = append(parts, strings.Join(dc.Removed, ", "))
+	}
+	switch {
+	case len(dc.Removed) > 0 && len(dc.Added) > 0:
+		return "DNS moved from " + parts[0] + " to " + strings.Join(dc.Added, ", ")
+	case len(dc.Added) > 0:
+		return "DNS added " + strings.Join(dc.Added, ", ")
+	default:
+		return "DNS removed " + parts[0]
+	}
 }
 
 // sslChanges compares each SSL row written after since with the row before

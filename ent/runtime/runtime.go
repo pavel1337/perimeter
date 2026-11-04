@@ -7,6 +7,7 @@ import (
 	"perimeter/ent/auditevent"
 	"perimeter/ent/cspscan"
 	"perimeter/ent/datamigration"
+	"perimeter/ent/dnschange"
 	"perimeter/ent/importerconfig"
 	"perimeter/ent/invite"
 	"perimeter/ent/ip"
@@ -85,6 +86,12 @@ func init() {
 	cspscanDescCheckCount := cspscanFields[2].Descriptor()
 	// cspscan.DefaultCheckCount holds the default value on creation for the check_count field.
 	cspscan.DefaultCheckCount = cspscanDescCheckCount.Default.(int)
+	dnschangeFields := schema.DNSChange{}.Fields()
+	_ = dnschangeFields
+	// dnschangeDescKept is the schema descriptor for kept field.
+	dnschangeDescKept := dnschangeFields[4].Descriptor()
+	// dnschange.DefaultKept holds the default value on creation for the kept field.
+	dnschange.DefaultKept = dnschangeDescKept.Default.(int)
 	datamigrationFields := schema.DataMigration{}.Fields()
 	_ = datamigrationFields
 	// datamigrationDescAppliedAt is the schema descriptor for applied_at field.

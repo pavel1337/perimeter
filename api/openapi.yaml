@@ -913,7 +913,7 @@ components:
       properties:
         kind:
           type: string
-          enum: [ssl, csp, ports]
+          enum: [ssl, csp, ports, dns]
         first_seen:
           type: string
           format: date-time
@@ -989,6 +989,7 @@ components:
             - csp_changed
             - became_unreachable
             - became_reachable
+            - dns_changed
         from:
           type: string
         to:

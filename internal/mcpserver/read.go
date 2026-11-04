@@ -39,7 +39,7 @@ func (t *toolset) addReadTools(srv *mcp.Server) {
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "target_history",
-		Description: "Scan history of one target, newest first: SSL grade changes, CSP results and port scans. target is an id or a name. Pages of 25 by default, at most 100.",
+		Description: "Scan history of one target, newest first: SSL grade changes, CSP results, port scans and DNS changes (IPs added or removed, name no longer resolving or resolving again). target is an id or a name. Pages of 25 by default, at most 100.",
 		Annotations: readOnly,
 	}, t.targetHistory)
 
@@ -51,7 +51,7 @@ func (t *toolset) addReadTools(srv *mcp.Server) {
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "changes_since",
-		Description: "Changes seen after a time, oldest first: targets added or deleted, SSL grade changes, certificate renewals, ports opened or closed, CSP changes, and reachability changes. since is an RFC 3339 time such as 2026-10-11T00:00:00Z, or a duration back from now such as 24h or 7d. The reply gives until: the time of the last change, or since when there is none. To page through or poll for new results, call again with since set to until.",
+		Description: "Changes seen after a time, oldest first: targets added or deleted, SSL grade changes, certificate renewals, ports opened or closed, CSP changes, reachability changes, and DNS changes (a name that moved to new IPs, no longer resolves, or resolves again). since is an RFC 3339 time such as 2026-10-11T00:00:00Z, or a duration back from now such as 24h or 7d. The reply gives until: the time of the last change, or since when there is none. To page through or poll for new results, call again with since set to until.",
 		Annotations: readOnly,
 	}, t.changesSince)
 

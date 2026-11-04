@@ -90,6 +90,37 @@ var (
 			},
 		},
 	}
+	// DNSChangesColumns holds the columns for the "dns_changes" table.
+	DNSChangesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "changed_at", Type: field.TypeTime},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"changed", "gone", "back"}},
+		{Name: "added", Type: field.TypeJSON, Nullable: true},
+		{Name: "removed", Type: field.TypeJSON, Nullable: true},
+		{Name: "kept", Type: field.TypeInt, Default: 0},
+		{Name: "target_dns_changes", Type: field.TypeInt},
+	}
+	// DNSChangesTable holds the schema information for the "dns_changes" table.
+	DNSChangesTable = &schema.Table{
+		Name:       "dns_changes",
+		Columns:    DNSChangesColumns,
+		PrimaryKey: []*schema.Column{DNSChangesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "dns_changes_targets_dns_changes",
+				Columns:    []*schema.Column{DNSChangesColumns[6]},
+				RefColumns: []*schema.Column{TargetsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "dnschange_changed_at",
+				Unique:  false,
+				Columns: []*schema.Column{DNSChangesColumns[1]},
+			},
+		},
+	}
 	// DataMigrationsColumns holds the columns for the "data_migrations" table.
 	DataMigrationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -507,6 +538,7 @@ var (
 		APITokensTable,
 		AuditEventsTable,
 		CspScansTable,
+		DNSChangesTable,
 		DataMigrationsTable,
 		IpsTable,
 		ImporterConfigsTable,
@@ -530,6 +562,7 @@ var (
 func init() {
 	APITokensTable.ForeignKeys[0].RefTable = UsersTable
 	CspScansTable.ForeignKeys[0].RefTable = TargetsTable
+	DNSChangesTable.ForeignKeys[0].RefTable = TargetsTable
 	InvitesTable.ForeignKeys[0].RefTable = UsersTable
 	LoginChallengesTable.ForeignKeys[0].RefTable = UsersTable
 	PortsTable.ForeignKeys[0].RefTable = PortScansTable

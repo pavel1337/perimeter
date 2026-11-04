@@ -10,6 +10,7 @@ import (
 	"perimeter/ent/auditevent"
 	"perimeter/ent/cspscan"
 	"perimeter/ent/datamigration"
+	"perimeter/ent/dnschange"
 	"perimeter/ent/importerconfig"
 	"perimeter/ent/invite"
 	"perimeter/ent/ip"
@@ -93,6 +94,7 @@ func checkColumn(t, c string) error {
 			apitoken.Table:       apitoken.ValidColumn,
 			auditevent.Table:     auditevent.ValidColumn,
 			cspscan.Table:        cspscan.ValidColumn,
+			dnschange.Table:      dnschange.ValidColumn,
 			datamigration.Table:  datamigration.ValidColumn,
 			ip.Table:             ip.ValidColumn,
 			importerconfig.Table: importerconfig.ValidColumn,

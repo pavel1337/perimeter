@@ -15,6 +15,7 @@ import (
 	"perimeter/ent/auditevent"
 	"perimeter/ent/cspscan"
 	"perimeter/ent/datamigration"
+	"perimeter/ent/dnschange"
 	"perimeter/ent/importerconfig"
 	"perimeter/ent/invite"
 	"perimeter/ent/ip"
@@ -47,6 +48,8 @@ type Client struct {
 	AuditEvent *AuditEventClient
 	// CSPScan is the client for interacting with the CSPScan builders.
 	CSPScan *CSPScanClient
+	// DNSChange is the client for interacting with the DNSChange builders.
+	DNSChange *DNSChangeClient
 	// DataMigration is the client for interacting with the DataMigration builders.
 	DataMigration *DataMigrationClient
 	// IP is the client for interacting with the IP builders.
@@ -91,6 +94,7 @@ func (c *Client) init() {
 	c.APIToken = NewAPITokenClient(c.config)
 	c.AuditEvent = NewAuditEventClient(c.config)
 	c.CSPScan = NewCSPScanClient(c.config)
+	c.DNSChange = NewDNSChangeClient(c.config)
 	c.DataMigration = NewDataMigrationClient(c.config)
 	c.IP = NewIPClient(c.config)
 	c.ImporterConfig = NewImporterConfigClient(c.config)
@@ -201,6 +205,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		APIToken:       NewAPITokenClient(cfg),
 		AuditEvent:     NewAuditEventClient(cfg),
 		CSPScan:        NewCSPScanClient(cfg),
+		DNSChange:      NewDNSChangeClient(cfg),
 		DataMigration:  NewDataMigrationClient(cfg),
 		IP:             NewIPClient(cfg),
 		ImporterConfig: NewImporterConfigClient(cfg),
@@ -238,6 +243,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		APIToken:       NewAPITokenClient(cfg),
 		AuditEvent:     NewAuditEventClient(cfg),
 		CSPScan:        NewCSPScanClient(cfg),
+		DNSChange:      NewDNSChangeClient(cfg),
 		DataMigration:  NewDataMigrationClient(cfg),
 		IP:             NewIPClient(cfg),
 		ImporterConfig: NewImporterConfigClient(cfg),
@@ -282,9 +288,9 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.APIToken, c.AuditEvent, c.CSPScan, c.DataMigration, c.IP, c.ImporterConfig,
-		c.Invite, c.Job, c.LoginChallenge, c.NotifierConfig, c.Port, c.PortScan,
-		c.RecoveryCode, c.SSLScan, c.Session, c.Tag, c.Target, c.User,
+		c.APIToken, c.AuditEvent, c.CSPScan, c.DNSChange, c.DataMigration, c.IP,
+		c.ImporterConfig, c.Invite, c.Job, c.LoginChallenge, c.NotifierConfig, c.Port,
+		c.PortScan, c.RecoveryCode, c.SSLScan, c.Session, c.Tag, c.Target, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -294,9 +300,9 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.APIToken, c.AuditEvent, c.CSPScan, c.DataMigration, c.IP, c.ImporterConfig,
-		c.Invite, c.Job, c.LoginChallenge, c.NotifierConfig, c.Port, c.PortScan,
-		c.RecoveryCode, c.SSLScan, c.Session, c.Tag, c.Target, c.User,
+		c.APIToken, c.AuditEvent, c.CSPScan, c.DNSChange, c.DataMigration, c.IP,
+		c.ImporterConfig, c.Invite, c.Job, c.LoginChallenge, c.NotifierConfig, c.Port,
+		c.PortScan, c.RecoveryCode, c.SSLScan, c.Session, c.Tag, c.Target, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -311,6 +317,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AuditEvent.mutate(ctx, m)
 	case *CSPScanMutation:
 		return c.CSPScan.mutate(ctx, m)
+	case *DNSChangeMutation:
+		return c.DNSChange.mutate(ctx, m)
 	case *DataMigrationMutation:
 		return c.DataMigration.mutate(ctx, m)
 	case *IPMutation:
@@ -774,6 +782,155 @@ func (c *CSPScanClient) mutate(ctx context.Context, m *CSPScanMutation) (Value, 
 		return (&CSPScanDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown CSPScan mutation op: %q", m.Op())
+	}
+}
+
+// DNSChangeClient is a client for the DNSChange schema.
+type DNSChangeClient struct {
+	config
+}
+
+// NewDNSChangeClient returns a client for the DNSChange from the given config.
+func NewDNSChangeClient(c config) *DNSChangeClient {
+	return &DNSChangeClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `dnschange.Hooks(f(g(h())))`.
+func (c *DNSChangeClient) Use(hooks ...Hook) {
+	c.hooks.DNSChange = append(c.hooks.DNSChange, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `dnschange.Intercept(f(g(h())))`.
+func (c *DNSChangeClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DNSChange = append(c.inters.DNSChange, interceptors...)
+}
+
+// Create returns a builder for creating a DNSChange entity.
+func (c *DNSChangeClient) Create() *DNSChangeCreate {
+	mutation := newDNSChangeMutation(c.config, OpCreate)
+	return &DNSChangeCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DNSChange entities.
+func (c *DNSChangeClient) CreateBulk(builders ...*DNSChangeCreate) *DNSChangeCreateBulk {
+	return &DNSChangeCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DNSChangeClient) MapCreateBulk(slice any, setFunc func(*DNSChangeCreate, int)) *DNSChangeCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DNSChangeCreateBulk{err: fmt.Errorf("calling to DNSChangeClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DNSChangeCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DNSChangeCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DNSChange.
+func (c *DNSChangeClient) Update() *DNSChangeUpdate {
+	mutation := newDNSChangeMutation(c.config, OpUpdate)
+	return &DNSChangeUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DNSChangeClient) UpdateOne(_m *DNSChange) *DNSChangeUpdateOne {
+	mutation := newDNSChangeMutation(c.config, OpUpdateOne, withDNSChange(_m))
+	return &DNSChangeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DNSChangeClient) UpdateOneID(id int) *DNSChangeUpdateOne {
+	mutation := newDNSChangeMutation(c.config, OpUpdateOne, withDNSChangeID(id))
+	return &DNSChangeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DNSChange.
+func (c *DNSChangeClient) Delete() *DNSChangeDelete {
+	mutation := newDNSChangeMutation(c.config, OpDelete)
+	return &DNSChangeDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DNSChangeClient) DeleteOne(_m *DNSChange) *DNSChangeDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DNSChangeClient) DeleteOneID(id int) *DNSChangeDeleteOne {
+	builder := c.Delete().Where(dnschange.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DNSChangeDeleteOne{builder}
+}
+
+// Query returns a query builder for DNSChange.
+func (c *DNSChangeClient) Query() *DNSChangeQuery {
+	return &DNSChangeQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDNSChange},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DNSChange entity by its id.
+func (c *DNSChangeClient) Get(ctx context.Context, id int) (*DNSChange, error) {
+	return c.Query().Where(dnschange.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DNSChangeClient) GetX(ctx context.Context, id int) *DNSChange {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTarget queries the target edge of a DNSChange.
+func (c *DNSChangeClient) QueryTarget(_m *DNSChange) *TargetQuery {
+	query := (&TargetClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(dnschange.Table, dnschange.FieldID, id),
+			sqlgraph.To(target.Table, target.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, dnschange.TargetTable, dnschange.TargetColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *DNSChangeClient) Hooks() []Hook {
+	return c.hooks.DNSChange
+}
+
+// Interceptors returns the client interceptors.
+func (c *DNSChangeClient) Interceptors() []Interceptor {
+	return c.inters.DNSChange
+}
+
+func (c *DNSChangeClient) mutate(ctx context.Context, m *DNSChangeMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DNSChangeCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DNSChangeUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DNSChangeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DNSChangeDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DNSChange mutation op: %q", m.Op())
 	}
 }
 
@@ -2838,6 +2995,22 @@ func (c *TargetClient) QueryCspScans(_m *Target) *CSPScanQuery {
 	return query
 }
 
+// QueryDNSChanges queries the dns_changes edge of a Target.
+func (c *TargetClient) QueryDNSChanges(_m *Target) *DNSChangeQuery {
+	query := (&DNSChangeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(target.Table, target.FieldID, id),
+			sqlgraph.To(dnschange.Table, dnschange.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, target.DNSChangesTable, target.DNSChangesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryOwner queries the owner edge of a Target.
 func (c *TargetClient) QueryOwner(_m *Target) *UserQuery {
 	query := (&UserClient{config: c.config}).Query()
@@ -3128,13 +3301,13 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIToken, AuditEvent, CSPScan, DataMigration, IP, ImporterConfig, Invite, Job,
-		LoginChallenge, NotifierConfig, Port, PortScan, RecoveryCode, SSLScan, Session,
-		Tag, Target, User []ent.Hook
+		APIToken, AuditEvent, CSPScan, DNSChange, DataMigration, IP, ImporterConfig,
+		Invite, Job, LoginChallenge, NotifierConfig, Port, PortScan, RecoveryCode,
+		SSLScan, Session, Tag, Target, User []ent.Hook
 	}
 	inters struct {
-		APIToken, AuditEvent, CSPScan, DataMigration, IP, ImporterConfig, Invite, Job,
-		LoginChallenge, NotifierConfig, Port, PortScan, RecoveryCode, SSLScan, Session,
-		Tag, Target, User []ent.Interceptor
+		APIToken, AuditEvent, CSPScan, DNSChange, DataMigration, IP, ImporterConfig,
+		Invite, Job, LoginChallenge, NotifierConfig, Port, PortScan, RecoveryCode,
+		SSLScan, Session, Tag, Target, User []ent.Interceptor
 	}
 )
