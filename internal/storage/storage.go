@@ -838,6 +838,9 @@ type CSPResponse struct {
 	// TLSProblem says why the certificate failed verification, when the
 	// response was read without verifying it (#68).
 	TLSProblem string
+	// RedirectHost is the other site the target redirects to; the probe
+	// stopped there (#70).
+	RedirectHost string
 }
 
 // SaveCSPResponse records the CSP probe of a target that answered, with the
@@ -857,7 +860,7 @@ func CSPAppServed(sc *ent.CSPScan) bool {
 // (4xx/5xx), and whether it is one: such a page serves no application, so it
 // is shown as "no application served (404)" rather than judged (#67).
 func CSPNoApp(sc *ent.CSPScan) (int, bool) {
-	if sc.ProbeError != "" || sc.StatusCode == 0 || StatusServesApp(sc.StatusCode) {
+	if sc.ProbeError != "" || sc.RedirectHost != "" || sc.StatusCode == 0 || StatusServesApp(sc.StatusCode) {
 		return 0, false
 	}
 	return sc.StatusCode, true
@@ -926,6 +929,7 @@ func (s *EntStorage) saveCSP(ctx context.Context, input string, r CSPResponse, p
 			SetStatusCode(r.StatusCode).
 			SetFinalURL(r.FinalURL).
 			SetTLSProblem(r.TLSProblem).
+			SetRedirectHost(r.RedirectHost).
 			Exec(ctx)
 	}
 	if err != nil {

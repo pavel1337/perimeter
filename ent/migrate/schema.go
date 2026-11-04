@@ -73,6 +73,7 @@ var (
 		{Name: "status_code", Type: field.TypeInt, Nullable: true},
 		{Name: "final_url", Type: field.TypeString, Nullable: true},
 		{Name: "tls_problem", Type: field.TypeString, Nullable: true},
+		{Name: "redirect_host", Type: field.TypeString, Nullable: true},
 		{Name: "target_csp_scans", Type: field.TypeInt},
 	}
 	// CspScansTable holds the schema information for the "csp_scans" table.
@@ -83,7 +84,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "csp_scans_targets_csp_scans",
-				Columns:    []*schema.Column{CspScansColumns[10]},
+				Columns:    []*schema.Column{CspScansColumns[11]},
 				RefColumns: []*schema.Column{TargetsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

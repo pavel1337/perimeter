@@ -55,12 +55,13 @@ func sameCSP(scan *ent.CSPScan, r CSPResponse, probeErr string) bool {
 		scan.ProbeError == probeErr &&
 		scan.StatusCode == r.StatusCode &&
 		scan.FinalURL == r.FinalURL &&
-		scan.TLSProblem == r.TLSProblem
+		scan.TLSProblem == r.TLSProblem &&
+		scan.RedirectHost == r.RedirectHost
 }
 
 // cspResponseOf is the CSPResponse a stored row was saved from.
 func cspResponseOf(sc *ent.CSPScan) CSPResponse {
-	return CSPResponse{Header: sc.CspHeader, Findings: sc.Findings, StatusCode: sc.StatusCode, FinalURL: sc.FinalURL, TLSProblem: sc.TLSProblem}
+	return CSPResponse{Header: sc.CspHeader, Findings: sc.Findings, StatusCode: sc.StatusCode, FinalURL: sc.FinalURL, TLSProblem: sc.TLSProblem, RedirectHost: sc.RedirectHost}
 }
 
 // sameFindings reports whether a and b hold the same findings in any order.

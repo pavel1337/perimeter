@@ -249,6 +249,9 @@ func cspState(sc *ent.CSPScan) string {
 	if sc.ProbeError != "" {
 		return cspNoResponse(sc.ProbeError)
 	}
+	if sc.RedirectHost != "" {
+		return "redirects to " + sc.RedirectHost
+	}
 	if code, ok := storage.CSPNoApp(sc); ok {
 		return fmt.Sprintf("no application served (%d)", code)
 	}

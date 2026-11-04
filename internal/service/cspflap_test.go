@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"perimeter/internal/service"
+	"perimeter/internal/storage"
 	"perimeter/scanner/csp"
 )
 
@@ -65,5 +66,16 @@ func TestCSPPolicyChanged(t *testing.T) {
 	cs := cspChanges(t, f)
 	if len(cs) != 2 || !strings.HasSuffix(cs[1].Summary, "CSP policy changed") {
 		t.Errorf("got %s, want the first result then one policy change", describe(cs))
+	}
+}
+
+// A redirect to another site reads as such in the feed (issue #70).
+func TestCSPRedirectInFeed(t *testing.T) {
+	f := newFixture(t)
+	f.target("example.com")
+	f.must(f.st.SaveCSPResponse(f.ctx, "example.com", storage.CSPResponse{StatusCode: 302, RedirectHost: "login.idp.example"}))
+	cs := cspChanges(t, f)
+	if len(cs) != 1 || cs[0].To != "redirects to login.idp.example" {
+		t.Errorf("got %s, want not checked -> redirects to login.idp.example", describe(cs))
 	}
 }

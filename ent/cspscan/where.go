@@ -95,6 +95,11 @@ func TLSProblem(v string) predicate.CSPScan {
 	return predicate.CSPScan(sql.FieldEQ(FieldTLSProblem, v))
 }
 
+// RedirectHost applies equality check predicate on the "redirect_host" field. It's identical to RedirectHostEQ.
+func RedirectHost(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldEQ(FieldRedirectHost, v))
+}
+
 // ScannedAtEQ applies the EQ predicate on the "scanned_at" field.
 func ScannedAtEQ(v time.Time) predicate.CSPScan {
 	return predicate.CSPScan(sql.FieldEQ(FieldScannedAt, v))
@@ -573,6 +578,81 @@ func TLSProblemEqualFold(v string) predicate.CSPScan {
 // TLSProblemContainsFold applies the ContainsFold predicate on the "tls_problem" field.
 func TLSProblemContainsFold(v string) predicate.CSPScan {
 	return predicate.CSPScan(sql.FieldContainsFold(FieldTLSProblem, v))
+}
+
+// RedirectHostEQ applies the EQ predicate on the "redirect_host" field.
+func RedirectHostEQ(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldEQ(FieldRedirectHost, v))
+}
+
+// RedirectHostNEQ applies the NEQ predicate on the "redirect_host" field.
+func RedirectHostNEQ(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldNEQ(FieldRedirectHost, v))
+}
+
+// RedirectHostIn applies the In predicate on the "redirect_host" field.
+func RedirectHostIn(vs ...string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldIn(FieldRedirectHost, vs...))
+}
+
+// RedirectHostNotIn applies the NotIn predicate on the "redirect_host" field.
+func RedirectHostNotIn(vs ...string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldNotIn(FieldRedirectHost, vs...))
+}
+
+// RedirectHostGT applies the GT predicate on the "redirect_host" field.
+func RedirectHostGT(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldGT(FieldRedirectHost, v))
+}
+
+// RedirectHostGTE applies the GTE predicate on the "redirect_host" field.
+func RedirectHostGTE(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldGTE(FieldRedirectHost, v))
+}
+
+// RedirectHostLT applies the LT predicate on the "redirect_host" field.
+func RedirectHostLT(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldLT(FieldRedirectHost, v))
+}
+
+// RedirectHostLTE applies the LTE predicate on the "redirect_host" field.
+func RedirectHostLTE(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldLTE(FieldRedirectHost, v))
+}
+
+// RedirectHostContains applies the Contains predicate on the "redirect_host" field.
+func RedirectHostContains(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldContains(FieldRedirectHost, v))
+}
+
+// RedirectHostHasPrefix applies the HasPrefix predicate on the "redirect_host" field.
+func RedirectHostHasPrefix(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldHasPrefix(FieldRedirectHost, v))
+}
+
+// RedirectHostHasSuffix applies the HasSuffix predicate on the "redirect_host" field.
+func RedirectHostHasSuffix(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldHasSuffix(FieldRedirectHost, v))
+}
+
+// RedirectHostIsNil applies the IsNil predicate on the "redirect_host" field.
+func RedirectHostIsNil() predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldIsNull(FieldRedirectHost))
+}
+
+// RedirectHostNotNil applies the NotNil predicate on the "redirect_host" field.
+func RedirectHostNotNil() predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldNotNull(FieldRedirectHost))
+}
+
+// RedirectHostEqualFold applies the EqualFold predicate on the "redirect_host" field.
+func RedirectHostEqualFold(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldEqualFold(FieldRedirectHost, v))
+}
+
+// RedirectHostContainsFold applies the ContainsFold predicate on the "redirect_host" field.
+func RedirectHostContainsFold(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldContainsFold(FieldRedirectHost, v))
 }
 
 // HasTarget applies the HasEdge predicate on the "target" edge.

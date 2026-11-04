@@ -858,6 +858,9 @@ components:
         tls_problem:
           type: string
           description: Why the certificate failed verification, when the CSP probe read the response without verifying it. A final_url with the http scheme means nothing answered TLS on port 443 and the result came over plain HTTP.
+        redirect_host:
+          type: string
+          description: The other site (registrable domain) the target redirects to, such as a third-party sign-in page. The probe stops there and the CSP is not judged.
         first_seen:
           type: string
           format: date-time

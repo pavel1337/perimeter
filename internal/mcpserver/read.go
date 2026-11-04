@@ -173,6 +173,8 @@ func (t *toolset) getTarget(ctx context.Context, _ *mcp.CallToolRequest, in targ
 		b.WriteString("\nCSP: not checked")
 	case d.CSP.ProbeError != "":
 		fmt.Fprintf(&b, "\nCSP: no response: %s (checked %s)", d.CSP.ProbeError, formatTime(d.CSP.LastChecked))
+	case d.CSP.RedirectHost != "":
+		fmt.Fprintf(&b, "\nCSP: not judged, redirects to %s (checked %s)", d.CSP.RedirectHost, formatTime(d.CSP.LastChecked))
 	case d.CSP.StatusCode != 0 && d.CSP.StatusCode/100 != 2:
 		fmt.Fprintf(&b, "\nCSP: not judged, no application served (HTTP %d", d.CSP.StatusCode)
 		if d.CSP.FinalURL != "" {
