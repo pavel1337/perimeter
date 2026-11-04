@@ -301,6 +301,7 @@ var (
 		{Name: "cert_expiry", Type: field.TypeTime, Nullable: true},
 		{Name: "protocols", Type: field.TypeJSON, Nullable: true},
 		{Name: "vulnerabilities", Type: field.TypeJSON, Nullable: true},
+		{Name: "cert_issues", Type: field.TypeInt, Nullable: true},
 		{Name: "target_ssl_scans", Type: field.TypeInt},
 	}
 	// SslScansTable holds the schema information for the "ssl_scans" table.
@@ -311,7 +312,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "ssl_scans_targets_ssl_scans",
-				Columns:    []*schema.Column{SslScansColumns[11]},
+				Columns:    []*schema.Column{SslScansColumns[12]},
 				RefColumns: []*schema.Column{TargetsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -372,6 +373,7 @@ var (
 		{Name: "latest_ssl_grade", Type: field.TypeString, Nullable: true},
 		{Name: "latest_ssl_grade_rank", Type: field.TypeInt, Default: 0},
 		{Name: "latest_cert_expiry", Type: field.TypeTime, Nullable: true},
+		{Name: "latest_cert_issues", Type: field.TypeInt, Default: 0},
 		{Name: "latest_csp_finding_count", Type: field.TypeInt, Nullable: true},
 		{Name: "open_port_count", Type: field.TypeInt, Default: 0},
 		{Name: "user_targets", Type: field.TypeInt, Nullable: true},
@@ -384,7 +386,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "targets_users_targets",
-				Columns:    []*schema.Column{TargetsColumns[20]},
+				Columns:    []*schema.Column{TargetsColumns[21]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -418,12 +420,12 @@ var (
 			{
 				Name:    "target_latest_csp_finding_count",
 				Unique:  false,
-				Columns: []*schema.Column{TargetsColumns[18]},
+				Columns: []*schema.Column{TargetsColumns[19]},
 			},
 			{
 				Name:    "target_open_port_count",
 				Unique:  false,
-				Columns: []*schema.Column{TargetsColumns[19]},
+				Columns: []*schema.Column{TargetsColumns[20]},
 			},
 		},
 	}

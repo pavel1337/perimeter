@@ -135,6 +135,11 @@ func LatestCertExpiry(v time.Time) predicate.Target {
 	return predicate.Target(sql.FieldEQ(FieldLatestCertExpiry, v))
 }
 
+// LatestCertIssues applies equality check predicate on the "latest_cert_issues" field. It's identical to LatestCertIssuesEQ.
+func LatestCertIssues(v int) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldLatestCertIssues, v))
+}
+
 // LatestCspFindingCount applies equality check predicate on the "latest_csp_finding_count" field. It's identical to LatestCspFindingCountEQ.
 func LatestCspFindingCount(v int) predicate.Target {
 	return predicate.Target(sql.FieldEQ(FieldLatestCspFindingCount, v))
@@ -868,6 +873,46 @@ func LatestCertExpiryIsNil() predicate.Target {
 // LatestCertExpiryNotNil applies the NotNil predicate on the "latest_cert_expiry" field.
 func LatestCertExpiryNotNil() predicate.Target {
 	return predicate.Target(sql.FieldNotNull(FieldLatestCertExpiry))
+}
+
+// LatestCertIssuesEQ applies the EQ predicate on the "latest_cert_issues" field.
+func LatestCertIssuesEQ(v int) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldLatestCertIssues, v))
+}
+
+// LatestCertIssuesNEQ applies the NEQ predicate on the "latest_cert_issues" field.
+func LatestCertIssuesNEQ(v int) predicate.Target {
+	return predicate.Target(sql.FieldNEQ(FieldLatestCertIssues, v))
+}
+
+// LatestCertIssuesIn applies the In predicate on the "latest_cert_issues" field.
+func LatestCertIssuesIn(vs ...int) predicate.Target {
+	return predicate.Target(sql.FieldIn(FieldLatestCertIssues, vs...))
+}
+
+// LatestCertIssuesNotIn applies the NotIn predicate on the "latest_cert_issues" field.
+func LatestCertIssuesNotIn(vs ...int) predicate.Target {
+	return predicate.Target(sql.FieldNotIn(FieldLatestCertIssues, vs...))
+}
+
+// LatestCertIssuesGT applies the GT predicate on the "latest_cert_issues" field.
+func LatestCertIssuesGT(v int) predicate.Target {
+	return predicate.Target(sql.FieldGT(FieldLatestCertIssues, v))
+}
+
+// LatestCertIssuesGTE applies the GTE predicate on the "latest_cert_issues" field.
+func LatestCertIssuesGTE(v int) predicate.Target {
+	return predicate.Target(sql.FieldGTE(FieldLatestCertIssues, v))
+}
+
+// LatestCertIssuesLT applies the LT predicate on the "latest_cert_issues" field.
+func LatestCertIssuesLT(v int) predicate.Target {
+	return predicate.Target(sql.FieldLT(FieldLatestCertIssues, v))
+}
+
+// LatestCertIssuesLTE applies the LTE predicate on the "latest_cert_issues" field.
+func LatestCertIssuesLTE(v int) predicate.Target {
+	return predicate.Target(sql.FieldLTE(FieldLatestCertIssues, v))
 }
 
 // LatestCspFindingCountEQ applies the EQ predicate on the "latest_csp_finding_count" field.

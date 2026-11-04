@@ -114,11 +114,13 @@ type Storage interface {
 
 // SSLResult DTO
 type SSLResult struct {
-	Grade           string
-	Status          string
-	CertIssuer      string
-	CertSubject     string
-	CertExpiry      time.Time
+	Grade       string
+	Status      string
+	CertIssuer  string
+	CertSubject string
+	CertExpiry  time.Time
+	// CertIssues is SSL Labs' issues bitmask of the leaf certificate (#73).
+	CertIssues      int
 	Protocols       []string
 	Vulnerabilities []string
 }
@@ -796,6 +798,7 @@ func (s *EntStorage) SaveSSLScan(ctx context.Context, input string, res SSLResul
 			SetCertExpiry(res.CertExpiry).
 			SetProtocols(res.Protocols).
 			SetVulnerabilities(res.Vulnerabilities).
+			SetCertIssues(res.CertIssues).
 			Exec(ctx)
 	}
 	if err != nil {

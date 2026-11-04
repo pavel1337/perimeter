@@ -19,7 +19,8 @@
       <td><span class="text-muted">check failed</span></td>
       <td>{{trimPrefix .Status "Error: "}}</td>
       {{else}}
-      <td>{{if .Grade}}<span class="badge badge-blue">{{.Grade}}</span>{{else}}<span class="text-muted">—</span>{{end}}</td>
+      <td>{{if .Grade}}<span class="badge badge-blue">{{.Grade}}</span>{{else}}<span class="text-muted">—</span>{{end}}
+        {{with certProblems .CertIssues}}<div><small class="text-muted">{{join . ", "}}</small></div>{{end}}</td>
       <td>{{.Status}}</td>
       {{end}}
       <td>

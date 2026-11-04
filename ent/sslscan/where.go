@@ -95,6 +95,11 @@ func CertExpiry(v time.Time) predicate.SSLScan {
 	return predicate.SSLScan(sql.FieldEQ(FieldCertExpiry, v))
 }
 
+// CertIssues applies equality check predicate on the "cert_issues" field. It's identical to CertIssuesEQ.
+func CertIssues(v int) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldEQ(FieldCertIssues, v))
+}
+
 // ScannedAtEQ applies the EQ predicate on the "scanned_at" field.
 func ScannedAtEQ(v time.Time) predicate.SSLScan {
 	return predicate.SSLScan(sql.FieldEQ(FieldScannedAt, v))
@@ -573,6 +578,56 @@ func VulnerabilitiesIsNil() predicate.SSLScan {
 // VulnerabilitiesNotNil applies the NotNil predicate on the "vulnerabilities" field.
 func VulnerabilitiesNotNil() predicate.SSLScan {
 	return predicate.SSLScan(sql.FieldNotNull(FieldVulnerabilities))
+}
+
+// CertIssuesEQ applies the EQ predicate on the "cert_issues" field.
+func CertIssuesEQ(v int) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldEQ(FieldCertIssues, v))
+}
+
+// CertIssuesNEQ applies the NEQ predicate on the "cert_issues" field.
+func CertIssuesNEQ(v int) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldNEQ(FieldCertIssues, v))
+}
+
+// CertIssuesIn applies the In predicate on the "cert_issues" field.
+func CertIssuesIn(vs ...int) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldIn(FieldCertIssues, vs...))
+}
+
+// CertIssuesNotIn applies the NotIn predicate on the "cert_issues" field.
+func CertIssuesNotIn(vs ...int) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldNotIn(FieldCertIssues, vs...))
+}
+
+// CertIssuesGT applies the GT predicate on the "cert_issues" field.
+func CertIssuesGT(v int) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldGT(FieldCertIssues, v))
+}
+
+// CertIssuesGTE applies the GTE predicate on the "cert_issues" field.
+func CertIssuesGTE(v int) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldGTE(FieldCertIssues, v))
+}
+
+// CertIssuesLT applies the LT predicate on the "cert_issues" field.
+func CertIssuesLT(v int) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldLT(FieldCertIssues, v))
+}
+
+// CertIssuesLTE applies the LTE predicate on the "cert_issues" field.
+func CertIssuesLTE(v int) predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldLTE(FieldCertIssues, v))
+}
+
+// CertIssuesIsNil applies the IsNil predicate on the "cert_issues" field.
+func CertIssuesIsNil() predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldIsNull(FieldCertIssues))
+}
+
+// CertIssuesNotNil applies the NotNil predicate on the "cert_issues" field.
+func CertIssuesNotNil() predicate.SSLScan {
+	return predicate.SSLScan(sql.FieldNotNull(FieldCertIssues))
 }
 
 // HasTarget applies the HasEdge predicate on the "target" edge.

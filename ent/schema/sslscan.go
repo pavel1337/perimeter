@@ -24,6 +24,10 @@ func (SSLScan) Fields() []ent.Field {
 		field.Time("cert_expiry").Optional(),
 		field.JSON("protocols", []string{}).Optional(),
 		field.JSON("vulnerabilities", []string{}).Optional(),
+		// SSL Labs' issues bitmask of the leaf certificate: why it isn't
+		// trusted (self-signed, name mismatch, ...). See storage.CertProblems
+		// (issue #73). 0 when it is trusted, and on rows stored before #73.
+		field.Int("cert_issues").Optional(),
 	}
 }
 

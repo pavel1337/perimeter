@@ -53,6 +53,10 @@ func (Target) Fields() []ent.Field {
 		// latest_ssl_grade ordered best-first: A+ highest, ungraded 0.
 		field.Int("latest_ssl_grade_rank").Default(0),
 		field.Time("latest_cert_expiry").Optional().Nillable(),
+		// cert_issues of the newest SSL result (issue #73). A self-signed or
+		// name-mismatch certificate has no latest_cert_expiry: it isn't ours
+		// to renew.
+		field.Int("latest_cert_issues").Default(0),
 		// Nil when no HTTP response has been evaluated yet.
 		field.Int("latest_csp_finding_count").Optional().Nillable(),
 		// Summed over the newest port scan of each of the target's IPs.

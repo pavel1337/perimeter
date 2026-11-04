@@ -326,8 +326,12 @@ func init() {
 	targetDescLatestSslGradeRank := targetFields[12].Descriptor()
 	// target.DefaultLatestSslGradeRank holds the default value on creation for the latest_ssl_grade_rank field.
 	target.DefaultLatestSslGradeRank = targetDescLatestSslGradeRank.Default.(int)
+	// targetDescLatestCertIssues is the schema descriptor for latest_cert_issues field.
+	targetDescLatestCertIssues := targetFields[14].Descriptor()
+	// target.DefaultLatestCertIssues holds the default value on creation for the latest_cert_issues field.
+	target.DefaultLatestCertIssues = targetDescLatestCertIssues.Default.(int)
 	// targetDescOpenPortCount is the schema descriptor for open_port_count field.
-	targetDescOpenPortCount := targetFields[15].Descriptor()
+	targetDescOpenPortCount := targetFields[16].Descriptor()
 	// target.DefaultOpenPortCount holds the default value on creation for the open_port_count field.
 	target.DefaultOpenPortCount = targetDescOpenPortCount.Default.(int)
 	userMixin := schema.User{}.Mixin()

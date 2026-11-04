@@ -16,12 +16,14 @@ import (
 
 // SSLResult represents the minimal information we want to return from a scan.
 type SSLResult struct {
-	Target          string
-	Grade           string
-	Status          string // READY, IN_PROGRESS, ERROR, DNS
-	CertIssuer      string
-	CertSubject     string
-	CertExpiry      time.Time
+	Target      string
+	Grade       string
+	Status      string // READY, IN_PROGRESS, ERROR, DNS
+	CertIssuer  string
+	CertSubject string
+	CertExpiry  time.Time
+	// CertIssues is SSL Labs' issues bitmask of the leaf certificate.
+	CertIssues      int
 	Protocols       []string
 	Vulnerabilities []string
 }
@@ -187,6 +189,11 @@ type apiCert struct {
 	Subject  string `json:"subject"`
 	Issuer   string `json:"issuerSubject"` // Note: API doc says issuerSubject
 	NotAfter int64  `json:"notAfter"`      // Timestamp
+	// Issues is a bitmask of why the certificate isn't trusted: 1 no chain
+	// of trust, 2 not yet valid, 4 expired, 8 hostname mismatch, 16
+	// revoked, 32 bad common name, 64 self-signed, 128 blacklisted, 256
+	// insecure signature, 512 insecure key.
+	Issues int `json:"issues"`
 }
 
 func (s *SSLLabsScanner) Scan(target string, fresh bool) (*SSLResult, error) {
@@ -381,6 +388,7 @@ func (s *SSLLabsScanner) buildResult(hostData *apiHost) *SSLResult {
 		result.CertSubject = cert.Subject
 		result.CertIssuer = cert.Issuer
 		result.CertExpiry = time.Unix(cert.NotAfter/1000, 0) // API returns ms
+		result.CertIssues = cert.Issues
 	}
 
 	return result

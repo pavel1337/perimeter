@@ -149,6 +149,8 @@ func newViewEngine(viewsFS fs.FS) *html.Engine {
 	})
 	engine.AddFunc("trimPrefix", strings.TrimPrefix)
 	engine.AddFunc("hasPrefix", strings.HasPrefix)
+	engine.AddFunc("certProblems", storage.CertProblems)
+	engine.AddFunc("join", strings.Join)
 	engine.AddFunc("eventLabel", notifierEventLabel)
 	engine.AddFunc("formValue", formValue)
 	engine.AddFunc("formChecked", formChecked)

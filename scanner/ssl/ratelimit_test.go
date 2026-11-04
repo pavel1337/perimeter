@@ -169,3 +169,19 @@ func TestSlotsUpdateFromHeaders(t *testing.T) {
 		t.Errorf("limit = %d after an empty header, want 1", a.limit)
 	}
 }
+
+// The leaf certificate's issues bitmask is passed through (issue #73).
+func TestScanReadsCertIssues(t *testing.T) {
+	fastTimings(t)
+	fakeAPI(t, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"host": "example.com", "status": "READY", "endpoints": [{"grade": "T"}],
+			"certs": [{"subject": "CN=default", "notAfter": 1900000000000, "issues": 65}]}`)
+	})
+	res, err := NewSSLLabsScanner("test@example.com").Scan("example.com", true)
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	if res.CertIssues != 65 {
+		t.Errorf("CertIssues = %d, want 65 (self-signed + no chain)", res.CertIssues)
+	}
+}

@@ -52,6 +52,8 @@ type Target struct {
 	LatestSslGradeRank int `json:"latest_ssl_grade_rank,omitempty"`
 	// LatestCertExpiry holds the value of the "latest_cert_expiry" field.
 	LatestCertExpiry *time.Time `json:"latest_cert_expiry,omitempty"`
+	// LatestCertIssues holds the value of the "latest_cert_issues" field.
+	LatestCertIssues int `json:"latest_cert_issues,omitempty"`
 	// LatestCspFindingCount holds the value of the "latest_csp_finding_count" field.
 	LatestCspFindingCount *int `json:"latest_csp_finding_count,omitempty"`
 	// OpenPortCount holds the value of the "open_port_count" field.
@@ -134,7 +136,7 @@ func (*Target) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case target.FieldIsIP, target.FieldSslRescanPending, target.FieldCspRescanPending:
 			values[i] = new(sql.NullBool)
-		case target.FieldID, target.FieldResolveAttempts, target.FieldLatestSslGradeRank, target.FieldLatestCspFindingCount, target.FieldOpenPortCount:
+		case target.FieldID, target.FieldResolveAttempts, target.FieldLatestSslGradeRank, target.FieldLatestCertIssues, target.FieldLatestCspFindingCount, target.FieldOpenPortCount:
 			values[i] = new(sql.NullInt64)
 		case target.FieldInput, target.FieldResolveError, target.FieldReachability, target.FieldLatestSslGrade:
 			values[i] = new(sql.NullString)
@@ -270,6 +272,12 @@ func (_m *Target) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.LatestCertExpiry = new(time.Time)
 				*_m.LatestCertExpiry = value.Time
+			}
+		case target.FieldLatestCertIssues:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field latest_cert_issues", values[i])
+			} else if value.Valid {
+				_m.LatestCertIssues = int(value.Int64)
 			}
 		case target.FieldLatestCspFindingCount:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -414,6 +422,9 @@ func (_m *Target) String() string {
 		builder.WriteString("latest_cert_expiry=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("latest_cert_issues=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LatestCertIssues))
 	builder.WriteString(", ")
 	if v := _m.LatestCspFindingCount; v != nil {
 		builder.WriteString("latest_csp_finding_count=")

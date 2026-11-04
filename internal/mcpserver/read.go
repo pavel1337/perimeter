@@ -45,7 +45,7 @@ func (t *toolset) addReadTools(srv *mcp.Server) {
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "find_issues",
-		Description: "Find targets that need attention, grouped by category, each with a one-line reason. Categories: weak_ssl (SSL grade worse than B), expiring_certs (certificate expires within expiring_within_days, default the server window; expired ones are included), expired_certs, csp_issues, unreachable, unresolved, and open_port (needs port). With no categories, every category except open_port is checked. limit and offset apply to each category.",
+		Description: "Find targets that need attention, grouped by category, each with a one-line reason. Categories: weak_ssl (SSL grade worse than B, from the configuration), untrusted_certs (grade T or M: the certificate itself is not trusted, with the reason such as self-signed or name mismatch), expiring_certs (self-signed and name-mismatch certificates are left out) (certificate expires within expiring_within_days, default the server window; expired ones are included), expired_certs, csp_issues, unreachable, unresolved, and open_port (needs port). With no categories, every category except open_port is checked. limit and offset apply to each category.",
 		Annotations: readOnly,
 	}, t.findIssues)
 
@@ -147,6 +147,9 @@ func (t *toolset) getTarget(ctx context.Context, _ *mcp.CallToolRequest, in targ
 		b.WriteString("\nSSL: no result yet")
 	default:
 		fmt.Fprintf(&b, "\nSSL: grade %s (%s)", orDash(d.SSL.Grade), d.SSL.Status)
+		if len(d.SSL.CertProblems) > 0 {
+			b.WriteString(", certificate not trusted: " + strings.Join(d.SSL.CertProblems, ", "))
+		}
 		if d.SSL.CertIssuer != "" {
 			b.WriteString(", issuer " + d.SSL.CertIssuer)
 		}
@@ -266,6 +269,7 @@ func (t *toolset) targetHistory(ctx context.Context, _ *mcp.CallToolRequest, in 
 // Issue categories, in the order they are reported.
 const (
 	issueWeakSSL     = "weak_ssl"
+	issueUntrusted   = "untrusted_certs"
 	issueExpiring    = "expiring_certs"
 	issueExpired     = "expired_certs"
 	issueCSP         = "csp_issues"
@@ -274,10 +278,10 @@ const (
 	issueOpenPort    = "open_port"
 )
 
-var issueCategories = []string{issueWeakSSL, issueExpiring, issueExpired, issueCSP, issueUnreachable, issueUnresolved, issueOpenPort}
+var issueCategories = []string{issueWeakSSL, issueUntrusted, issueExpiring, issueExpired, issueCSP, issueUnreachable, issueUnresolved, issueOpenPort}
 
 type issuesIn struct {
-	Categories         []string `json:"categories,omitempty" jsonschema:"Categories to check: weak_ssl, expiring_certs, expired_certs, csp_issues, unreachable, unresolved, open_port. Leave out to check all but open_port."`
+	Categories         []string `json:"categories,omitempty" jsonschema:"Categories to check: weak_ssl, untrusted_certs, expiring_certs, expired_certs, csp_issues, unreachable, unresolved, open_port. Leave out to check all but open_port."`
 	ExpiringWithinDays int      `json:"expiring_within_days,omitempty" jsonschema:"For expiring_certs: the window in days. Default is the server's certificate expiry window."`
 	Port               int      `json:"port,omitempty" jsonschema:"For open_port: the TCP port to look for, 1 to 65535."`
 	Limit              int      `json:"limit,omitempty" jsonschema:"Targets per category. Default 25, at most 100."`
@@ -387,8 +391,18 @@ func issueSelection(requested []string) ([]string, error) {
 func issueQuery(cat string, days, port int) (service.TargetQuery, func(service.TargetSummary) string, bool) {
 	switch cat {
 	case issueWeakSSL:
-		return service.TargetQuery{SSLBelow: "B", Sort: "ssl", Desc: true},
+		// T and M are about the certificate, not the configuration, and
+		// would bury a real F: they have their own category (#73).
+		return service.TargetQuery{SSLBelow: "B", CertTrust: "trusted", Sort: "ssl", Desc: true},
 			func(s service.TargetSummary) string { return "SSL grade " + s.SSLGrade }, true
+	case issueUntrusted:
+		return service.TargetQuery{CertTrust: "untrusted", Sort: "target"},
+			func(s service.TargetSummary) string {
+				if len(s.CertProblems) == 0 {
+					return "SSL grade " + s.SSLGrade + ": certificate not trusted"
+				}
+				return "SSL grade " + s.SSLGrade + ": " + strings.Join(s.CertProblems, ", ")
+			}, true
 	case issueExpiring:
 		if days <= 0 {
 			return service.TargetQuery{}, nil, false

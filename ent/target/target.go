@@ -50,6 +50,8 @@ const (
 	FieldLatestSslGradeRank = "latest_ssl_grade_rank"
 	// FieldLatestCertExpiry holds the string denoting the latest_cert_expiry field in the database.
 	FieldLatestCertExpiry = "latest_cert_expiry"
+	// FieldLatestCertIssues holds the string denoting the latest_cert_issues field in the database.
+	FieldLatestCertIssues = "latest_cert_issues"
 	// FieldLatestCspFindingCount holds the string denoting the latest_csp_finding_count field in the database.
 	FieldLatestCspFindingCount = "latest_csp_finding_count"
 	// FieldOpenPortCount holds the string denoting the open_port_count field in the database.
@@ -119,6 +121,7 @@ var Columns = []string{
 	FieldLatestSslGrade,
 	FieldLatestSslGradeRank,
 	FieldLatestCertExpiry,
+	FieldLatestCertIssues,
 	FieldLatestCspFindingCount,
 	FieldOpenPortCount,
 }
@@ -178,6 +181,8 @@ var (
 	DefaultCspRescanPending bool
 	// DefaultLatestSslGradeRank holds the default value on creation for the "latest_ssl_grade_rank" field.
 	DefaultLatestSslGradeRank int
+	// DefaultLatestCertIssues holds the default value on creation for the "latest_cert_issues" field.
+	DefaultLatestCertIssues int
 	// DefaultOpenPortCount holds the default value on creation for the "open_port_count" field.
 	DefaultOpenPortCount int
 )
@@ -301,6 +306,11 @@ func ByLatestSslGradeRank(opts ...sql.OrderTermOption) OrderOption {
 // ByLatestCertExpiry orders the results by the latest_cert_expiry field.
 func ByLatestCertExpiry(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLatestCertExpiry, opts...).ToFunc()
+}
+
+// ByLatestCertIssues orders the results by the latest_cert_issues field.
+func ByLatestCertIssues(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLatestCertIssues, opts...).ToFunc()
 }
 
 // ByLatestCspFindingCount orders the results by the latest_csp_finding_count field.

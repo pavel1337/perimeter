@@ -9506,6 +9506,8 @@ type SSLScanMutation struct {
 	appendprotocols       []string
 	vulnerabilities       *[]string
 	appendvulnerabilities []string
+	cert_issues           *int
+	addcert_issues        *int
 	clearedFields         map[string]struct{}
 	target                *int
 	clearedtarget         bool
@@ -10102,6 +10104,76 @@ func (m *SSLScanMutation) ResetVulnerabilities() {
 	delete(m.clearedFields, sslscan.FieldVulnerabilities)
 }
 
+// SetCertIssues sets the "cert_issues" field.
+func (m *SSLScanMutation) SetCertIssues(i int) {
+	m.cert_issues = &i
+	m.addcert_issues = nil
+}
+
+// CertIssues returns the value of the "cert_issues" field in the mutation.
+func (m *SSLScanMutation) CertIssues() (r int, exists bool) {
+	v := m.cert_issues
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCertIssues returns the old "cert_issues" field's value of the SSLScan entity.
+// If the SSLScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SSLScanMutation) OldCertIssues(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCertIssues is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCertIssues requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCertIssues: %w", err)
+	}
+	return oldValue.CertIssues, nil
+}
+
+// AddCertIssues adds i to the "cert_issues" field.
+func (m *SSLScanMutation) AddCertIssues(i int) {
+	if m.addcert_issues != nil {
+		*m.addcert_issues += i
+	} else {
+		m.addcert_issues = &i
+	}
+}
+
+// AddedCertIssues returns the value that was added to the "cert_issues" field in this mutation.
+func (m *SSLScanMutation) AddedCertIssues() (r int, exists bool) {
+	v := m.addcert_issues
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCertIssues clears the value of the "cert_issues" field.
+func (m *SSLScanMutation) ClearCertIssues() {
+	m.cert_issues = nil
+	m.addcert_issues = nil
+	m.clearedFields[sslscan.FieldCertIssues] = struct{}{}
+}
+
+// CertIssuesCleared returns if the "cert_issues" field was cleared in this mutation.
+func (m *SSLScanMutation) CertIssuesCleared() bool {
+	_, ok := m.clearedFields[sslscan.FieldCertIssues]
+	return ok
+}
+
+// ResetCertIssues resets all changes to the "cert_issues" field.
+func (m *SSLScanMutation) ResetCertIssues() {
+	m.cert_issues = nil
+	m.addcert_issues = nil
+	delete(m.clearedFields, sslscan.FieldCertIssues)
+}
+
 // SetTargetID sets the "target" edge to the Target entity by id.
 func (m *SSLScanMutation) SetTargetID(id int) {
 	m.target = &id
@@ -10175,7 +10247,7 @@ func (m *SSLScanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SSLScanMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 11)
 	if m.scanned_at != nil {
 		fields = append(fields, sslscan.FieldScannedAt)
 	}
@@ -10206,6 +10278,9 @@ func (m *SSLScanMutation) Fields() []string {
 	if m.vulnerabilities != nil {
 		fields = append(fields, sslscan.FieldVulnerabilities)
 	}
+	if m.cert_issues != nil {
+		fields = append(fields, sslscan.FieldCertIssues)
+	}
 	return fields
 }
 
@@ -10234,6 +10309,8 @@ func (m *SSLScanMutation) Field(name string) (ent.Value, bool) {
 		return m.Protocols()
 	case sslscan.FieldVulnerabilities:
 		return m.Vulnerabilities()
+	case sslscan.FieldCertIssues:
+		return m.CertIssues()
 	}
 	return nil, false
 }
@@ -10263,6 +10340,8 @@ func (m *SSLScanMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldProtocols(ctx)
 	case sslscan.FieldVulnerabilities:
 		return m.OldVulnerabilities(ctx)
+	case sslscan.FieldCertIssues:
+		return m.OldCertIssues(ctx)
 	}
 	return nil, fmt.Errorf("unknown SSLScan field %s", name)
 }
@@ -10342,6 +10421,13 @@ func (m *SSLScanMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetVulnerabilities(v)
 		return nil
+	case sslscan.FieldCertIssues:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCertIssues(v)
+		return nil
 	}
 	return fmt.Errorf("unknown SSLScan field %s", name)
 }
@@ -10353,6 +10439,9 @@ func (m *SSLScanMutation) AddedFields() []string {
 	if m.addcheck_count != nil {
 		fields = append(fields, sslscan.FieldCheckCount)
 	}
+	if m.addcert_issues != nil {
+		fields = append(fields, sslscan.FieldCertIssues)
+	}
 	return fields
 }
 
@@ -10363,6 +10452,8 @@ func (m *SSLScanMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case sslscan.FieldCheckCount:
 		return m.AddedCheckCount()
+	case sslscan.FieldCertIssues:
+		return m.AddedCertIssues()
 	}
 	return nil, false
 }
@@ -10378,6 +10469,13 @@ func (m *SSLScanMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddCheckCount(v)
+		return nil
+	case sslscan.FieldCertIssues:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCertIssues(v)
 		return nil
 	}
 	return fmt.Errorf("unknown SSLScan numeric field %s", name)
@@ -10404,6 +10502,9 @@ func (m *SSLScanMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(sslscan.FieldVulnerabilities) {
 		fields = append(fields, sslscan.FieldVulnerabilities)
+	}
+	if m.FieldCleared(sslscan.FieldCertIssues) {
+		fields = append(fields, sslscan.FieldCertIssues)
 	}
 	return fields
 }
@@ -10436,6 +10537,9 @@ func (m *SSLScanMutation) ClearField(name string) error {
 		return nil
 	case sslscan.FieldVulnerabilities:
 		m.ClearVulnerabilities()
+		return nil
+	case sslscan.FieldCertIssues:
+		m.ClearCertIssues()
 		return nil
 	}
 	return fmt.Errorf("unknown SSLScan nullable field %s", name)
@@ -10474,6 +10578,9 @@ func (m *SSLScanMutation) ResetField(name string) error {
 		return nil
 	case sslscan.FieldVulnerabilities:
 		m.ResetVulnerabilities()
+		return nil
+	case sslscan.FieldCertIssues:
+		m.ResetCertIssues()
 		return nil
 	}
 	return fmt.Errorf("unknown SSLScan field %s", name)
@@ -11606,6 +11713,8 @@ type TargetMutation struct {
 	latest_ssl_grade_rank       *int
 	addlatest_ssl_grade_rank    *int
 	latest_cert_expiry          *time.Time
+	latest_cert_issues          *int
+	addlatest_cert_issues       *int
 	latest_csp_finding_count    *int
 	addlatest_csp_finding_count *int
 	open_port_count             *int
@@ -12484,6 +12593,62 @@ func (m *TargetMutation) ResetLatestCertExpiry() {
 	delete(m.clearedFields, target.FieldLatestCertExpiry)
 }
 
+// SetLatestCertIssues sets the "latest_cert_issues" field.
+func (m *TargetMutation) SetLatestCertIssues(i int) {
+	m.latest_cert_issues = &i
+	m.addlatest_cert_issues = nil
+}
+
+// LatestCertIssues returns the value of the "latest_cert_issues" field in the mutation.
+func (m *TargetMutation) LatestCertIssues() (r int, exists bool) {
+	v := m.latest_cert_issues
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLatestCertIssues returns the old "latest_cert_issues" field's value of the Target entity.
+// If the Target object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TargetMutation) OldLatestCertIssues(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLatestCertIssues is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLatestCertIssues requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLatestCertIssues: %w", err)
+	}
+	return oldValue.LatestCertIssues, nil
+}
+
+// AddLatestCertIssues adds i to the "latest_cert_issues" field.
+func (m *TargetMutation) AddLatestCertIssues(i int) {
+	if m.addlatest_cert_issues != nil {
+		*m.addlatest_cert_issues += i
+	} else {
+		m.addlatest_cert_issues = &i
+	}
+}
+
+// AddedLatestCertIssues returns the value that was added to the "latest_cert_issues" field in this mutation.
+func (m *TargetMutation) AddedLatestCertIssues() (r int, exists bool) {
+	v := m.addlatest_cert_issues
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLatestCertIssues resets all changes to the "latest_cert_issues" field.
+func (m *TargetMutation) ResetLatestCertIssues() {
+	m.latest_cert_issues = nil
+	m.addlatest_cert_issues = nil
+}
+
 // SetLatestCspFindingCount sets the "latest_csp_finding_count" field.
 func (m *TargetMutation) SetLatestCspFindingCount(i int) {
 	m.latest_csp_finding_count = &i
@@ -12899,7 +13064,7 @@ func (m *TargetMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TargetMutation) Fields() []string {
-	fields := make([]string, 0, 19)
+	fields := make([]string, 0, 20)
 	if m.create_time != nil {
 		fields = append(fields, target.FieldCreateTime)
 	}
@@ -12951,6 +13116,9 @@ func (m *TargetMutation) Fields() []string {
 	if m.latest_cert_expiry != nil {
 		fields = append(fields, target.FieldLatestCertExpiry)
 	}
+	if m.latest_cert_issues != nil {
+		fields = append(fields, target.FieldLatestCertIssues)
+	}
 	if m.latest_csp_finding_count != nil {
 		fields = append(fields, target.FieldLatestCspFindingCount)
 	}
@@ -12999,6 +13167,8 @@ func (m *TargetMutation) Field(name string) (ent.Value, bool) {
 		return m.LatestSslGradeRank()
 	case target.FieldLatestCertExpiry:
 		return m.LatestCertExpiry()
+	case target.FieldLatestCertIssues:
+		return m.LatestCertIssues()
 	case target.FieldLatestCspFindingCount:
 		return m.LatestCspFindingCount()
 	case target.FieldOpenPortCount:
@@ -13046,6 +13216,8 @@ func (m *TargetMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldLatestSslGradeRank(ctx)
 	case target.FieldLatestCertExpiry:
 		return m.OldLatestCertExpiry(ctx)
+	case target.FieldLatestCertIssues:
+		return m.OldLatestCertIssues(ctx)
 	case target.FieldLatestCspFindingCount:
 		return m.OldLatestCspFindingCount(ctx)
 	case target.FieldOpenPortCount:
@@ -13178,6 +13350,13 @@ func (m *TargetMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetLatestCertExpiry(v)
 		return nil
+	case target.FieldLatestCertIssues:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLatestCertIssues(v)
+		return nil
 	case target.FieldLatestCspFindingCount:
 		v, ok := value.(int)
 		if !ok {
@@ -13206,6 +13385,9 @@ func (m *TargetMutation) AddedFields() []string {
 	if m.addlatest_ssl_grade_rank != nil {
 		fields = append(fields, target.FieldLatestSslGradeRank)
 	}
+	if m.addlatest_cert_issues != nil {
+		fields = append(fields, target.FieldLatestCertIssues)
+	}
 	if m.addlatest_csp_finding_count != nil {
 		fields = append(fields, target.FieldLatestCspFindingCount)
 	}
@@ -13224,6 +13406,8 @@ func (m *TargetMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedResolveAttempts()
 	case target.FieldLatestSslGradeRank:
 		return m.AddedLatestSslGradeRank()
+	case target.FieldLatestCertIssues:
+		return m.AddedLatestCertIssues()
 	case target.FieldLatestCspFindingCount:
 		return m.AddedLatestCspFindingCount()
 	case target.FieldOpenPortCount:
@@ -13250,6 +13434,13 @@ func (m *TargetMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddLatestSslGradeRank(v)
+		return nil
+	case target.FieldLatestCertIssues:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLatestCertIssues(v)
 		return nil
 	case target.FieldLatestCspFindingCount:
 		v, ok := value.(int)
@@ -13399,6 +13590,9 @@ func (m *TargetMutation) ResetField(name string) error {
 		return nil
 	case target.FieldLatestCertExpiry:
 		m.ResetLatestCertExpiry()
+		return nil
+	case target.FieldLatestCertIssues:
+		m.ResetLatestCertIssues()
 		return nil
 	case target.FieldLatestCspFindingCount:
 		m.ResetLatestCspFindingCount()

@@ -22,6 +22,7 @@ type summary struct {
 	sslGrade        string
 	sslGradeRank    int
 	certExpiry      *time.Time
+	certIssues      int
 	cspFindingCount *int
 	openPortCount   int
 }
@@ -33,6 +34,55 @@ var gradeRanks = map[string]int{
 	"A+": 8, "A": 7, "A-": 6, "B": 5, "C": 4, "D": 3, "E": 2,
 	"F": 1, "T": 1, "M": 1,
 }
+
+// SSL Labs certificate issue bits (the leaf certificate's "issues").
+const (
+	CertNoChain       = 1
+	CertNotYetValid   = 2
+	CertExpired       = 4
+	CertNameMismatch  = 8
+	CertRevoked       = 16
+	CertBadCommonName = 32
+	CertSelfSigned    = 64
+	CertBlacklisted   = 128
+	CertInsecureSig   = 256
+	CertInsecureKey   = 512
+	certNotOursIssues = CertSelfSigned | CertNameMismatch
+)
+
+var certIssueNames = []struct {
+	bit  int
+	name string
+}{
+	{CertSelfSigned, "self-signed"},
+	{CertNameMismatch, "name mismatch"},
+	{CertNoChain, "untrusted chain"},
+	{CertExpired, "expired"},
+	{CertNotYetValid, "not yet valid"},
+	{CertRevoked, "revoked"},
+	{CertBadCommonName, "bad common name"},
+	{CertBlacklisted, "blacklisted"},
+	{CertInsecureSig, "insecure signature"},
+	{CertInsecureKey, "insecure key"},
+}
+
+// CertProblems names the issues in an SSL Labs certificate bitmask, most
+// telling first: why a T or M grade was given (issue #73).
+func CertProblems(issues int) []string {
+	var out []string
+	for _, n := range certIssueNames {
+		if issues&n.bit != 0 {
+			out = append(out, n.name)
+		}
+	}
+	return out
+}
+
+// CertNotOurs reports whether a certificate's expiry says nothing we would
+// act on: a self-signed default certificate, or someone else's certificate
+// served for our name (a CNAME to a third party). Expired and broken-chain
+// certificates are ours and still count (issue #73).
+func CertNotOurs(issues int) bool { return issues&certNotOursIssues != 0 }
 
 // GradeRank returns how good an SSL Labs grade is: higher is better, 0 for
 // a missing or unknown grade.
@@ -55,7 +105,8 @@ func summarize(t *ent.Target) summary {
 		ssl := t.Edges.SslScans[0]
 		sum.sslGrade = ssl.Grade
 		sum.sslGradeRank = gradeRanks[ssl.Grade]
-		if !ssl.CertExpiry.IsZero() {
+		sum.certIssues = ssl.CertIssues
+		if !ssl.CertExpiry.IsZero() && !CertNotOurs(ssl.CertIssues) {
 			exp := ssl.CertExpiry
 			sum.certExpiry = &exp
 		}
@@ -75,6 +126,7 @@ func (sum summary) matches(t *ent.Target) bool {
 		t.LatestSslGrade == sum.sslGrade &&
 		t.LatestSslGradeRank == sum.sslGradeRank &&
 		sameTime(t.LatestCertExpiry, sum.certExpiry) &&
+		t.LatestCertIssues == sum.certIssues &&
 		sameInt(t.LatestCspFindingCount, sum.cspFindingCount) &&
 		t.OpenPortCount == sum.openPortCount
 }
@@ -93,6 +145,7 @@ func (sum summary) save(ctx context.Context, client *ent.Client, t *ent.Target) 
 	} else {
 		u.ClearLatestSslGrade()
 	}
+	u.SetLatestCertIssues(sum.certIssues)
 	if sum.certExpiry != nil {
 		u.SetLatestCertExpiry(*sum.certExpiry)
 	} else {
