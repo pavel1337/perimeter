@@ -22,6 +22,7 @@ import (
 	"perimeter/internal/notifier"
 	"perimeter/internal/scanner"
 	"perimeter/internal/server"
+	"perimeter/internal/service"
 	"perimeter/internal/storage"
 	"perimeter/scanner/ports"
 	"perimeter/scanner/ssl"
@@ -270,6 +271,7 @@ func main() {
 
 	// 8. Start Web Server
 	srv := server.New(store, authenticator, client, importerRegistry, notifierRegistry, viewsfs, certExpiryWindow, dashboardPageSize)
+	srv.SetScanIntervals(service.ScanIntervals{Ports: portInterval, SSL: sslInterval, CSP: cspInterval})
 	srv.SetImporterSyncer(syncLoop)
 	srv.SetRescanCooldown(rescanCooldown)
 	srv.SetSSLScanning(email != "")

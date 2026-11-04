@@ -49,7 +49,7 @@
 {{end}}
 {{if .IPRows}}
 {{range .IPRows}}
-<h3 class="mono">{{.IP.Address}}</h3>
+<h3 class="mono">{{.IP.Address}}{{if .Stale}} <span class="badge badge-amber" title="Last checked over two scan intervals ago: the scanner may be behind">stale</span>{{end}}</h3>
 <div id="ip-{{.IP.ID}}-body" data-fragment="ip" data-ip-id="{{.IP.ID}}">
   {{template "views/partials/ip_section" .}}
 </div>
@@ -59,13 +59,13 @@
 {{end}}
 
 {{if not .Target.IsIP}}
-<h2>SSL History</h2>
+<h2>SSL History{{if .SSLStale}} <span class="badge badge-amber" title="Last checked over two scan intervals ago: the scanner may be behind">stale</span>{{end}}</h2>
 {{with .SSLFailed}}<p class="text-muted">The last check failed on {{.LastSeenAt.Format "Jan 02, 2006 15:04"}}, so the grade shown is the last real result. It is retried within 30 minutes. Error: {{trimPrefix .Status "Error: "}}</p>{{end}}
 <div id="ssl-history-body" data-fragment="ssl">
   {{template "views/partials/ssl_section" .}}
 </div>
 
-<h2>CSP History</h2>
+<h2>CSP History{{if .CSPStale}} <span class="badge badge-amber" title="Last checked over two scan intervals ago: the scanner may be behind">stale</span>{{end}}</h2>
 <div id="csp-history-body" data-fragment="csp">
   {{template "views/partials/csp_section" .}}
 </div>

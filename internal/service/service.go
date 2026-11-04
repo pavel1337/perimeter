@@ -45,6 +45,8 @@ type Service struct {
 	// them to the server's values.
 	rescanCooldown time.Duration
 	sslScanning    bool
+	// intervals judge staleness; SetScanIntervals sets them (#76).
+	intervals ScanIntervals
 }
 
 // New builds a Service. certExpiryWindow is the horizon for "expiring soon",
@@ -57,6 +59,25 @@ func New(st storage.Storage, client *ent.Client, certExpiryWindow time.Duration)
 func (s *Service) CertExpiryWindow() time.Duration {
 	return s.certExpiryWindow
 }
+
+// ScanIntervals are the configured times between scans of each kind. A
+// result is stale when its last check is more than StaleFactor intervals
+// old: the scanner fell behind or the target wasn't scanned (issue #76).
+type ScanIntervals struct {
+	Ports, SSL, CSP time.Duration
+}
+
+// StaleFactor is how many intervals a result may be old before it's stale.
+const StaleFactor = 2
+
+// Stale reports whether a result last checked at lastSeen is stale for a
+// scan kind with this interval. A zero interval or time is never stale.
+func Stale(lastSeen time.Time, interval time.Duration, now time.Time) bool {
+	return interval > 0 && !lastSeen.IsZero() && now.Sub(lastSeen) > StaleFactor*interval
+}
+
+// SetScanIntervals sets the scan intervals staleness is judged against.
+func (s *Service) SetScanIntervals(iv ScanIntervals) { s.intervals = iv }
 
 // SetRescanConfig sets how long a target waits between rescan requests and
 // whether SSL Labs scanning runs. A rescan flags SSL only when it runs.
@@ -120,6 +141,17 @@ type SummaryTotals struct {
 	WeakSSL int `json:"weak_ssl"`
 	// SSLUnscanned are the live targets with no SSL grade yet.
 	SSLUnscanned int `json:"ssl_unscanned"`
+	// Stale counts results last checked more than two intervals ago, so a
+	// stalled scanner shows (issue #76).
+	Stale StaleTotals `json:"stale"`
+}
+
+// StaleTotals count stale results by kind: targets for SSL and CSP, IPs for
+// ports. SSL is 0 when SSL scanning is off.
+type StaleTotals struct {
+	SSL   int `json:"ssl"`
+	CSP   int `json:"csp"`
+	Ports int `json:"ports"`
 }
 
 const (
@@ -170,6 +202,21 @@ func (s *Service) Summary(ctx context.Context, now time.Time) (*Summary, error) 
 		Expiring:      []TargetSummary{},
 		RecentChanges: []Change{},
 	}
+	var sslCutoff, cspCutoff, portCutoff time.Time
+	if s.sslScanning && s.intervals.SSL > 0 {
+		sslCutoff = now.Add(-StaleFactor * s.intervals.SSL)
+	}
+	if s.intervals.CSP > 0 {
+		cspCutoff = now.Add(-StaleFactor * s.intervals.CSP)
+	}
+	if s.intervals.Ports > 0 {
+		portCutoff = now.Add(-StaleFactor * s.intervals.Ports)
+	}
+	st := &out.Totals.Stale
+	if st.SSL, st.CSP, st.Ports, err = s.st.StaleCounts(ctx, sslCutoff, cspCutoff, portCutoff); err != nil {
+		return nil, err
+	}
+
 	out.Totals.ByReachability = make(map[string]int, len(byState))
 	for state, n := range byState {
 		out.Totals.ByReachability[string(state)] = n

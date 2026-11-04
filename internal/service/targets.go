@@ -99,6 +99,8 @@ type IPDetail struct {
 	OpenPorts   []int      `json:"open_ports,omitempty"`
 	LastChecked *time.Time `json:"last_checked,omitempty"`
 	Error       string     `json:"error,omitempty"`
+	// Stale is set when the last check is over two port intervals old (#76).
+	Stale bool `json:"stale,omitempty"`
 }
 
 // SSLDetail is the newest SSL result of a target. When the newest check
@@ -119,6 +121,8 @@ type SSLDetail struct {
 	// Set when the newest check failed.
 	LastCheckError    string     `json:"last_check_error,omitempty"`
 	LastCheckFailedAt *time.Time `json:"last_check_failed_at,omitempty"`
+	// Stale is set when the last check is over two SSL intervals old (#76).
+	Stale bool `json:"stale,omitempty"`
 }
 
 // CSPFinding is a csp.Finding with the level its severity maps to, which the
@@ -145,6 +149,8 @@ type CSPDetail struct {
 	RedirectHost string    `json:"redirect_host,omitempty"`
 	FirstSeen    time.Time `json:"first_seen"`
 	LastChecked  time.Time `json:"last_checked"`
+	// Stale is set when the last check is over two CSP intervals old (#76).
+	Stale bool `json:"stale,omitempty"`
 }
 
 // HistoryEntry is one SSL, CSP or port scan row in a target's history.
@@ -306,6 +312,7 @@ func (s *Service) FindTargetByInput(ctx context.Context, name string) (int, erro
 // GetTarget returns one live target with its newest scans. A missing or
 // soft-deleted target is ErrNotFound.
 func (s *Service) GetTarget(ctx context.Context, id int) (*TargetDetail, error) {
+	now := time.Now()
 	t, err := s.st.GetTargetBasic(ctx, id)
 	if ent.IsNotFound(err) {
 		return nil, ErrNotFound
@@ -330,6 +337,7 @@ func (s *Service) GetTarget(ctx context.Context, id int) (*TargetDetail, error) 
 			ipd.OpenPorts = portNumbers(scans[0])
 			ipd.Error = scans[0].ScanError
 			ipd.LastChecked = timePtr(scans[0].LastSeenAt)
+			ipd.Stale = Stale(scans[0].LastSeenAt, s.intervals.Ports, now)
 		}
 		d.IPs = append(d.IPs, ipd)
 	}
@@ -362,6 +370,14 @@ func (s *Service) GetTarget(ctx context.Context, id int) (*TargetDetail, error) 
 		d.SSL.LastCheckError = strings.TrimPrefix(failed.Status, storage.SSLErrorPrefix)
 		d.SSL.LastCheckFailedAt = timePtr(failed.LastSeenAt)
 	}
+	// Stale by the newest check, failed or not: a failure is a recent check.
+	if d.SSL != nil && s.sslScanning {
+		last := d.SSL.LastChecked
+		if failed != nil {
+			last = failed.LastSeenAt
+		}
+		d.SSL.Stale = Stale(last, s.intervals.SSL, now)
+	}
 
 	cspScans, _, err := s.st.GetCSPScansPage(ctx, id, 1, 0)
 	if err != nil {
@@ -383,6 +399,7 @@ func (s *Service) GetTarget(ctx context.Context, id int) (*TargetDetail, error) 
 			RedirectHost: sc.RedirectHost,
 			FirstSeen:    sc.ScannedAt,
 			LastChecked:  sc.LastSeenAt,
+			Stale:        Stale(sc.LastSeenAt, s.intervals.CSP, now),
 		}
 	}
 	return d, nil

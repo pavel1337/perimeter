@@ -807,6 +807,9 @@ components:
           format: date-time
         error:
           type: string
+        stale:
+          type: boolean
+          description: The last check is more than two scan intervals old.
     SSLDetail:
       type: object
       required: [grade, status, first_seen, last_checked]
@@ -841,6 +844,9 @@ components:
         last_checked:
           type: string
           format: date-time
+        stale:
+          type: boolean
+          description: The last check is more than two scan intervals old.
         last_check_error:
           type: string
           description: Set when the newest SSL check failed (an SSL Labs error, or the TLS pre-check failing right after a graded result). The other fields are then the last real result, or empty if there is none yet.
@@ -877,6 +883,9 @@ components:
         last_checked:
           type: string
           format: date-time
+        stale:
+          type: boolean
+          description: The last check is more than two scan intervals old.
     CSPFinding:
       type: object
       description: One finding of the CSP check. Type and severity are the scanner's numeric codes; level names the severity.
@@ -1055,6 +1064,16 @@ components:
         ssl_unscanned:
           type: integer
           description: Live targets with no SSL grade yet.
+        stale:
+          type: object
+          description: Results last checked more than two scan intervals ago, so a stalled scanner shows. Targets for ssl and csp, IP addresses for ports; ssl is 0 when SSL scanning is off.
+          properties:
+            ssl:
+              type: integer
+            csp:
+              type: integer
+            ports:
+              type: integer
     ImportRequest:
       type: object
       required: [targets]
