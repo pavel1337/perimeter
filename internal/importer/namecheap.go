@@ -161,7 +161,7 @@ func (s *NamecheapSource) fetchHosts(ctx context.Context, domain string) ([]stri
 	var subs []string
 	for _, h := range resp.CommandResponse.DomainDNSGetHostsResult.Hosts {
 		if h.Type == "A" || h.Type == "AAAA" || h.Type == "CNAME" {
-			if h.Name != "@" && h.Name != "" {
+			if h.Name != "@" && h.Name != "" && scannableName(h.Name, domain) {
 				fqdn := h.Name + "." + domain
 				subs = append(subs, fqdn)
 			}

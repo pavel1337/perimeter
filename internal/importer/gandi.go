@@ -86,7 +86,7 @@ func (s *GandiSource) Fetch(ctx context.Context) ([]string, error) {
 			if r.Type != "A" && r.Type != "AAAA" && r.Type != "CNAME" {
 				continue
 			}
-			if r.Name == "@" || r.Name == "" {
+			if r.Name == "@" || r.Name == "" || !scannableName(r.Name, domain) {
 				continue
 			}
 			fqdn := r.Name + "." + domain
