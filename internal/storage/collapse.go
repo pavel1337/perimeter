@@ -46,10 +46,24 @@ func sameSSL(scan *ent.SSLScan, res SSLResult) bool {
 		slices.Equal(scan.Vulnerabilities, res.Vulnerabilities)
 }
 
-// sameCSP reports whether a stored CSP scan carries the same result.
+// sameCSP reports whether a stored CSP scan carries the same result. The
+// order of findings and per-request nonces don't count: rows stored before
+// issue #65 have their findings in random order.
 func sameCSP(scan *ent.CSPScan, header string, findings []csp.Finding, probeErr string) bool {
-	return scan.CspHeader == header && slices.Equal(scan.Findings, findings) &&
+	return csp.MaskNonces(scan.CspHeader) == csp.MaskNonces(header) &&
+		sameFindings(scan.Findings, findings) &&
 		scan.ProbeError == probeErr
+}
+
+// sameFindings reports whether a and b hold the same findings in any order.
+func sameFindings(a, b []csp.Finding) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	x, y := slices.Clone(a), slices.Clone(b)
+	csp.SortFindings(x)
+	csp.SortFindings(y)
+	return slices.Equal(x, y)
 }
 
 // lastSeen is the effective end of a row's period. Rows written before issue #4

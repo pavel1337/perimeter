@@ -9,6 +9,7 @@ import (
 	"perimeter/ent/enttest"
 	"perimeter/ent/ip"
 	"perimeter/ent/portscan"
+	"perimeter/scanner/csp"
 )
 
 func newBackfillClient(t *testing.T) *ent.Client {
@@ -115,5 +116,26 @@ func TestCollapseScanHistoryBackfill(t *testing.T) {
 		if got.CheckCount != want[n].count {
 			t.Errorf("second run row %d: check_count %d, want %d", n, got.CheckCount, want[n].count)
 		}
+	}
+}
+
+// Findings stored in another order, or a header whose nonce changed, are the
+// same result (issue #65).
+func TestSameCSPIgnoresOrderAndNonces(t *testing.T) {
+	a := csp.Finding{Type: 1, Directive: "script-src", Description: "a", Severity: csp.SeverityHigh}
+	b := csp.Finding{Type: 2, Directive: "object-src", Description: "b", Severity: csp.SeverityMedium}
+	stored := &ent.CSPScan{CspHeader: "script-src 'nonce-111'", Findings: []csp.Finding{b, a}}
+
+	if !sameCSP(stored, "script-src 'nonce-222'", []csp.Finding{a, b}, "") {
+		t.Error("same findings in another order with a new nonce: want same")
+	}
+	if sameCSP(stored, "script-src 'nonce-222'", []csp.Finding{a}, "") {
+		t.Error("one finding fewer: want different")
+	}
+	if sameCSP(stored, "script-src 'self'", []csp.Finding{a, b}, "") {
+		t.Error("another header: want different")
+	}
+	if sameCSP(stored, "script-src 'nonce-111'", []csp.Finding{a, a}, "") {
+		t.Error("a duplicated finding instead of b: want different")
 	}
 }
