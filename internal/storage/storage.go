@@ -914,6 +914,24 @@ func (s *EntStorage) GetPreviousPortCounts(ctx context.Context, ipAddress string
 	return ports, nil
 }
 
+// GetPreviousCSPFindings returns the findings of the target's newest CSP
+// scan that got an answer, and whether there is one. Probe errors are
+// skipped, so a target that flapped through "no response" is compared with
+// its last real result (issue #66).
+func (s *EntStorage) GetPreviousCSPFindings(ctx context.Context, input string) ([]csp.Finding, bool, error) {
+	scan, err := s.client.CSPScan.Query().
+		Where(cspscan.HasTargetWith(target.Input(input)), cspscan.ProbeErrorEQ("")).
+		Order(ent.Desc(cspscan.FieldScannedAt), ent.Desc(cspscan.FieldID)).
+		First(ctx)
+	if ent.IsNotFound(err) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return scan.Findings, true, nil
+}
+
 // GetPreviousSSLGrade returns the grade from the most recent SSL scan for a target.
 func (s *EntStorage) GetPreviousSSLGrade(ctx context.Context, input string) (string, error) {
 	t, err := s.client.Target.Query().Where(target.Input(input)).First(ctx)
