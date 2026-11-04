@@ -323,3 +323,55 @@ func TestRestoreRefreshesSummary(t *testing.T) {
 		t.Errorf("OpenPortCount after restore = %d, want 1", got)
 	}
 }
+
+// A restored target is rescanned at once: every kind is flagged, the name is
+// due for resolution, and the SSL and CSP producers pick it first (#75).
+func TestRestoreRequestsRescan(t *testing.T) {
+	s := newTestStorage(t)
+	ctx := context.Background()
+	if _, err := s.ImportTargets(ctx, []string{"old.test", "other.test"}); err != nil {
+		t.Fatalf("ImportTargets: %v", err)
+	}
+	for _, in := range []string{"old.test", "other.test"} {
+		if err := s.SaveIPs(ctx, in, []string{"192.0.2.7"}, time.Hour); err != nil {
+			t.Fatalf("SaveIPs: %v", err)
+		}
+	}
+	ids := map[string]int{}
+	targets, err := s.GetTargets(ctx)
+	if err != nil {
+		t.Fatalf("GetTargets: %v", err)
+	}
+	for _, tg := range targets {
+		ids[tg.Input] = tg.ID
+	}
+	if err := s.DeleteTarget(ctx, ids["old.test"]); err != nil {
+		t.Fatalf("DeleteTarget: %v", err)
+	}
+	if err := s.RestoreTarget(ctx, ids["old.test"]); err != nil {
+		t.Fatalf("RestoreTarget: %v", err)
+	}
+
+	tg, err := s.GetTarget(ctx, ids["old.test"])
+	if err != nil {
+		t.Fatalf("GetTarget: %v", err)
+	}
+	if !tg.SslRescanPending || !tg.CspRescanPending || tg.RescanRequestedAt == nil || tg.NextResolveAt != nil {
+		t.Errorf("after restore: ssl=%v csp=%v requested=%v next_resolve=%v, want a full rescan",
+			tg.SslRescanPending, tg.CspRescanPending, tg.RescanRequestedAt, tg.NextResolveAt)
+	}
+	for _, kind := range []storage.ScanType{storage.ScanTypeSSL, storage.ScanTypeCSP} {
+		next, err := s.GetOldestOutdatedTarget(ctx, kind, time.Hour)
+		if err != nil || next == nil || next.Input != "old.test" {
+			t.Errorf("%s producer picks %v (err %v), want the restored target first", kind, next, err)
+		}
+	}
+	due, err := s.GetTargetsDueForResolution(ctx, 10, time.Now())
+	if err != nil || len(due) != 1 || due[0].Input != "old.test" {
+		t.Errorf("due for resolution = %v (err %v), want the restored target", due, err)
+	}
+	ipsRescan, err := s.GetOutdatedIPs(ctx, 10, time.Hour)
+	if err != nil || len(ipsRescan) != 1 {
+		t.Errorf("outdated IPs = %v (err %v), want the restored target's IP flagged", ipsRescan, err)
+	}
+}
