@@ -12,6 +12,7 @@ import (
 	"perimeter/ent/schema"
 	"perimeter/ent/tag"
 	"perimeter/ent/target"
+	"perimeter/internal/localaddr"
 	"perimeter/internal/storage"
 	"perimeter/scanner/csp"
 )
@@ -101,6 +102,10 @@ type IPDetail struct {
 	Error       string     `json:"error,omitempty"`
 	// Stale is set when the last check is over two port intervals old (#76).
 	Stale bool `json:"stale,omitempty"`
+	// ThisHost is set when the address belongs to the machine Perimeter
+	// runs on: its scans skip the provider's firewall, so ports filtered
+	// from outside show as open (issue #79).
+	ThisHost bool `json:"this_host,omitempty"`
 }
 
 // SSLDetail is the newest SSL result of a target. When the newest check
@@ -350,6 +355,9 @@ func (s *Service) GetTarget(ctx context.Context, id int) (*TargetDetail, error) 
 			ipd.Error = scans[0].ScanError
 			ipd.LastChecked = timePtr(scans[0].LastSeenAt)
 			ipd.Stale = Stale(scans[0].LastSeenAt, s.intervals.Ports, now)
+		}
+		if localaddr.IsLocal(i.Address) {
+			ipd.ThisHost = true
 		}
 		d.IPs = append(d.IPs, ipd)
 	}

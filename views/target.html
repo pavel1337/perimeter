@@ -49,7 +49,7 @@
 {{end}}
 {{if .IPRows}}
 {{range .IPRows}}
-<h3 class="mono">{{.IP.Address}}{{if .Stale}} <span class="badge badge-amber" title="Last checked over two scan intervals ago: the scanner may be behind">stale</span>{{end}}</h3>
+<h3 class="mono">{{.IP.Address}}{{if isThisHost .IP.Address}} <span class="badge badge-amber" title="this host: Perimeter runs on this address, so its scans never leave the machine and skip the provider's firewall. Results are not what the outside sees.">this host</span>{{end}}{{if .Stale}} <span class="badge badge-amber" title="Last checked over two scan intervals ago: the scanner may be behind">stale</span>{{end}}</h3>
 <div id="ip-{{.IP.ID}}-body" data-fragment="ip" data-ip-id="{{.IP.ID}}">
   {{template "views/partials/ip_section" .}}
 </div>

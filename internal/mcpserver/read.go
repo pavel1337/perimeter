@@ -135,6 +135,9 @@ func (t *toolset) getTarget(ctx context.Context, _ *mcp.CallToolRequest, in targ
 	}
 	for _, ip := range d.IPs {
 		fmt.Fprintf(&b, "\nIP %s: %s", ip.Address, portsText(ip))
+		if ip.ThisHost {
+			b.WriteString(" [this host: Perimeter runs here, so these results skip the provider's firewall and are not what the outside sees]")
+		}
 		if ip.LastChecked != nil {
 			fmt.Fprintf(&b, " (checked %s%s)", formatTime(*ip.LastChecked), staleNote(ip.Stale))
 		}

@@ -810,6 +810,9 @@ components:
         stale:
           type: boolean
           description: The last check is more than two scan intervals old.
+        this_host:
+          type: boolean
+          description: The address belongs to the machine Perimeter runs on. Its scans skip the provider's firewall, so ports filtered from outside show as open; the results are not what the outside sees.
     SSLDetail:
       type: object
       required: [grade, status, first_seen, last_checked]

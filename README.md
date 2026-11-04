@@ -127,6 +127,10 @@ Versioning is automatic, driven by git tags (`vMAJOR.MINOR.PATCH`):
 - **Storage** (`internal/storage`) — all database access, backed by the Ent ORM.
 - **Scanners** (`scanner/`) — the port, SSL, and CSP logic.
 
+### Scanning the host Perimeter runs on
+
+When a target points at the public IP of the machine Perimeter runs on, the scan's connections never leave that machine, so the provider's firewall is skipped. Ports that are filtered from outside (SSH or SMTP, say) show as open on every name pointing there. Perimeter marks such addresses **this host** on the dashboard and the target page, and with `this_host: true` in the API and MCP: their results are not what the outside sees. To scan that host as the internet sees it, run Perimeter somewhere else. Inside a container, only addresses assigned to the container count, so the mark shows up with host networking.
+
 ## License
 
 [AGPL-3.0](LICENSE).
