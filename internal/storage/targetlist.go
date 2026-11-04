@@ -209,7 +209,7 @@ func withTargetDetails(q *ent.TargetQuery) *ent.TargetQuery {
 			})
 		}).
 		WithSslScans(func(q *ent.SSLScanQuery) {
-			q.Where(latestPerParent(sslscan.Table, sslscan.TargetColumn))
+			q.Where(latestSSLResultPerTarget())
 		}).
 		WithCspScans(func(q *ent.CSPScanQuery) {
 			q.Where(latestPerParent(cspscan.Table, cspscan.TargetColumn))

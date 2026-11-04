@@ -11274,6 +11274,7 @@ type TargetMutation struct {
 	rescan_requested_at         *time.Time
 	ssl_rescan_pending          *bool
 	csp_rescan_pending          *bool
+	ssl_retry_at                *time.Time
 	reachability                *target.Reachability
 	latest_ssl_grade            *string
 	latest_ssl_grade_rank       *int
@@ -11918,6 +11919,55 @@ func (m *TargetMutation) ResetCspRescanPending() {
 	m.csp_rescan_pending = nil
 }
 
+// SetSslRetryAt sets the "ssl_retry_at" field.
+func (m *TargetMutation) SetSslRetryAt(t time.Time) {
+	m.ssl_retry_at = &t
+}
+
+// SslRetryAt returns the value of the "ssl_retry_at" field in the mutation.
+func (m *TargetMutation) SslRetryAt() (r time.Time, exists bool) {
+	v := m.ssl_retry_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSslRetryAt returns the old "ssl_retry_at" field's value of the Target entity.
+// If the Target object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TargetMutation) OldSslRetryAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSslRetryAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSslRetryAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSslRetryAt: %w", err)
+	}
+	return oldValue.SslRetryAt, nil
+}
+
+// ClearSslRetryAt clears the value of the "ssl_retry_at" field.
+func (m *TargetMutation) ClearSslRetryAt() {
+	m.ssl_retry_at = nil
+	m.clearedFields[target.FieldSslRetryAt] = struct{}{}
+}
+
+// SslRetryAtCleared returns if the "ssl_retry_at" field was cleared in this mutation.
+func (m *TargetMutation) SslRetryAtCleared() bool {
+	_, ok := m.clearedFields[target.FieldSslRetryAt]
+	return ok
+}
+
+// ResetSslRetryAt resets all changes to the "ssl_retry_at" field.
+func (m *TargetMutation) ResetSslRetryAt() {
+	m.ssl_retry_at = nil
+	delete(m.clearedFields, target.FieldSslRetryAt)
+}
+
 // SetReachability sets the "reachability" field.
 func (m *TargetMutation) SetReachability(t target.Reachability) {
 	m.reachability = &t
@@ -12523,7 +12573,7 @@ func (m *TargetMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TargetMutation) Fields() []string {
-	fields := make([]string, 0, 18)
+	fields := make([]string, 0, 19)
 	if m.create_time != nil {
 		fields = append(fields, target.FieldCreateTime)
 	}
@@ -12559,6 +12609,9 @@ func (m *TargetMutation) Fields() []string {
 	}
 	if m.csp_rescan_pending != nil {
 		fields = append(fields, target.FieldCspRescanPending)
+	}
+	if m.ssl_retry_at != nil {
+		fields = append(fields, target.FieldSslRetryAt)
 	}
 	if m.reachability != nil {
 		fields = append(fields, target.FieldReachability)
@@ -12610,6 +12663,8 @@ func (m *TargetMutation) Field(name string) (ent.Value, bool) {
 		return m.SslRescanPending()
 	case target.FieldCspRescanPending:
 		return m.CspRescanPending()
+	case target.FieldSslRetryAt:
+		return m.SslRetryAt()
 	case target.FieldReachability:
 		return m.Reachability()
 	case target.FieldLatestSslGrade:
@@ -12655,6 +12710,8 @@ func (m *TargetMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldSslRescanPending(ctx)
 	case target.FieldCspRescanPending:
 		return m.OldCspRescanPending(ctx)
+	case target.FieldSslRetryAt:
+		return m.OldSslRetryAt(ctx)
 	case target.FieldReachability:
 		return m.OldReachability(ctx)
 	case target.FieldLatestSslGrade:
@@ -12759,6 +12816,13 @@ func (m *TargetMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCspRescanPending(v)
+		return nil
+	case target.FieldSslRetryAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSslRetryAt(v)
 		return nil
 	case target.FieldReachability:
 		v, ok := value.(target.Reachability)
@@ -12898,6 +12962,9 @@ func (m *TargetMutation) ClearedFields() []string {
 	if m.FieldCleared(target.FieldRescanRequestedAt) {
 		fields = append(fields, target.FieldRescanRequestedAt)
 	}
+	if m.FieldCleared(target.FieldSslRetryAt) {
+		fields = append(fields, target.FieldSslRetryAt)
+	}
 	if m.FieldCleared(target.FieldLatestSslGrade) {
 		fields = append(fields, target.FieldLatestSslGrade)
 	}
@@ -12935,6 +13002,9 @@ func (m *TargetMutation) ClearField(name string) error {
 		return nil
 	case target.FieldRescanRequestedAt:
 		m.ClearRescanRequestedAt()
+		return nil
+	case target.FieldSslRetryAt:
+		m.ClearSslRetryAt()
 		return nil
 	case target.FieldLatestSslGrade:
 		m.ClearLatestSslGrade()
@@ -12988,6 +13058,9 @@ func (m *TargetMutation) ResetField(name string) error {
 		return nil
 	case target.FieldCspRescanPending:
 		m.ResetCspRescanPending()
+		return nil
+	case target.FieldSslRetryAt:
+		m.ResetSslRetryAt()
 		return nil
 	case target.FieldReachability:
 		m.ResetReachability()

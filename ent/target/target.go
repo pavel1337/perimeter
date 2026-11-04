@@ -40,6 +40,8 @@ const (
 	FieldSslRescanPending = "ssl_rescan_pending"
 	// FieldCspRescanPending holds the string denoting the csp_rescan_pending field in the database.
 	FieldCspRescanPending = "csp_rescan_pending"
+	// FieldSslRetryAt holds the string denoting the ssl_retry_at field in the database.
+	FieldSslRetryAt = "ssl_retry_at"
 	// FieldReachability holds the string denoting the reachability field in the database.
 	FieldReachability = "reachability"
 	// FieldLatestSslGrade holds the string denoting the latest_ssl_grade field in the database.
@@ -112,6 +114,7 @@ var Columns = []string{
 	FieldRescanRequestedAt,
 	FieldSslRescanPending,
 	FieldCspRescanPending,
+	FieldSslRetryAt,
 	FieldReachability,
 	FieldLatestSslGrade,
 	FieldLatestSslGradeRank,
@@ -273,6 +276,11 @@ func BySslRescanPending(opts ...sql.OrderTermOption) OrderOption {
 // ByCspRescanPending orders the results by the csp_rescan_pending field.
 func ByCspRescanPending(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCspRescanPending, opts...).ToFunc()
+}
+
+// BySslRetryAt orders the results by the ssl_retry_at field.
+func BySslRetryAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSslRetryAt, opts...).ToFunc()
 }
 
 // ByReachability orders the results by the reachability field.

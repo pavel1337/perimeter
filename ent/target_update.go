@@ -216,6 +216,26 @@ func (_u *TargetUpdate) SetNillableCspRescanPending(v *bool) *TargetUpdate {
 	return _u
 }
 
+// SetSslRetryAt sets the "ssl_retry_at" field.
+func (_u *TargetUpdate) SetSslRetryAt(v time.Time) *TargetUpdate {
+	_u.mutation.SetSslRetryAt(v)
+	return _u
+}
+
+// SetNillableSslRetryAt sets the "ssl_retry_at" field if the given value is not nil.
+func (_u *TargetUpdate) SetNillableSslRetryAt(v *time.Time) *TargetUpdate {
+	if v != nil {
+		_u.SetSslRetryAt(*v)
+	}
+	return _u
+}
+
+// ClearSslRetryAt clears the value of the "ssl_retry_at" field.
+func (_u *TargetUpdate) ClearSslRetryAt() *TargetUpdate {
+	_u.mutation.ClearSslRetryAt()
+	return _u
+}
+
 // SetReachability sets the "reachability" field.
 func (_u *TargetUpdate) SetReachability(v target.Reachability) *TargetUpdate {
 	_u.mutation.SetReachability(v)
@@ -626,6 +646,12 @@ func (_u *TargetUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.CspRescanPending(); ok {
 		_spec.SetField(target.FieldCspRescanPending, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.SslRetryAt(); ok {
+		_spec.SetField(target.FieldSslRetryAt, field.TypeTime, value)
+	}
+	if _u.mutation.SslRetryAtCleared() {
+		_spec.ClearField(target.FieldSslRetryAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Reachability(); ok {
 		_spec.SetField(target.FieldReachability, field.TypeEnum, value)
@@ -1075,6 +1101,26 @@ func (_u *TargetUpdateOne) SetNillableCspRescanPending(v *bool) *TargetUpdateOne
 	return _u
 }
 
+// SetSslRetryAt sets the "ssl_retry_at" field.
+func (_u *TargetUpdateOne) SetSslRetryAt(v time.Time) *TargetUpdateOne {
+	_u.mutation.SetSslRetryAt(v)
+	return _u
+}
+
+// SetNillableSslRetryAt sets the "ssl_retry_at" field if the given value is not nil.
+func (_u *TargetUpdateOne) SetNillableSslRetryAt(v *time.Time) *TargetUpdateOne {
+	if v != nil {
+		_u.SetSslRetryAt(*v)
+	}
+	return _u
+}
+
+// ClearSslRetryAt clears the value of the "ssl_retry_at" field.
+func (_u *TargetUpdateOne) ClearSslRetryAt() *TargetUpdateOne {
+	_u.mutation.ClearSslRetryAt()
+	return _u
+}
+
 // SetReachability sets the "reachability" field.
 func (_u *TargetUpdateOne) SetReachability(v target.Reachability) *TargetUpdateOne {
 	_u.mutation.SetReachability(v)
@@ -1515,6 +1561,12 @@ func (_u *TargetUpdateOne) sqlSave(ctx context.Context) (_node *Target, err erro
 	}
 	if value, ok := _u.mutation.CspRescanPending(); ok {
 		_spec.SetField(target.FieldCspRescanPending, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.SslRetryAt(); ok {
+		_spec.SetField(target.FieldSslRetryAt, field.TypeTime, value)
+	}
+	if _u.mutation.SslRetryAtCleared() {
+		_spec.ClearField(target.FieldSslRetryAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Reachability(); ok {
 		_spec.SetField(target.FieldReachability, field.TypeEnum, value)

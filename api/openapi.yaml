@@ -831,6 +831,12 @@ components:
         last_checked:
           type: string
           format: date-time
+        last_check_error:
+          type: string
+          description: Set when the newest SSL check failed (an SSL Labs error, or the TLS pre-check failing right after a graded result). The other fields are then the last real result, or empty if there is none yet.
+        last_check_failed_at:
+          type: string
+          format: date-time
     CSPDetail:
       type: object
       required: [first_seen, last_checked]

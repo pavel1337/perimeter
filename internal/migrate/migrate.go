@@ -49,6 +49,12 @@ var migrations = []Migration{
 			return storage.NewEntStorage(client).BackfillSummary(ctx)
 		},
 	},
+	{
+		Name: "0004_clear_failed_ssl_grades",
+		Run: func(ctx context.Context, client *ent.Client) error {
+			return storage.NewEntStorage(client).ClearFailedSSLGrades(ctx)
+		},
+	},
 }
 
 // Run applies every migration that has not been applied yet. Call it after

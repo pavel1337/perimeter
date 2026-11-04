@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"log"
+	"slices"
 	"time"
 
 	"perimeter/ent"
@@ -40,8 +41,8 @@ func GradeRank(grade string) int {
 }
 
 // summarize derives the summary from a target whose edges hold only its
-// newest scans: each IP's newest port scan with its ports, and the newest
-// SSL and CSP scan. refreshSummary and BackfillSummary load that shape in
+// newest scans: each IP's newest port scan with its ports, the newest SSL
+// result (failed checks skipped) and the newest CSP scan. refreshSummary and BackfillSummary load that shape in
 // different ways; this is the one place the values are defined.
 func summarize(t *ent.Target) summary {
 	sum := summary{reachability: loadedFacts(t).decide()}
@@ -156,8 +157,9 @@ func loadNewestScans(ctx context.Context, client *ent.Client, t *ent.Target) err
 		i.Edges.Scans = nonNil(scan)
 	}
 
+	// The newest result: a failed check keeps the last real grade (#61).
 	ssl, err := client.SSLScan.Query().
-		Where(sslscan.HasTargetWith(target.IDEQ(t.ID))).
+		Where(sslscan.HasTargetWith(target.IDEQ(t.ID)), sslResult()).
 		Order(ent.Desc(sslscan.FieldScannedAt), ent.Desc(sslscan.FieldID)).
 		First(ctx)
 	if err != nil && !ent.IsNotFound(err) {
@@ -197,7 +199,7 @@ func (s *EntStorage) BackfillSummary(ctx context.Context) error {
 			})
 		}).
 		WithSslScans(func(q *ent.SSLScanQuery) {
-			q.Where(latestPerParent(sslscan.Table, sslscan.TargetColumn))
+			q.Where(latestSSLResultPerTarget())
 		}).
 		WithCspScans(func(q *ent.CSPScanQuery) {
 			q.Where(latestPerParent(cspscan.Table, cspscan.TargetColumn))
@@ -222,5 +224,27 @@ func (s *EntStorage) BackfillSummary(ctx context.Context) error {
 	}
 
 	log.Printf("Backfill (summary): %d targets, %d updated; reachability %v", len(targets), changed, counts)
+	return nil
+}
+
+// ClearFailedSSLGrades removes the grade from failed SSL checks stored before
+// issue #61, which recorded every SSL Labs error as grade F, and rebuilds the
+// summary of the targets they belong to. Rerunning it changes nothing.
+func (s *EntStorage) ClearFailedSSLGrades(ctx context.Context) error {
+	failed := sslscan.And(sslscan.StatusHasPrefix(SSLErrorPrefix), sslscan.GradeNEQ(""))
+	ids, err := s.client.Target.Query().Where(target.HasSslScansWith(failed)).IDs(ctx)
+	if err != nil {
+		return err
+	}
+	n, err := s.client.SSLScan.Update().Where(failed).SetGrade("").Save(ctx)
+	if err != nil {
+		return err
+	}
+	log.Printf("Backfill (ssl errors): cleared the grade of %d failed checks on %d targets", n, len(ids))
+	for chunk := range slices.Chunk(ids, bulkChunkSize) {
+		if err := refreshSummary(ctx, s.client, target.IDIn(chunk...)); err != nil {
+			return err
+		}
+	}
 	return nil
 }

@@ -185,6 +185,20 @@ func (_c *TargetCreate) SetNillableCspRescanPending(v *bool) *TargetCreate {
 	return _c
 }
 
+// SetSslRetryAt sets the "ssl_retry_at" field.
+func (_c *TargetCreate) SetSslRetryAt(v time.Time) *TargetCreate {
+	_c.mutation.SetSslRetryAt(v)
+	return _c
+}
+
+// SetNillableSslRetryAt sets the "ssl_retry_at" field if the given value is not nil.
+func (_c *TargetCreate) SetNillableSslRetryAt(v *time.Time) *TargetCreate {
+	if v != nil {
+		_c.SetSslRetryAt(*v)
+	}
+	return _c
+}
+
 // SetReachability sets the "reachability" field.
 func (_c *TargetCreate) SetReachability(v target.Reachability) *TargetCreate {
 	_c.mutation.SetReachability(v)
@@ -536,6 +550,10 @@ func (_c *TargetCreate) createSpec() (*Target, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CspRescanPending(); ok {
 		_spec.SetField(target.FieldCspRescanPending, field.TypeBool, value)
 		_node.CspRescanPending = value
+	}
+	if value, ok := _c.mutation.SslRetryAt(); ok {
+		_spec.SetField(target.FieldSslRetryAt, field.TypeTime, value)
+		_node.SslRetryAt = &value
 	}
 	if value, ok := _c.mutation.Reachability(); ok {
 		_spec.SetField(target.FieldReachability, field.TypeEnum, value)

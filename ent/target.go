@@ -42,6 +42,8 @@ type Target struct {
 	SslRescanPending bool `json:"ssl_rescan_pending,omitempty"`
 	// CspRescanPending holds the value of the "csp_rescan_pending" field.
 	CspRescanPending bool `json:"csp_rescan_pending,omitempty"`
+	// SslRetryAt holds the value of the "ssl_retry_at" field.
+	SslRetryAt *time.Time `json:"ssl_retry_at,omitempty"`
 	// Reachability holds the value of the "reachability" field.
 	Reachability target.Reachability `json:"reachability,omitempty"`
 	// LatestSslGrade holds the value of the "latest_ssl_grade" field.
@@ -136,7 +138,7 @@ func (*Target) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case target.FieldInput, target.FieldResolveError, target.FieldReachability, target.FieldLatestSslGrade:
 			values[i] = new(sql.NullString)
-		case target.FieldCreateTime, target.FieldUpdateTime, target.FieldDeletedAt, target.FieldResolvedAt, target.FieldNextResolveAt, target.FieldRescanRequestedAt, target.FieldLatestCertExpiry:
+		case target.FieldCreateTime, target.FieldUpdateTime, target.FieldDeletedAt, target.FieldResolvedAt, target.FieldNextResolveAt, target.FieldRescanRequestedAt, target.FieldSslRetryAt, target.FieldLatestCertExpiry:
 			values[i] = new(sql.NullTime)
 		case target.ForeignKeys[0]: // user_targets
 			values[i] = new(sql.NullInt64)
@@ -236,6 +238,13 @@ func (_m *Target) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field csp_rescan_pending", values[i])
 			} else if value.Valid {
 				_m.CspRescanPending = value.Bool
+			}
+		case target.FieldSslRetryAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field ssl_retry_at", values[i])
+			} else if value.Valid {
+				_m.SslRetryAt = new(time.Time)
+				*_m.SslRetryAt = value.Time
 			}
 		case target.FieldReachability:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -386,6 +395,11 @@ func (_m *Target) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("csp_rescan_pending=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CspRescanPending))
+	builder.WriteString(", ")
+	if v := _m.SslRetryAt; v != nil {
+		builder.WriteString("ssl_retry_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("reachability=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Reachability))
