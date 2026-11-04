@@ -1591,6 +1591,10 @@ func (s *Server) handleSyncImporter(c *fiber.Ctx) error {
 	count, err := s.syncer.SyncOne(ctx, cfg)
 	if err != nil {
 		msg := "Sync failed: " + err.Error()
+		var partial *importer.ZoneErrors
+		if errors.As(err, &partial) {
+			msg = fmt.Sprintf("Sync incomplete: %d targets imported, but some zones failed to load (%v). It counts as failed and is retried.", count, err)
+		}
 		if errors.Is(err, importer.ErrSyncRunning) {
 			msg = "A sync for this importer is already running (one starts automatically when an importer is added). Refresh in a minute to see the result."
 		}

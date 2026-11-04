@@ -3,11 +3,13 @@ package importer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -74,5 +76,37 @@ func TestGandiFetchReadsEveryRecordPage(t *testing.T) {
 				t.Errorf("records endpoint called %d times, want %d", *calls, tc.calls)
 			}
 		})
+	}
+}
+
+// One zone failing doesn't drop the others, and the failure is reported with
+// the zone's name (issue #71).
+func TestGandiFetchReportsFailedZone(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/domain/domains", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode([]gandiDomain{{FQDN: "example.com"}, {FQDN: "example.org"}})
+	})
+	mux.HandleFunc("/livedns/domains/example.com/records", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode([]gandiRecord{{Name: "www", Type: "A"}})
+	})
+	mux.HandleFunc("/livedns/domains/example.org/records", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	src := &GandiSource{config: GandiConfig{APIKey: "k"}, client: &http.Client{Timeout: 5 * time.Second}, baseURL: srv.URL}
+
+	got, err := src.Fetch(context.Background())
+	var partial *ZoneErrors
+	if !errors.As(err, &partial) || len(partial.Zones) != 1 || partial.Zones[0].Zone != "example.org" {
+		t.Fatalf("err = %v, want a ZoneErrors for example.org", err)
+	}
+	if !strings.Contains(err.Error(), "zone example.org: gandi API returned 500") {
+		t.Errorf("error text = %q", err)
+	}
+	for _, want := range []string{"example.com", "www.example.com", "example.org"} {
+		if !slices.Contains(got, want) {
+			t.Errorf("names %v lack %s", got, want)
+		}
 	}
 }

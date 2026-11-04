@@ -75,6 +75,7 @@ type ncHostsResponse struct {
 }
 
 func (s *NamecheapSource) Fetch(ctx context.Context) ([]string, error) {
+	var failed ZoneErrors
 	seen := make(map[string]bool)
 	var targets []string
 
@@ -109,7 +110,10 @@ func (s *NamecheapSource) Fetch(ctx context.Context) ([]string, error) {
 			// Fetch DNS hosts to discover subdomains
 			subs, err := s.fetchHosts(ctx, d.Name)
 			if err != nil {
-				continue // Skip on error, don't fail entire import
+				// Keep going, but report the zone: the sync must not
+				// count as successful without its names (issue #71).
+				failed.add(d.Name, err)
+				continue
 			}
 			for _, sub := range subs {
 				if !seen[sub] {
@@ -129,7 +133,7 @@ func (s *NamecheapSource) Fetch(ctx context.Context) ([]string, error) {
 		page++
 	}
 
-	return targets, nil
+	return targets, failed.orNil()
 }
 
 func (s *NamecheapSource) fetchHosts(ctx context.Context, domain string) ([]string, error) {
