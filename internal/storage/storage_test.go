@@ -270,7 +270,7 @@ func TestSaveAndGetPortScan(t *testing.T) {
 	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
 		t.Fatalf("ImportTargets: %v", err)
 	}
-	if err := s.SaveIPs(ctx, "example.com", []string{"1.2.3.4"}); err != nil {
+	if err := s.SaveIPs(ctx, "example.com", []string{"1.2.3.4"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs: %v", err)
 	}
 
@@ -451,7 +451,7 @@ func TestGetIPScansPage(t *testing.T) {
 	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
 		t.Fatalf("ImportTargets: %v", err)
 	}
-	if err := s.SaveIPs(ctx, "example.com", []string{"1.2.3.4"}); err != nil {
+	if err := s.SaveIPs(ctx, "example.com", []string{"1.2.3.4"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs: %v", err)
 	}
 
@@ -544,7 +544,7 @@ func TestGetOutdatedIPs(t *testing.T) {
 	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
 		t.Fatalf("ImportTargets: %v", err)
 	}
-	if err := s.SaveIPs(ctx, "example.com", []string{"1.2.3.4", "5.6.7.8", "9.10.11.12"}); err != nil {
+	if err := s.SaveIPs(ctx, "example.com", []string{"1.2.3.4", "5.6.7.8", "9.10.11.12"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs: %v", err)
 	}
 
@@ -591,7 +591,7 @@ func TestGetOutdatedIPsOrdersByOldestScan(t *testing.T) {
 	}
 	// Insertion order is deliberately the reverse of the expected scan order,
 	// so an ordering that fell back on the IP row's own timestamps would fail.
-	if err := s.SaveIPs(ctx, "example.com", []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"}); err != nil {
+	if err := s.SaveIPs(ctx, "example.com", []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs: %v", err)
 	}
 	for _, addr := range []string{"3.3.3.3", "2.2.2.2"} {
@@ -634,7 +634,7 @@ func TestSavePortScanCollapsesIdenticalResults(t *testing.T) {
 	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
 		t.Fatalf("ImportTargets: %v", err)
 	}
-	if err := s.SaveIPs(ctx, "example.com", []string{"1.2.3.4"}); err != nil {
+	if err := s.SaveIPs(ctx, "example.com", []string{"1.2.3.4"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs: %v", err)
 	}
 
@@ -682,7 +682,7 @@ func TestSavePortScanError(t *testing.T) {
 	if _, err := s.ImportTargets(ctx, []string{"example.com"}); err != nil {
 		t.Fatalf("ImportTargets: %v", err)
 	}
-	if err := s.SaveIPs(ctx, "example.com", []string{"1.2.3.4"}); err != nil {
+	if err := s.SaveIPs(ctx, "example.com", []string{"1.2.3.4"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs: %v", err)
 	}
 
@@ -857,7 +857,7 @@ func TestGetTargetsLoadsCurrentStateOnly(t *testing.T) {
 		t.Fatalf("ImportTargets: %v", err)
 	}
 	for _, host := range []string{"a.example.com", "b.example.com"} {
-		if err := s.SaveIPs(ctx, host, []string{"10.0.0." + host[:1]}); err != nil {
+		if err := s.SaveIPs(ctx, host, []string{"10.0.0." + host[:1]}, time.Hour); err != nil {
 			t.Fatalf("SaveIPs: %v", err)
 		}
 	}

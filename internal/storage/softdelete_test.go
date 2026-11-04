@@ -80,13 +80,13 @@ func TestDeleteHidesTargetEverywhere(t *testing.T) {
 	}
 
 	// example.com has no IPs, so it would be unresolved if it were live.
-	unresolved, err := s.GetUnresolvedTargets(ctx, 10, time.Hour)
+	unresolved, err := s.GetTargetsDueForResolution(ctx, 10, time.Now())
 	if err != nil {
-		t.Fatalf("GetUnresolvedTargets: %v", err)
+		t.Fatalf("GetTargetsDueForResolution: %v", err)
 	}
 	for _, tg := range unresolved {
 		if tg.Input == "example.com" {
-			t.Error("GetUnresolvedTargets returns the deleted target")
+			t.Error("GetTargetsDueForResolution returns the deleted target")
 		}
 	}
 
@@ -253,13 +253,13 @@ func TestGetOutdatedIPsSkipsDeletedOnlyIPs(t *testing.T) {
 	if _, err := s.ImportTargets(ctx, []string{"a.test", "b.test", "c.test"}); err != nil {
 		t.Fatalf("ImportTargets: %v", err)
 	}
-	if err := s.SaveIPs(ctx, "a.test", []string{"1.1.1.1"}); err != nil {
+	if err := s.SaveIPs(ctx, "a.test", []string{"1.1.1.1"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs a: %v", err)
 	}
-	if err := s.SaveIPs(ctx, "b.test", []string{"1.1.1.1"}); err != nil {
+	if err := s.SaveIPs(ctx, "b.test", []string{"1.1.1.1"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs b: %v", err)
 	}
-	if err := s.SaveIPs(ctx, "c.test", []string{"2.2.2.2"}); err != nil {
+	if err := s.SaveIPs(ctx, "c.test", []string{"2.2.2.2"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs c: %v", err)
 	}
 
@@ -306,7 +306,7 @@ func TestRestoreRefreshesSummary(t *testing.T) {
 	if _, err := s.ImportTargets(ctx, []string{"10.0.0.1"}); err != nil {
 		t.Fatalf("ImportTargets: %v", err)
 	}
-	if err := s.SaveIPs(ctx, "10.0.0.1", []string{"10.0.0.1"}); err != nil {
+	if err := s.SaveIPs(ctx, "10.0.0.1", []string{"10.0.0.1"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs: %v", err)
 	}
 	id := idOf(t, s, "10.0.0.1")

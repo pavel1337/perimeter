@@ -774,6 +774,11 @@ components:
           properties:
             resolve_error:
               type: string
+              description: Why the last lookup failed. Absent after a successful one.
+            resolved_at:
+              type: string
+              format: date-time
+              description: Time of the last lookup that succeeded.
             ips:
               type: array
               items:

@@ -39,7 +39,7 @@ func TestRequestRescanFlagsTargetAndIPs(t *testing.T) {
 	s := newTestStorage(t)
 	ctx := context.Background()
 	id := importHosts(t, s, "r", 1)[0]
-	if err := s.SaveIPs(ctx, mustTargetInput(t, s, id), []string{"192.0.2.1", "192.0.2.2"}); err != nil {
+	if err := s.SaveIPs(ctx, mustTargetInput(t, s, id), []string{"192.0.2.1", "192.0.2.2"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs: %v", err)
 	}
 
@@ -82,7 +82,7 @@ func TestRequestRescanKindsAndIPTargets(t *testing.T) {
 			addr = tg.ID
 		}
 	}
-	if err := s.SaveIPs(ctx, "kinds.example", []string{"192.0.2.10"}); err != nil {
+	if err := s.SaveIPs(ctx, "kinds.example", []string{"192.0.2.10"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs: %v", err)
 	}
 
@@ -232,10 +232,10 @@ func TestGetOutdatedIPsPrefersRescanRequests(t *testing.T) {
 	if _, err := s.ImportTargets(ctx, []string{"ports.example", "other.example"}); err != nil {
 		t.Fatalf("ImportTargets: %v", err)
 	}
-	if err := s.SaveIPs(ctx, "ports.example", []string{"192.0.2.20", "192.0.2.21"}); err != nil {
+	if err := s.SaveIPs(ctx, "ports.example", []string{"192.0.2.20", "192.0.2.21"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs: %v", err)
 	}
-	if err := s.SaveIPs(ctx, "other.example", []string{"198.51.100.1"}); err != nil {
+	if err := s.SaveIPs(ctx, "other.example", []string{"198.51.100.1"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs: %v", err)
 	}
 	// ports.example's IPs are freshly scanned: not outdated, so only a rescan
@@ -275,7 +275,7 @@ func TestStoredResultsClearRescanFlags(t *testing.T) {
 	ctx := context.Background()
 	id := importHosts(t, s, "clear", 1)[0]
 	input := mustTargetInput(t, s, id)
-	if err := s.SaveIPs(ctx, input, []string{"192.0.2.30", "192.0.2.31"}); err != nil {
+	if err := s.SaveIPs(ctx, input, []string{"192.0.2.30", "192.0.2.31"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs: %v", err)
 	}
 

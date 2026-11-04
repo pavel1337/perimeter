@@ -74,12 +74,12 @@ func seedTargets(t *testing.T, s *storage.EntStorage, rows []fixtureRow) {
 		_, err := s.ImportTargets(ctx, []string{r.input})
 		must("ImportTargets "+r.input, err)
 		if r.resolveErr {
-			must("RecordResolveFailure "+r.input, s.RecordResolveFailure(ctx, r.input, "no such host"))
+			must("RecordResolveFailure "+r.input, s.RecordResolveFailure(ctx, r.input, storage.ResolveFailure{Message: "no such host"}))
 		}
 		if r.hasIP {
 			ipSeq++
 			addr := fmt.Sprintf("10.1.%d.%d", ipSeq/250, ipSeq%250+1)
-			must("SaveIPs "+r.input, s.SaveIPs(ctx, r.input, []string{addr}))
+			must("SaveIPs "+r.input, s.SaveIPs(ctx, r.input, []string{addr}, time.Hour))
 			must("SavePortScan "+r.input, s.SavePortScan(ctx, addr, r.ports))
 		}
 		// The expiry rows without a grade (issue #42 boundary) must not
@@ -269,7 +269,7 @@ func TestListTargetsPortOnlyNewestScanCounts(t *testing.T) {
 	}
 
 	// old.test had 443 open in an older scan, closed in the newest one.
-	if err := s.SaveIPs(ctx, "old.test", []string{"10.2.0.1"}); err != nil {
+	if err := s.SaveIPs(ctx, "old.test", []string{"10.2.0.1"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs: %v", err)
 	}
 	if err := s.SavePortScan(ctx, "10.2.0.1", []int{443}); err != nil {
@@ -280,7 +280,7 @@ func TestListTargetsPortOnlyNewestScanCounts(t *testing.T) {
 	}
 
 	// new.test has 443 open in its only, newest scan.
-	if err := s.SaveIPs(ctx, "new.test", []string{"10.2.0.2"}); err != nil {
+	if err := s.SaveIPs(ctx, "new.test", []string{"10.2.0.2"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs: %v", err)
 	}
 	if err := s.SavePortScan(ctx, "10.2.0.2", []int{443}); err != nil {

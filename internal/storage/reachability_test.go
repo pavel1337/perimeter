@@ -3,6 +3,7 @@ package storage_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"perimeter/ent"
 	"perimeter/ent/target"
@@ -41,12 +42,12 @@ func TestReachabilityLifecycle(t *testing.T) {
 
 	step("imported", target.ReachabilityPending)
 
-	if err := s.RecordResolveFailure(ctx, "example.com", "no such host (NXDOMAIN)"); err != nil {
+	if err := s.RecordResolveFailure(ctx, "example.com", storage.ResolveFailure{Message: "no such host (NXDOMAIN)"}); err != nil {
 		t.Fatalf("RecordResolveFailure: %v", err)
 	}
 	step("resolve failed", target.ReachabilityUnresolved)
 
-	if err := s.SaveIPs(ctx, "example.com", []string{"10.0.0.1"}); err != nil {
+	if err := s.SaveIPs(ctx, "example.com", []string{"10.0.0.1"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs: %v", err)
 	}
 	step("resolved, not probed", target.ReachabilityPending)
@@ -57,7 +58,7 @@ func TestReachabilityLifecycle(t *testing.T) {
 	step("probe got no response", target.ReachabilityUnreachable)
 
 	// Re-resolving says nothing about whether it answers.
-	if err := s.SaveIPs(ctx, "example.com", []string{"10.0.0.1"}); err != nil {
+	if err := s.SaveIPs(ctx, "example.com", []string{"10.0.0.1"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs: %v", err)
 	}
 	step("re-resolved", target.ReachabilityUnreachable)
@@ -122,7 +123,7 @@ func TestPortScanReachability(t *testing.T) {
 		t.Fatalf("ImportTargets: %v", err)
 	}
 	for _, in := range []string{"10.0.0.1", "mail.example"} {
-		if err := s.SaveIPs(ctx, in, []string{"10.0.0.1"}); err != nil {
+		if err := s.SaveIPs(ctx, in, []string{"10.0.0.1"}, time.Hour); err != nil {
 			t.Fatalf("SaveIPs: %v", err)
 		}
 	}
@@ -166,7 +167,7 @@ func TestPortScanReachability(t *testing.T) {
 	if err := s.SavePortScan(ctx, "10.0.0.1", []int{443}); err != nil {
 		t.Fatalf("SavePortScan: %v", err)
 	}
-	if err := s.SaveIPs(ctx, "www.example", []string{"10.0.0.1"}); err != nil {
+	if err := s.SaveIPs(ctx, "www.example", []string{"10.0.0.1"}, time.Hour); err != nil {
 		t.Fatalf("SaveIPs: %v", err)
 	}
 	if got := reachabilityOf(t, s, "www.example"); got != target.ReachabilityOk {
@@ -187,7 +188,7 @@ func TestGetTargetsFiltersByReachability(t *testing.T) {
 	if err := s.SaveCSPUnreachable(ctx, "down.example", "timed out"); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.RecordResolveFailure(ctx, "gone.example", "no such host (NXDOMAIN)"); err != nil {
+	if err := s.RecordResolveFailure(ctx, "gone.example", storage.ResolveFailure{Message: "no such host (NXDOMAIN)"}); err != nil {
 		t.Fatal(err)
 	}
 

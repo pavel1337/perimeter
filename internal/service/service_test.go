@@ -72,7 +72,7 @@ func (f *fixture) id(input string) int {
 
 func (f *fixture) ip(input, addr string) {
 	f.t.Helper()
-	f.must(f.st.SaveIPs(f.ctx, input, []string{addr}))
+	f.must(f.st.SaveIPs(f.ctx, input, []string{addr}, time.Hour))
 }
 
 func (f *fixture) ports(addr string, ports ...int) {

@@ -130,6 +130,9 @@ func (t *toolset) getTarget(ctx context.Context, _ *mcp.CallToolRequest, in targ
 	if d.ResolveError != "" {
 		b.WriteString("\nresolve error: " + d.ResolveError)
 	}
+	if d.ResolvedAt != nil {
+		fmt.Fprintf(&b, "\nresolved at: %s", formatTime(*d.ResolvedAt))
+	}
 	for _, ip := range d.IPs {
 		fmt.Fprintf(&b, "\nIP %s: %s", ip.Address, portsText(ip))
 		if ip.LastChecked != nil {

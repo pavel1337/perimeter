@@ -95,9 +95,12 @@ func (s *EntStorage) RequestRescan(ctx context.Context, ids []int, now time.Time
 
 // requestRescanChunk stamps and flags one chunk of queued targets.
 func requestRescanChunk(ctx context.Context, tx *ent.Tx, ids []int, now time.Time, kinds RescanKinds) error {
+	// A rescan resolves the name again first, so new addresses in the answer
+	// are picked up and port-scanned as never scanned (issue #59).
 	if _, err := tx.Target.Update().
 		Where(target.IDIn(ids...)).
 		SetRescanRequestedAt(now).
+		ClearNextResolveAt().
 		Save(ctx); err != nil {
 		return err
 	}

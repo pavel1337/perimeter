@@ -90,6 +90,16 @@ func ResolveError(v string) predicate.Target {
 	return predicate.Target(sql.FieldEQ(FieldResolveError, v))
 }
 
+// ResolvedAt applies equality check predicate on the "resolved_at" field. It's identical to ResolvedAtEQ.
+func ResolvedAt(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldResolvedAt, v))
+}
+
+// NextResolveAt applies equality check predicate on the "next_resolve_at" field. It's identical to NextResolveAtEQ.
+func NextResolveAt(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldNextResolveAt, v))
+}
+
 // RescanRequestedAt applies equality check predicate on the "rescan_requested_at" field. It's identical to RescanRequestedAtEQ.
 func RescanRequestedAt(v time.Time) predicate.Target {
 	return predicate.Target(sql.FieldEQ(FieldRescanRequestedAt, v))
@@ -448,6 +458,106 @@ func ResolveErrorEqualFold(v string) predicate.Target {
 // ResolveErrorContainsFold applies the ContainsFold predicate on the "resolve_error" field.
 func ResolveErrorContainsFold(v string) predicate.Target {
 	return predicate.Target(sql.FieldContainsFold(FieldResolveError, v))
+}
+
+// ResolvedAtEQ applies the EQ predicate on the "resolved_at" field.
+func ResolvedAtEQ(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldResolvedAt, v))
+}
+
+// ResolvedAtNEQ applies the NEQ predicate on the "resolved_at" field.
+func ResolvedAtNEQ(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldNEQ(FieldResolvedAt, v))
+}
+
+// ResolvedAtIn applies the In predicate on the "resolved_at" field.
+func ResolvedAtIn(vs ...time.Time) predicate.Target {
+	return predicate.Target(sql.FieldIn(FieldResolvedAt, vs...))
+}
+
+// ResolvedAtNotIn applies the NotIn predicate on the "resolved_at" field.
+func ResolvedAtNotIn(vs ...time.Time) predicate.Target {
+	return predicate.Target(sql.FieldNotIn(FieldResolvedAt, vs...))
+}
+
+// ResolvedAtGT applies the GT predicate on the "resolved_at" field.
+func ResolvedAtGT(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldGT(FieldResolvedAt, v))
+}
+
+// ResolvedAtGTE applies the GTE predicate on the "resolved_at" field.
+func ResolvedAtGTE(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldGTE(FieldResolvedAt, v))
+}
+
+// ResolvedAtLT applies the LT predicate on the "resolved_at" field.
+func ResolvedAtLT(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldLT(FieldResolvedAt, v))
+}
+
+// ResolvedAtLTE applies the LTE predicate on the "resolved_at" field.
+func ResolvedAtLTE(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldLTE(FieldResolvedAt, v))
+}
+
+// ResolvedAtIsNil applies the IsNil predicate on the "resolved_at" field.
+func ResolvedAtIsNil() predicate.Target {
+	return predicate.Target(sql.FieldIsNull(FieldResolvedAt))
+}
+
+// ResolvedAtNotNil applies the NotNil predicate on the "resolved_at" field.
+func ResolvedAtNotNil() predicate.Target {
+	return predicate.Target(sql.FieldNotNull(FieldResolvedAt))
+}
+
+// NextResolveAtEQ applies the EQ predicate on the "next_resolve_at" field.
+func NextResolveAtEQ(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldNextResolveAt, v))
+}
+
+// NextResolveAtNEQ applies the NEQ predicate on the "next_resolve_at" field.
+func NextResolveAtNEQ(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldNEQ(FieldNextResolveAt, v))
+}
+
+// NextResolveAtIn applies the In predicate on the "next_resolve_at" field.
+func NextResolveAtIn(vs ...time.Time) predicate.Target {
+	return predicate.Target(sql.FieldIn(FieldNextResolveAt, vs...))
+}
+
+// NextResolveAtNotIn applies the NotIn predicate on the "next_resolve_at" field.
+func NextResolveAtNotIn(vs ...time.Time) predicate.Target {
+	return predicate.Target(sql.FieldNotIn(FieldNextResolveAt, vs...))
+}
+
+// NextResolveAtGT applies the GT predicate on the "next_resolve_at" field.
+func NextResolveAtGT(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldGT(FieldNextResolveAt, v))
+}
+
+// NextResolveAtGTE applies the GTE predicate on the "next_resolve_at" field.
+func NextResolveAtGTE(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldGTE(FieldNextResolveAt, v))
+}
+
+// NextResolveAtLT applies the LT predicate on the "next_resolve_at" field.
+func NextResolveAtLT(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldLT(FieldNextResolveAt, v))
+}
+
+// NextResolveAtLTE applies the LTE predicate on the "next_resolve_at" field.
+func NextResolveAtLTE(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldLTE(FieldNextResolveAt, v))
+}
+
+// NextResolveAtIsNil applies the IsNil predicate on the "next_resolve_at" field.
+func NextResolveAtIsNil() predicate.Target {
+	return predicate.Target(sql.FieldIsNull(FieldNextResolveAt))
+}
+
+// NextResolveAtNotNil applies the NotNil predicate on the "next_resolve_at" field.
+func NextResolveAtNotNil() predicate.Target {
+	return predicate.Target(sql.FieldNotNull(FieldNextResolveAt))
 }
 
 // RescanRequestedAtEQ applies the EQ predicate on the "rescan_requested_at" field.

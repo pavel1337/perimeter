@@ -30,6 +30,10 @@ const (
 	FieldResolveAttempts = "resolve_attempts"
 	// FieldResolveError holds the string denoting the resolve_error field in the database.
 	FieldResolveError = "resolve_error"
+	// FieldResolvedAt holds the string denoting the resolved_at field in the database.
+	FieldResolvedAt = "resolved_at"
+	// FieldNextResolveAt holds the string denoting the next_resolve_at field in the database.
+	FieldNextResolveAt = "next_resolve_at"
 	// FieldRescanRequestedAt holds the string denoting the rescan_requested_at field in the database.
 	FieldRescanRequestedAt = "rescan_requested_at"
 	// FieldSslRescanPending holds the string denoting the ssl_rescan_pending field in the database.
@@ -103,6 +107,8 @@ var Columns = []string{
 	FieldIsIP,
 	FieldResolveAttempts,
 	FieldResolveError,
+	FieldResolvedAt,
+	FieldNextResolveAt,
 	FieldRescanRequestedAt,
 	FieldSslRescanPending,
 	FieldCspRescanPending,
@@ -242,6 +248,16 @@ func ByResolveAttempts(opts ...sql.OrderTermOption) OrderOption {
 // ByResolveError orders the results by the resolve_error field.
 func ByResolveError(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldResolveError, opts...).ToFunc()
+}
+
+// ByResolvedAt orders the results by the resolved_at field.
+func ByResolvedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResolvedAt, opts...).ToFunc()
+}
+
+// ByNextResolveAt orders the results by the next_resolve_at field.
+func ByNextResolveAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNextResolveAt, opts...).ToFunc()
 }
 
 // ByRescanRequestedAt orders the results by the rescan_requested_at field.

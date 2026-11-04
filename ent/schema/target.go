@@ -20,6 +20,13 @@ func (Target) Fields() []ent.Field {
 		// Resolution backoff state (see scanner.resolveBackoff).
 		field.Int("resolve_attempts").Default(0),
 		field.String("resolve_error").Optional(),
+		// Re-resolution schedule (issue #59). resolved_at is the last
+		// successful lookup, shown on the target page. next_resolve_at is when
+		// the resolution producer picks the target again: RESOLVE_INTERVAL
+		// after a success, the retry backoff after a failure. Nil means due now:
+		// a new target, or one with a rescan requested.
+		field.Time("resolved_at").Optional().Nillable(),
+		field.Time("next_resolve_at").Optional().Nillable(),
 		// On-demand rescan (storage.RequestRescan). The request time drives
 		// the cooldown and the "Rescan requested" note; the pending flags make
 		// the SSL and CSP producers pick this target next, until a result is
@@ -52,6 +59,7 @@ func (Target) Fields() []ent.Field {
 func (Target) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("reachability"),
+		index.Fields("next_resolve_at"),
 		index.Fields("latest_ssl_grade_rank"),
 		index.Fields("latest_cert_expiry"),
 		index.Fields("latest_csp_finding_count"),

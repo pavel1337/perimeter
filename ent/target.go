@@ -32,6 +32,10 @@ type Target struct {
 	ResolveAttempts int `json:"resolve_attempts,omitempty"`
 	// ResolveError holds the value of the "resolve_error" field.
 	ResolveError string `json:"resolve_error,omitempty"`
+	// ResolvedAt holds the value of the "resolved_at" field.
+	ResolvedAt *time.Time `json:"resolved_at,omitempty"`
+	// NextResolveAt holds the value of the "next_resolve_at" field.
+	NextResolveAt *time.Time `json:"next_resolve_at,omitempty"`
 	// RescanRequestedAt holds the value of the "rescan_requested_at" field.
 	RescanRequestedAt *time.Time `json:"rescan_requested_at,omitempty"`
 	// SslRescanPending holds the value of the "ssl_rescan_pending" field.
@@ -132,7 +136,7 @@ func (*Target) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case target.FieldInput, target.FieldResolveError, target.FieldReachability, target.FieldLatestSslGrade:
 			values[i] = new(sql.NullString)
-		case target.FieldCreateTime, target.FieldUpdateTime, target.FieldDeletedAt, target.FieldRescanRequestedAt, target.FieldLatestCertExpiry:
+		case target.FieldCreateTime, target.FieldUpdateTime, target.FieldDeletedAt, target.FieldResolvedAt, target.FieldNextResolveAt, target.FieldRescanRequestedAt, target.FieldLatestCertExpiry:
 			values[i] = new(sql.NullTime)
 		case target.ForeignKeys[0]: // user_targets
 			values[i] = new(sql.NullInt64)
@@ -199,6 +203,20 @@ func (_m *Target) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field resolve_error", values[i])
 			} else if value.Valid {
 				_m.ResolveError = value.String
+			}
+		case target.FieldResolvedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field resolved_at", values[i])
+			} else if value.Valid {
+				_m.ResolvedAt = new(time.Time)
+				*_m.ResolvedAt = value.Time
+			}
+		case target.FieldNextResolveAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field next_resolve_at", values[i])
+			} else if value.Valid {
+				_m.NextResolveAt = new(time.Time)
+				*_m.NextResolveAt = value.Time
 			}
 		case target.FieldRescanRequestedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -347,6 +365,16 @@ func (_m *Target) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("resolve_error=")
 	builder.WriteString(_m.ResolveError)
+	builder.WriteString(", ")
+	if v := _m.ResolvedAt; v != nil {
+		builder.WriteString("resolved_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.NextResolveAt; v != nil {
+		builder.WriteString("next_resolve_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	if v := _m.RescanRequestedAt; v != nil {
 		builder.WriteString("rescan_requested_at=")

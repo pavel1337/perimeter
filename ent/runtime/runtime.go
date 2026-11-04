@@ -315,19 +315,19 @@ func init() {
 	// target.DefaultResolveAttempts holds the default value on creation for the resolve_attempts field.
 	target.DefaultResolveAttempts = targetDescResolveAttempts.Default.(int)
 	// targetDescSslRescanPending is the schema descriptor for ssl_rescan_pending field.
-	targetDescSslRescanPending := targetFields[5].Descriptor()
+	targetDescSslRescanPending := targetFields[7].Descriptor()
 	// target.DefaultSslRescanPending holds the default value on creation for the ssl_rescan_pending field.
 	target.DefaultSslRescanPending = targetDescSslRescanPending.Default.(bool)
 	// targetDescCspRescanPending is the schema descriptor for csp_rescan_pending field.
-	targetDescCspRescanPending := targetFields[6].Descriptor()
+	targetDescCspRescanPending := targetFields[8].Descriptor()
 	// target.DefaultCspRescanPending holds the default value on creation for the csp_rescan_pending field.
 	target.DefaultCspRescanPending = targetDescCspRescanPending.Default.(bool)
 	// targetDescLatestSslGradeRank is the schema descriptor for latest_ssl_grade_rank field.
-	targetDescLatestSslGradeRank := targetFields[9].Descriptor()
+	targetDescLatestSslGradeRank := targetFields[11].Descriptor()
 	// target.DefaultLatestSslGradeRank holds the default value on creation for the latest_ssl_grade_rank field.
 	target.DefaultLatestSslGradeRank = targetDescLatestSslGradeRank.Default.(int)
 	// targetDescOpenPortCount is the schema descriptor for open_port_count field.
-	targetDescOpenPortCount := targetFields[12].Descriptor()
+	targetDescOpenPortCount := targetFields[14].Descriptor()
 	// target.DefaultOpenPortCount holds the default value on creation for the open_port_count field.
 	target.DefaultOpenPortCount = targetDescOpenPortCount.Default.(int)
 	userMixin := schema.User{}.Mixin()
