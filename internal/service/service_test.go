@@ -317,10 +317,12 @@ func TestTargetHistory(t *testing.T) {
 	f := newFixture(t)
 	f.target("h.test")
 	f.ip("h.test", "10.0.0.9")
-	// Written oldest first; the history is read newest first.
-	f.ssl("h.test", "A", time.Now().Add(10*24*time.Hour))
-	f.ssl("h.test", "C", time.Now().Add(10*24*time.Hour))
-	f.ssl("h.test", "B", time.Now().Add(10*24*time.Hour))
+	// Written oldest first; the history is read newest first. One certificate
+	// throughout, so the rows differ only in grade.
+	exp := time.Now().Add(10 * 24 * time.Hour)
+	f.ssl("h.test", "A", exp)
+	f.ssl("h.test", "C", exp)
+	f.ssl("h.test", "B", exp)
 	f.csp("h.test", 1)
 	f.ports("10.0.0.9", 443)
 	f.ports("10.0.0.9", 22, 443)

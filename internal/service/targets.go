@@ -461,7 +461,7 @@ func (s *Service) TargetHistory(ctx context.Context, id, limit, offset int) (Pag
 			}
 		}
 		if prev >= 0 {
-			e.Summary = fmt.Sprintf("grade %s → %s", orNone(sslScans[prev].Grade), orNone(sc.Grade))
+			e.Summary = sslHistorySummary(sslScans[prev], sc)
 		} else {
 			e.Summary = "grade " + orNone(sc.Grade)
 		}
