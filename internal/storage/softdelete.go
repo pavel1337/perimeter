@@ -48,20 +48,35 @@ func (s *EntStorage) CountDeletedTargets(ctx context.Context) (int, error) {
 		Count(schema.SkipSoftDelete(ctx))
 }
 
-// RestoreTarget clears deleted_at and refreshes the summary: scans may have
-// been written while the target was hidden, and those writes skipped it.
+// RestoreTarget clears deleted_at, requests a rescan of every kind and
+// refreshes the summary. The stored results are from before the deletion,
+// maybe weeks old, so they must not pass for current: the rescan flags make
+// the producers pick the target next and re-resolve the name, without the
+// rescan cooldown (issue #75). Scans may also have been written while the
+// target was hidden, and those writes skipped the summary.
 func (s *EntStorage) RestoreTarget(ctx context.Context, id int) error {
-	n, err := s.client.Target.Update().
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	n, err := tx.Target.Update().
 		Where(target.ID(id), target.DeletedAtNotNil()).
 		ClearDeletedAt().
 		Save(ctx)
 	if err != nil {
-		return err
+		return rollback(tx, err)
 	}
 	if n == 0 {
-		return ErrTargetNotFound
+		return rollback(tx, ErrTargetNotFound)
 	}
-	return refreshSummary(ctx, s.client, target.ID(id))
+	all := RescanKinds{SSL: true, CSP: true, Ports: true}
+	if err := requestRescanChunk(ctx, tx, []int{id}, time.Now(), all); err != nil {
+		return rollback(tx, err)
+	}
+	if err := refreshSummary(ctx, tx.Client(), target.ID(id)); err != nil {
+		return rollback(tx, err)
+	}
+	return tx.Commit()
 }
 
 // PurgeTarget hard-deletes a soft-deleted target together with its SSL and CSP
