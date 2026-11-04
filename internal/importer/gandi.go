@@ -61,6 +61,7 @@ type gandiRecord struct {
 func (s *GandiSource) Fetch(ctx context.Context) ([]string, error) {
 	seen := make(map[string]bool)
 	var targets []string
+	var failed ZoneErrors
 
 	// Fetch all domains
 	domains, err := s.fetchDomains(ctx)
@@ -77,6 +78,7 @@ func (s *GandiSource) Fetch(ctx context.Context) ([]string, error) {
 		// Fetch DNS records to discover subdomains
 		records, err := s.fetchRecords(ctx, domain)
 		if err != nil {
+			failed.add(domain, err)
 			continue
 		}
 
@@ -95,7 +97,7 @@ func (s *GandiSource) Fetch(ctx context.Context) ([]string, error) {
 		}
 	}
 
-	return targets, nil
+	return targets, failed.orNil()
 }
 
 func (s *GandiSource) fetchDomains(ctx context.Context) ([]string, error) {

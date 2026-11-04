@@ -136,11 +136,12 @@ func (s *SyncLoop) SyncOne(ctx context.Context, cfg *ent.ImporterConfig) (int, e
 		return 0, err
 	}
 
-	targets, err := source.Fetch(ctx)
-	if err != nil {
-		log.Printf("Importer sync: fetch failed for %s (id=%d): %v", cfg.Provider, cfg.ID, err)
-		s.recordFailure(ctx, cfg, now, err)
-		return 0, err
+	targets, fetchErr := source.Fetch(ctx)
+	var partial *ZoneErrors
+	if fetchErr != nil && !errors.As(fetchErr, &partial) {
+		log.Printf("Importer sync: fetch failed for %s (id=%d): %v", cfg.Provider, cfg.ID, fetchErr)
+		s.recordFailure(ctx, cfg, now, fetchErr)
+		return 0, fetchErr
 	}
 
 	count := 0
@@ -152,6 +153,15 @@ func (s *SyncLoop) SyncOne(ctx context.Context, cfg *ent.ImporterConfig) (int, e
 			return 0, err
 		}
 		log.Printf("Importer sync: %s (id=%d) imported %d targets", cfg.Provider, cfg.ID, count)
+	}
+
+	// Some zones failed: what loaded is imported, but the sync is a failure,
+	// so last_sync_at stays and the backoff applies. Anything that removes
+	// targets missing from the source must skip a sync like this (#71).
+	if partial != nil {
+		log.Printf("Importer sync: %s (id=%d) partial, %v", cfg.Provider, cfg.ID, partial)
+		s.recordFailure(ctx, cfg, now, partial)
+		return count, partial
 	}
 
 	update := s.client.ImporterConfig.UpdateOne(cfg).

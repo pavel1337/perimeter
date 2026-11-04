@@ -35,11 +35,10 @@ type fakeSource struct {
 
 func (f *fakeSource) Name() string { return "fake" }
 
+// Fetch returns both, so a partial result (targets plus *ZoneErrors) can be
+// faked.
 func (f *fakeSource) Fetch(context.Context) ([]string, error) {
-	if f.err != nil {
-		return nil, f.err
-	}
-	return f.targets, nil
+	return f.targets, f.err
 }
 
 // syncLoopFixture builds a SyncLoop over an in-memory sqlite client with a
@@ -216,5 +215,42 @@ func TestSyncOneRunning(t *testing.T) {
 
 	if _, err := loop.SyncOne(context.Background(), cfg); !errors.Is(err, ErrSyncRunning) {
 		t.Fatalf("SyncOne error = %v, want ErrSyncRunning", err)
+	}
+}
+
+// Zones that failed to load don't make a sync successful: the names that did
+// load are imported, and the sync is recorded as failed with the zone's name
+// (issue #71).
+func TestSyncOnePartial(t *testing.T) {
+	partial := &ZoneErrors{Zones: []ZoneError{{Zone: "example.org", Err: errors.New("gandi API returned 500")}}}
+	loop, client := syncLoopFixture(t, importerconfig.ProviderGandi, &fakeSource{
+		targets: []string{"example.com", "www.example.com"},
+		err:     partial,
+	})
+	cfg := newImporterConfig(t, client, importerconfig.ProviderGandi)
+
+	count, err := loop.SyncOne(context.Background(), cfg)
+	if err == nil || !strings.Contains(err.Error(), "zone example.org: gandi API returned 500") {
+		t.Fatalf("SyncOne error = %v, want the failed zone", err)
+	}
+	if count != 2 {
+		t.Errorf("count = %d, want the 2 names that loaded", count)
+	}
+	n, err := client.Target.Query().Count(context.Background())
+	if err != nil || n != 2 {
+		t.Errorf("targets = %d (err %v), want 2 imported", n, err)
+	}
+	updated, err := client.ImporterConfig.Get(context.Background(), cfg.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if updated.LastSyncAt != nil {
+		t.Error("last_sync_at moved on a partial sync")
+	}
+	if updated.ConsecutiveFailures != 1 {
+		t.Errorf("consecutive_failures = %d, want 1 (backoff applies)", updated.ConsecutiveFailures)
+	}
+	if !strings.Contains(updated.LastError, "zone example.org") {
+		t.Errorf("last_error = %q, want the zone name", updated.LastError)
 	}
 }
