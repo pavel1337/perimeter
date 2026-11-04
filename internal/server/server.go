@@ -143,6 +143,10 @@ func newViewEngine(viewsFS fs.FS) *html.Engine {
 
 	engine.AddFunc("withQuery", withQuery)
 	engine.AddFunc("sslFailed", storage.SSLCheckFailed)
+	engine.AddFunc("cspNoApp", func(sc *ent.CSPScan) int {
+		code, _ := storage.CSPNoApp(sc)
+		return code
+	})
 	engine.AddFunc("trimPrefix", strings.TrimPrefix)
 	engine.AddFunc("eventLabel", notifierEventLabel)
 	engine.AddFunc("formValue", formValue)
@@ -1895,6 +1899,8 @@ type exportCSP struct {
 	Header     string `json:"csp_header"`
 	Findings   int    `json:"findings_count"`
 	ProbeError string `json:"probe_error,omitempty"`
+	StatusCode int    `json:"status_code,omitempty"`
+	FinalURL   string `json:"final_url,omitempty"`
 }
 
 // newExportData gathers the export view of a target. The target must come
@@ -1946,6 +1952,8 @@ func newExportData(t *ent.Target) exportData {
 			Header:     scan.CspHeader,
 			Findings:   len(scan.Findings),
 			ProbeError: scan.ProbeError,
+			StatusCode: scan.StatusCode,
+			FinalURL:   scan.FinalURL,
 		})
 	}
 
@@ -1978,6 +1986,8 @@ func exportCSVRows(d exportData) [][]string {
 		detail := strconv.Itoa(scan.Findings) + " findings"
 		if scan.ProbeError != "" {
 			detail = "no HTTP response: " + scan.ProbeError
+		} else if scan.StatusCode != 0 && !storage.StatusServesApp(scan.StatusCode) {
+			detail = fmt.Sprintf("no application served (%d)", scan.StatusCode)
 		}
 		rows = append(rows, []string{"csp_scan", scan.ScannedAt, detail, scan.Header})
 	}

@@ -108,6 +108,7 @@ type Storage interface {
 	SavePortScanError(ctx context.Context, ipAddress string, msg string) error
 	SaveSSLScan(ctx context.Context, input string, result SSLResult) error
 	SaveCSPScan(ctx context.Context, input string, header string, findings []csp.Finding) error
+	SaveCSPResponse(ctx context.Context, input string, r CSPResponse) error
 	SaveCSPUnreachable(ctx context.Context, input string, probeErr string) error
 }
 
@@ -822,7 +823,56 @@ func (s *EntStorage) SaveSSLScan(ctx context.Context, input string, res SSLResul
 
 // SaveCSPScan records the CSP evaluation of a target that answered the probe.
 func (s *EntStorage) SaveCSPScan(ctx context.Context, input string, header string, findings []csp.Finding) error {
-	return s.saveCSP(ctx, input, header, findings, "")
+	return s.saveCSP(ctx, input, CSPResponse{Header: header, Findings: findings}, "")
+}
+
+// CSPResponse is the CSP probe's view of a response.
+type CSPResponse struct {
+	Header   string
+	Findings []csp.Finding
+	// StatusCode is the HTTP status; 0 means not recorded.
+	StatusCode int
+	// FinalURL is where the response came from, after redirects, without
+	// query string or fragment.
+	FinalURL string
+}
+
+// SaveCSPResponse records the CSP probe of a target that answered, with the
+// status and final URL of the response (issue #67).
+func (s *EntStorage) SaveCSPResponse(ctx context.Context, input string, r CSPResponse) error {
+	return s.saveCSP(ctx, input, r, "")
+}
+
+// CSPAppServed reports whether a CSP row is an application's answer: the
+// probe got a 2xx response, or the row predates status codes (#67). Only
+// those are judged on their policy; a 4xx or 5xx page is not.
+func CSPAppServed(sc *ent.CSPScan) bool {
+	return sc.ProbeError == "" && (sc.StatusCode == 0 || sc.StatusCode/100 == 2)
+}
+
+// CSPNoApp returns the status of a CSP row whose probe got an error page
+// (4xx/5xx), and whether it is one: such a page serves no application, so it
+// is shown as "no application served (404)" rather than judged (#67).
+func CSPNoApp(sc *ent.CSPScan) (int, bool) {
+	if sc.ProbeError != "" || sc.StatusCode == 0 || StatusServesApp(sc.StatusCode) {
+		return 0, false
+	}
+	return sc.StatusCode, true
+}
+
+// StatusServesApp reports whether an HTTP status is one CSP is judged on.
+func StatusServesApp(code int) bool { return code/100 == 2 }
+
+// cspAppServed is CSPAppServed as a query predicate.
+func cspAppServed() predicate.CSPScan {
+	return cspscan.And(
+		cspscan.ProbeErrorEQ(""),
+		cspscan.Or(
+			cspscan.StatusCodeIsNil(),
+			cspscan.StatusCodeEQ(0),
+			cspscan.And(cspscan.StatusCodeGTE(200), cspscan.StatusCodeLT(300)),
+		),
+	)
 }
 
 // SaveCSPUnreachable records a CSP probe that got no HTTP response. It is
@@ -833,10 +883,10 @@ func (s *EntStorage) SaveCSPUnreachable(ctx context.Context, input string, probe
 	if probeErr == "" {
 		probeErr = "no response"
 	}
-	return s.saveCSP(ctx, input, "", nil, probeErr)
+	return s.saveCSP(ctx, input, CSPResponse{}, probeErr)
 }
 
-func (s *EntStorage) saveCSP(ctx context.Context, input, header string, findings []csp.Finding, probeErr string) error {
+func (s *EntStorage) saveCSP(ctx context.Context, input string, r CSPResponse, probeErr string) error {
 	t, err := s.client.Target.Query().Where(target.Input(input)).First(ctx)
 	if err != nil {
 		return err
@@ -856,7 +906,7 @@ func (s *EntStorage) saveCSP(ctx context.Context, input, header string, findings
 	if err != nil && !ent.IsNotFound(err) {
 		return rollback(tx, err)
 	}
-	if latest != nil && sameCSP(latest, header, findings, probeErr) {
+	if latest != nil && sameCSP(latest, r, probeErr) {
 		err = tx.CSPScan.UpdateOne(latest).
 			SetLastSeenAt(now).
 			AddCheckCount(1).
@@ -867,9 +917,11 @@ func (s *EntStorage) saveCSP(ctx context.Context, input, header string, findings
 			SetScannedAt(now).
 			SetLastSeenAt(now).
 			SetCheckCount(1).
-			SetCspHeader(header).
-			SetFindings(findings).
+			SetCspHeader(r.Header).
+			SetFindings(r.Findings).
 			SetProbeError(probeErr).
+			SetStatusCode(r.StatusCode).
+			SetFinalURL(r.FinalURL).
 			Exec(ctx)
 	}
 	if err != nil {
@@ -915,12 +967,12 @@ func (s *EntStorage) GetPreviousPortCounts(ctx context.Context, ipAddress string
 }
 
 // GetPreviousCSPFindings returns the findings of the target's newest CSP
-// scan that got an answer, and whether there is one. Probe errors are
-// skipped, so a target that flapped through "no response" is compared with
-// its last real result (issue #66).
+// scan that an application answered, and whether there is one. Probe errors
+// and 4xx/5xx pages are skipped, so a target that flapped through "no
+// response" or a 404 is compared with its last real result (#66, #67).
 func (s *EntStorage) GetPreviousCSPFindings(ctx context.Context, input string) ([]csp.Finding, bool, error) {
 	scan, err := s.client.CSPScan.Query().
-		Where(cspscan.HasTargetWith(target.Input(input)), cspscan.ProbeErrorEQ("")).
+		Where(cspscan.HasTargetWith(target.Input(input)), cspAppServed()).
 		Order(ent.Desc(cspscan.FieldScannedAt), ent.Desc(cspscan.FieldID)).
 		First(ctx)
 	if ent.IsNotFound(err) {

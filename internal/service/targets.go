@@ -122,11 +122,15 @@ type CSPFinding struct {
 
 // CSPDetail is the newest CSP evaluation of a target.
 type CSPDetail struct {
-	Header      string       `json:"header,omitempty"`
-	Findings    []CSPFinding `json:"findings,omitempty"`
-	ProbeError  string       `json:"probe_error,omitempty"`
-	FirstSeen   time.Time    `json:"first_seen"`
-	LastChecked time.Time    `json:"last_checked"`
+	Header     string       `json:"header,omitempty"`
+	Findings   []CSPFinding `json:"findings,omitempty"`
+	ProbeError string       `json:"probe_error,omitempty"`
+	// The HTTP status and final URL of the response (#67). CSP is judged on
+	// 2xx only; for 4xx and 5xx there are no findings.
+	StatusCode  int       `json:"status_code,omitempty"`
+	FinalURL    string    `json:"final_url,omitempty"`
+	FirstSeen   time.Time `json:"first_seen"`
+	LastChecked time.Time `json:"last_checked"`
 }
 
 // HistoryEntry is one SSL, CSP or port scan row in a target's history.
@@ -357,6 +361,8 @@ func (s *Service) GetTarget(ctx context.Context, id int) (*TargetDetail, error) 
 			Header:      sc.CspHeader,
 			Findings:    findings,
 			ProbeError:  sc.ProbeError,
+			StatusCode:  sc.StatusCode,
+			FinalURL:    sc.FinalURL,
 			FirstSeen:   sc.ScannedAt,
 			LastChecked: sc.LastSeenAt,
 		}
@@ -422,7 +428,9 @@ func (s *Service) TargetHistory(ctx context.Context, id, limit, offset int) (Pag
 	total += n
 	for _, sc := range cspScans {
 		e := HistoryEntry{Kind: "csp", FirstSeen: sc.ScannedAt, LastChecked: sc.LastSeenAt}
-		if sc.ProbeError != "" {
+		if code, ok := storage.CSPNoApp(sc); ok {
+			e.Summary = fmt.Sprintf("CSP no application served (%d)", code)
+		} else if sc.ProbeError != "" {
 			e.Summary = "CSP no response"
 			e.Error = sc.ProbeError
 		} else {

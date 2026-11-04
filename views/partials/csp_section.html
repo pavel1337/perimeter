@@ -16,6 +16,8 @@
       <td>
         {{if .ProbeError}}
         <span class="badge badge-gray">no HTTP response</span> <span class="text-muted">{{.ProbeError}}</span>
+        {{else if cspNoApp .}}
+        <span class="badge badge-gray">no application served ({{.StatusCode}})</span> <span class="text-muted">not judged</span>
         {{else if .Findings}}
         {{range .Findings}}
         <div style="margin-bottom: 4px;">
@@ -30,11 +32,12 @@
       <td>
         {{if .CspHeader}}
         <div class="mono" style="max-width: 350px; overflow-wrap: break-word;">{{.CspHeader}}</div>
-        {{else if .ProbeError}}
+        {{else if or .ProbeError (cspNoApp .)}}
         <span class="text-muted">—</span>
         {{else}}
         <span class="badge badge-red">missing</span>
         {{end}}
+        {{if .FinalURL}}<div class="text-muted mono"><small>{{.StatusCode}} {{.FinalURL}}</small></div>{{end}}
       </td>
     </tr>
     {{else}}

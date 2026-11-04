@@ -658,26 +658,41 @@ func (m *Manager) processSSLScan(ctx context.Context, j Job, scanner *ssl.SSLLab
 	}
 }
 
-func fetchCSPHeaders(client http.Client, host string) (enforce string, reportOnly string, err error) {
+// cspProbe is what the CSP probe read from a target's response.
+type cspProbe struct {
+	enforce, reportOnly string
+	status              int
+	// finalURL is where the response came from after redirects, without
+	// query string, fragment or user info, so rows still collapse (#67).
+	finalURL string
+}
+
+func fetchCSPHeaders(client http.Client, host string) (cspProbe, error) {
 	resp, err := client.Get("https://" + host)
 	if err != nil {
 		resp, err = client.Get("http://" + host)
 	}
 	if err != nil {
-		return "", "", err
+		return cspProbe{}, err
 	}
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, resp.Body)
-	return resp.Header.Get("Content-Security-Policy"),
-		resp.Header.Get("Content-Security-Policy-Report-Only"),
-		nil
+	p := cspProbe{
+		enforce:    resp.Header.Get("Content-Security-Policy"),
+		reportOnly: resp.Header.Get("Content-Security-Policy-Report-Only"),
+		status:     resp.StatusCode,
+	}
+	if resp.Request != nil && resp.Request.URL != nil {
+		u := *resp.Request.URL
+		u.RawQuery, u.ForceQuery, u.Fragment, u.RawFragment, u.User = "", false, "", "", nil
+		p.finalURL = u.String()
+	}
+	return p, nil
 }
 
 func (m *Manager) processCSPScan(ctx context.Context, j Job, client http.Client, evaluator csp.Evaluator) {
 	log.Printf("Worker: CSP Scanning %s", j.Input)
-	cspHeader, reportOnly, err := fetchCSPHeaders(client, j.Input)
-
-	var findings []csp.Finding
+	probe, err := fetchCSPHeaders(client, j.Input)
 
 	if err != nil {
 		log.Printf("Worker: CSP Failed to connect to %s: %v", j.Input, err)
@@ -688,40 +703,19 @@ func (m *Manager) processCSPScan(ctx context.Context, j Job, client http.Client,
 		return
 	}
 
-	if cspHeader == "" && reportOnly == "" {
-		findings = append(findings, csp.Finding{
-			Type:        csp.TypeMissingDirectives,
-			Description: "No Content-Security-Policy header found.",
-			Severity:    csp.SeverityHigh,
-			Directive:   "Header",
-		})
-	} else if cspHeader == "" {
-		findings = append(findings, csp.Finding{
-			Type:        csp.TypeMissingDirectives,
-			Description: "Content-Security-Policy-Report-Only present; no enforcing Content-Security-Policy header.",
-			Severity:    csp.SeverityMedium,
-			Directive:   "Header",
-		})
-		f, evalErr := evaluator.Evaluate(reportOnly)
-		if evalErr != nil {
-			log.Printf("Worker: Error evaluating CSP-Report-Only for %s: %v", j.Input, evalErr)
-		}
-		findings = append(findings, f...)
-		cspHeader = reportOnly
-	} else {
-		f, err := evaluator.Evaluate(cspHeader)
-		if err != nil {
-			log.Printf("Worker: Error evaluating CSP for %s: %v", j.Input, err)
-		}
-		findings = append(findings, f...)
-	}
+	findings, cspHeader := evaluateCSP(probe, evaluator, j.Input)
 
 	prevFindings, hadPrev, perr := m.storage.GetPreviousCSPFindings(ctx, j.Input)
 	if perr != nil {
 		log.Printf("Worker: failed to read previous CSP findings for %s: %v", j.Input, perr)
 	}
 
-	err = m.storage.SaveCSPScan(ctx, j.Input, cspHeader, findings)
+	err = m.storage.SaveCSPResponse(ctx, j.Input, storage.CSPResponse{
+		Header:     cspHeader,
+		Findings:   findings,
+		StatusCode: probe.status,
+		FinalURL:   probe.finalURL,
+	})
 	if err != nil {
 		log.Printf("Worker: Failed to save CSP for %s: %v", j.Input, err)
 		m.failJob(ctx, j, err.Error())
@@ -774,10 +768,49 @@ func newCSPIssues(prev []csp.Finding, hadPrev bool, cur []csp.Finding) []csp.Fin
 	return out
 }
 
+// evaluateCSP judges the policy of a probed response and returns the
+// findings and the header they came from (the report-only one when there is
+// no enforcing header). A 4xx or 5xx page serves no application, so its CSP
+// doesn't matter: no findings (issue #67).
+func evaluateCSP(probe cspProbe, evaluator csp.Evaluator, host string) ([]csp.Finding, string) {
+	cspHeader, reportOnly := probe.enforce, probe.reportOnly
+	var findings []csp.Finding
+	switch {
+	case !storage.StatusServesApp(probe.status):
+		// Basic auth, a proxy with no route: nothing to judge.
+	case cspHeader == "" && reportOnly == "":
+		findings = append(findings, csp.Finding{
+			Type:        csp.TypeMissingDirectives,
+			Description: "No Content-Security-Policy header found.",
+			Severity:    csp.SeverityHigh,
+			Directive:   "Header",
+		})
+	case cspHeader == "":
+		findings = append(findings, csp.Finding{
+			Type:        csp.TypeMissingDirectives,
+			Description: "Content-Security-Policy-Report-Only present; no enforcing Content-Security-Policy header.",
+			Severity:    csp.SeverityMedium,
+			Directive:   "Header",
+		})
+		f, evalErr := evaluator.Evaluate(reportOnly)
+		if evalErr != nil {
+			log.Printf("Worker: Error evaluating CSP-Report-Only for %s: %v", host, evalErr)
+		}
+		findings = append(findings, f...)
+		cspHeader = reportOnly
+	default:
+		f, err := evaluator.Evaluate(cspHeader)
+		if err != nil {
+			log.Printf("Worker: Error evaluating CSP for %s: %v", host, err)
+		}
+		findings = append(findings, f...)
+	}
+
+	return findings, cspHeader
+}
+
 // --- Helpers ---
 
-// servesTLS reports whether host completes a TLS handshake on :443.
-// InsecureSkipVerify because we only care that a cert is served; SSL Labs grades it.
 // tlsCheckWaits are the pauses between attempts of the TLS pre-check, so a
 // short network problem doesn't count as "no HTTPS" (#61). A variable so
 // tests need not sleep.

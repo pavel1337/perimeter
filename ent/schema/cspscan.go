@@ -24,6 +24,11 @@ func (CSPScan) Fields() []ent.Field {
 		// Why the probe got no HTTP response; empty when it got one. An
 		// unreachable target has no header to evaluate, so it has no findings.
 		field.String("probe_error").Optional(),
+		// The HTTP status of the response and the URL it came from, after
+		// redirects, without query or fragment (issue #67). CSP is judged on
+		// 2xx responses only. 0 on rows stored before #67 and on probe errors.
+		field.Int("status_code").Optional(),
+		field.String("final_url").Optional(),
 	}
 }
 

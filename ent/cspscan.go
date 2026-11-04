@@ -32,6 +32,10 @@ type CSPScan struct {
 	Findings []csp.Finding `json:"findings,omitempty"`
 	// ProbeError holds the value of the "probe_error" field.
 	ProbeError string `json:"probe_error,omitempty"`
+	// StatusCode holds the value of the "status_code" field.
+	StatusCode int `json:"status_code,omitempty"`
+	// FinalURL holds the value of the "final_url" field.
+	FinalURL string `json:"final_url,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the CSPScanQuery when eager-loading is set.
 	Edges            CSPScanEdges `json:"edges"`
@@ -66,9 +70,9 @@ func (*CSPScan) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case cspscan.FieldFindings:
 			values[i] = new([]byte)
-		case cspscan.FieldID, cspscan.FieldCheckCount:
+		case cspscan.FieldID, cspscan.FieldCheckCount, cspscan.FieldStatusCode:
 			values[i] = new(sql.NullInt64)
-		case cspscan.FieldCspHeader, cspscan.FieldProbeError:
+		case cspscan.FieldCspHeader, cspscan.FieldProbeError, cspscan.FieldFinalURL:
 			values[i] = new(sql.NullString)
 		case cspscan.FieldScannedAt, cspscan.FieldLastSeenAt:
 			values[i] = new(sql.NullTime)
@@ -132,6 +136,18 @@ func (_m *CSPScan) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field probe_error", values[i])
 			} else if value.Valid {
 				_m.ProbeError = value.String
+			}
+		case cspscan.FieldStatusCode:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field status_code", values[i])
+			} else if value.Valid {
+				_m.StatusCode = int(value.Int64)
+			}
+		case cspscan.FieldFinalURL:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field final_url", values[i])
+			} else if value.Valid {
+				_m.FinalURL = value.String
 			}
 		case cspscan.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -198,6 +214,12 @@ func (_m *CSPScan) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("probe_error=")
 	builder.WriteString(_m.ProbeError)
+	builder.WriteString(", ")
+	builder.WriteString("status_code=")
+	builder.WriteString(fmt.Sprintf("%v", _m.StatusCode))
+	builder.WriteString(", ")
+	builder.WriteString("final_url=")
+	builder.WriteString(_m.FinalURL)
 	builder.WriteByte(')')
 	return builder.String()
 }

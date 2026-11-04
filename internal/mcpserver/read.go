@@ -173,6 +173,12 @@ func (t *toolset) getTarget(ctx context.Context, _ *mcp.CallToolRequest, in targ
 		b.WriteString("\nCSP: not checked")
 	case d.CSP.ProbeError != "":
 		fmt.Fprintf(&b, "\nCSP: no response: %s (checked %s)", d.CSP.ProbeError, formatTime(d.CSP.LastChecked))
+	case d.CSP.StatusCode != 0 && d.CSP.StatusCode/100 != 2:
+		fmt.Fprintf(&b, "\nCSP: not judged, no application served (HTTP %d", d.CSP.StatusCode)
+		if d.CSP.FinalURL != "" {
+			b.WriteString(" at " + d.CSP.FinalURL)
+		}
+		fmt.Fprintf(&b, ", checked %s)", formatTime(d.CSP.LastChecked))
 	default:
 		b.WriteString("\n" + cspText(len(d.CSP.Findings)) + " (checked " + formatTime(d.CSP.LastChecked) + ")")
 		for _, f := range d.CSP.Findings {

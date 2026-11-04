@@ -80,6 +80,16 @@ func ProbeError(v string) predicate.CSPScan {
 	return predicate.CSPScan(sql.FieldEQ(FieldProbeError, v))
 }
 
+// StatusCode applies equality check predicate on the "status_code" field. It's identical to StatusCodeEQ.
+func StatusCode(v int) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldEQ(FieldStatusCode, v))
+}
+
+// FinalURL applies equality check predicate on the "final_url" field. It's identical to FinalURLEQ.
+func FinalURL(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldEQ(FieldFinalURL, v))
+}
+
 // ScannedAtEQ applies the EQ predicate on the "scanned_at" field.
 func ScannedAtEQ(v time.Time) predicate.CSPScan {
 	return predicate.CSPScan(sql.FieldEQ(FieldScannedAt, v))
@@ -358,6 +368,131 @@ func ProbeErrorEqualFold(v string) predicate.CSPScan {
 // ProbeErrorContainsFold applies the ContainsFold predicate on the "probe_error" field.
 func ProbeErrorContainsFold(v string) predicate.CSPScan {
 	return predicate.CSPScan(sql.FieldContainsFold(FieldProbeError, v))
+}
+
+// StatusCodeEQ applies the EQ predicate on the "status_code" field.
+func StatusCodeEQ(v int) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldEQ(FieldStatusCode, v))
+}
+
+// StatusCodeNEQ applies the NEQ predicate on the "status_code" field.
+func StatusCodeNEQ(v int) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldNEQ(FieldStatusCode, v))
+}
+
+// StatusCodeIn applies the In predicate on the "status_code" field.
+func StatusCodeIn(vs ...int) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldIn(FieldStatusCode, vs...))
+}
+
+// StatusCodeNotIn applies the NotIn predicate on the "status_code" field.
+func StatusCodeNotIn(vs ...int) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldNotIn(FieldStatusCode, vs...))
+}
+
+// StatusCodeGT applies the GT predicate on the "status_code" field.
+func StatusCodeGT(v int) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldGT(FieldStatusCode, v))
+}
+
+// StatusCodeGTE applies the GTE predicate on the "status_code" field.
+func StatusCodeGTE(v int) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldGTE(FieldStatusCode, v))
+}
+
+// StatusCodeLT applies the LT predicate on the "status_code" field.
+func StatusCodeLT(v int) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldLT(FieldStatusCode, v))
+}
+
+// StatusCodeLTE applies the LTE predicate on the "status_code" field.
+func StatusCodeLTE(v int) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldLTE(FieldStatusCode, v))
+}
+
+// StatusCodeIsNil applies the IsNil predicate on the "status_code" field.
+func StatusCodeIsNil() predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldIsNull(FieldStatusCode))
+}
+
+// StatusCodeNotNil applies the NotNil predicate on the "status_code" field.
+func StatusCodeNotNil() predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldNotNull(FieldStatusCode))
+}
+
+// FinalURLEQ applies the EQ predicate on the "final_url" field.
+func FinalURLEQ(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldEQ(FieldFinalURL, v))
+}
+
+// FinalURLNEQ applies the NEQ predicate on the "final_url" field.
+func FinalURLNEQ(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldNEQ(FieldFinalURL, v))
+}
+
+// FinalURLIn applies the In predicate on the "final_url" field.
+func FinalURLIn(vs ...string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldIn(FieldFinalURL, vs...))
+}
+
+// FinalURLNotIn applies the NotIn predicate on the "final_url" field.
+func FinalURLNotIn(vs ...string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldNotIn(FieldFinalURL, vs...))
+}
+
+// FinalURLGT applies the GT predicate on the "final_url" field.
+func FinalURLGT(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldGT(FieldFinalURL, v))
+}
+
+// FinalURLGTE applies the GTE predicate on the "final_url" field.
+func FinalURLGTE(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldGTE(FieldFinalURL, v))
+}
+
+// FinalURLLT applies the LT predicate on the "final_url" field.
+func FinalURLLT(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldLT(FieldFinalURL, v))
+}
+
+// FinalURLLTE applies the LTE predicate on the "final_url" field.
+func FinalURLLTE(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldLTE(FieldFinalURL, v))
+}
+
+// FinalURLContains applies the Contains predicate on the "final_url" field.
+func FinalURLContains(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldContains(FieldFinalURL, v))
+}
+
+// FinalURLHasPrefix applies the HasPrefix predicate on the "final_url" field.
+func FinalURLHasPrefix(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldHasPrefix(FieldFinalURL, v))
+}
+
+// FinalURLHasSuffix applies the HasSuffix predicate on the "final_url" field.
+func FinalURLHasSuffix(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldHasSuffix(FieldFinalURL, v))
+}
+
+// FinalURLIsNil applies the IsNil predicate on the "final_url" field.
+func FinalURLIsNil() predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldIsNull(FieldFinalURL))
+}
+
+// FinalURLNotNil applies the NotNil predicate on the "final_url" field.
+func FinalURLNotNil() predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldNotNull(FieldFinalURL))
+}
+
+// FinalURLEqualFold applies the EqualFold predicate on the "final_url" field.
+func FinalURLEqualFold(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldEqualFold(FieldFinalURL, v))
+}
+
+// FinalURLContainsFold applies the ContainsFold predicate on the "final_url" field.
+func FinalURLContainsFold(v string) predicate.CSPScan {
+	return predicate.CSPScan(sql.FieldContainsFold(FieldFinalURL, v))
 }
 
 // HasTarget applies the HasEdge predicate on the "target" edge.

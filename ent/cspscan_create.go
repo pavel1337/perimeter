@@ -82,6 +82,34 @@ func (_c *CSPScanCreate) SetNillableProbeError(v *string) *CSPScanCreate {
 	return _c
 }
 
+// SetStatusCode sets the "status_code" field.
+func (_c *CSPScanCreate) SetStatusCode(v int) *CSPScanCreate {
+	_c.mutation.SetStatusCode(v)
+	return _c
+}
+
+// SetNillableStatusCode sets the "status_code" field if the given value is not nil.
+func (_c *CSPScanCreate) SetNillableStatusCode(v *int) *CSPScanCreate {
+	if v != nil {
+		_c.SetStatusCode(*v)
+	}
+	return _c
+}
+
+// SetFinalURL sets the "final_url" field.
+func (_c *CSPScanCreate) SetFinalURL(v string) *CSPScanCreate {
+	_c.mutation.SetFinalURL(v)
+	return _c
+}
+
+// SetNillableFinalURL sets the "final_url" field if the given value is not nil.
+func (_c *CSPScanCreate) SetNillableFinalURL(v *string) *CSPScanCreate {
+	if v != nil {
+		_c.SetFinalURL(*v)
+	}
+	return _c
+}
+
 // SetTargetID sets the "target" edge to the Target entity by ID.
 func (_c *CSPScanCreate) SetTargetID(id int) *CSPScanCreate {
 	_c.mutation.SetTargetID(id)
@@ -197,6 +225,14 @@ func (_c *CSPScanCreate) createSpec() (*CSPScan, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ProbeError(); ok {
 		_spec.SetField(cspscan.FieldProbeError, field.TypeString, value)
 		_node.ProbeError = value
+	}
+	if value, ok := _c.mutation.StatusCode(); ok {
+		_spec.SetField(cspscan.FieldStatusCode, field.TypeInt, value)
+		_node.StatusCode = value
+	}
+	if value, ok := _c.mutation.FinalURL(); ok {
+		_spec.SetField(cspscan.FieldFinalURL, field.TypeString, value)
+		_node.FinalURL = value
 	}
 	if nodes := _c.mutation.TargetIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
