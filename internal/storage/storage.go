@@ -57,6 +57,7 @@ type Storage interface {
 	GetTargetBasic(ctx context.Context, id int) (*ent.Target, error)
 	GetIPScansPage(ctx context.Context, ipID, limit, offset int) ([]*ent.PortScan, int, error)
 	GetSSLScansPage(ctx context.Context, targetID, limit, offset int) ([]*ent.SSLScan, int, error)
+	GetLatestSSL(ctx context.Context, input string) (result, failed *ent.SSLScan, err error)
 	GetCSPScansPage(ctx context.Context, targetID, limit, offset int) ([]*ent.CSPScan, int, error)
 	// DeleteTarget soft-deletes a live target: it disappears from every
 	// normal read, its scan history is kept. ErrTargetNotFound if there is no
@@ -254,6 +255,35 @@ func (s *EntStorage) ImportTargets(ctx context.Context, lines []string) (int, er
 // MAX(id) picks the newest row: scan rows are only ever appended per parent, in
 // time order, which is the same assumption the (scanned_at, id) ordering used
 // everywhere else relies on.
+// SSLErrorPrefix starts the status of an SSL check that failed: SSL Labs
+// returned an error, or the TLS pre-check failed right after a graded result.
+// Such a row has no grade and says nothing about the certificate, so the
+// summary, the dashboard and the changes feed keep the last real result
+// (issue #61).
+const SSLErrorPrefix = "Error: "
+
+// SSLCheckFailed reports whether scan is a failed check rather than a result.
+func SSLCheckFailed(scan *ent.SSLScan) bool {
+	return strings.HasPrefix(scan.Status, SSLErrorPrefix)
+}
+
+// sslResult matches SSL rows that are results, not failed checks.
+func sslResult() predicate.SSLScan {
+	return sslscan.Not(sslscan.StatusHasPrefix(SSLErrorPrefix))
+}
+
+// latestSSLResultPerTarget is latestPerParent for SSL scans, skipping failed
+// checks.
+func latestSSLResultPerTarget() func(*sql.Selector) {
+	return func(s *sql.Selector) {
+		t := sql.Table(sslscan.Table)
+		newest := sql.Select(sql.Max(t.C("id"))).From(t).
+			Where(sql.Not(sql.HasPrefix(t.C(sslscan.FieldStatus), SSLErrorPrefix))).
+			GroupBy(t.C(sslscan.TargetColumn))
+		s.Where(sql.In(s.C("id"), newest))
+	}
+}
+
 func latestPerParent(table, parentCol string) func(*sql.Selector) {
 	return func(s *sql.Selector) {
 		t := sql.Table(table)
@@ -363,6 +393,35 @@ func rollback(tx *ent.Tx, err error) error {
 	return err
 }
 
+// SSLRetryAfter is how soon a failed SSL check is tried again.
+const SSLRetryAfter = 30 * time.Minute
+
+// GetLatestSSL returns a target's newest SSL result, and its newest row when
+// that is a failed check (nil otherwise). Either can be nil.
+func (s *EntStorage) GetLatestSSL(ctx context.Context, input string) (result, failed *ent.SSLScan, err error) {
+	newest, err := s.client.SSLScan.Query().
+		Where(sslscan.HasTargetWith(target.Input(input))).
+		Order(ent.Desc(sslscan.FieldScannedAt), ent.Desc(sslscan.FieldID)).
+		First(ctx)
+	if ent.IsNotFound(err) {
+		return nil, nil, nil
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	if !SSLCheckFailed(newest) {
+		return newest, nil, nil
+	}
+	result, err = s.client.SSLScan.Query().
+		Where(sslscan.HasTargetWith(target.Input(input)), sslResult()).
+		Order(ent.Desc(sslscan.FieldScannedAt), ent.Desc(sslscan.FieldID)).
+		First(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return nil, nil, err
+	}
+	return result, newest, nil
+}
+
 // GetOldestOutdatedTarget returns the target for the next SSL/CSP scan. A
 // target with a pending rescan comes first, oldest request first; otherwise
 // it is the outdated target that was updated longest ago.
@@ -372,10 +431,16 @@ func (s *EntStorage) GetOldestOutdatedTarget(ctx context.Context, scanType ScanT
 
 	switch scanType {
 	case ScanTypeSSL:
+		// After a failed check, ssl_retry_at is the schedule: the check is
+		// tried again after SSLRetryAfter instead of a whole interval, however
+		// fresh the last real result is (issue #61).
 		pending = target.SslRescanPending(true)
 		outdated = target.Or(
-			target.Not(target.HasSslScans()),
-			target.Not(target.HasSslScansWith(sslscan.LastSeenAtGTE(cutoff))),
+			target.And(
+				target.SslRetryAtIsNil(),
+				target.Not(target.HasSslScansWith(sslscan.LastSeenAtGTE(cutoff))),
+			),
+			target.SslRetryAtLTE(time.Now()),
 		)
 	case ScanTypeCSP:
 		pending = target.CspRescanPending(true)
@@ -736,6 +801,17 @@ func (s *EntStorage) SaveSSLScan(ctx context.Context, input string, res SSLResul
 		return rollback(tx, err)
 	}
 	if err := clearTargetRescan(ctx, tx, t.ID, ScanTypeSSL); err != nil {
+		return rollback(tx, err)
+	}
+	// A failed check is retried soon; a result puts the target back on the
+	// SSL_INTERVAL schedule (#61).
+	retry := tx.Target.UpdateOneID(t.ID)
+	if strings.HasPrefix(res.Status, SSLErrorPrefix) {
+		retry.SetSslRetryAt(now.Add(SSLRetryAfter))
+	} else {
+		retry.ClearSslRetryAt()
+	}
+	if err := retry.Exec(ctx); err != nil {
 		return rollback(tx, err)
 	}
 	if err := refreshSummary(ctx, tx.Client(), target.ID(t.ID)); err != nil {

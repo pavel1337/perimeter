@@ -95,7 +95,9 @@ type IPDetail struct {
 	Error       string     `json:"error,omitempty"`
 }
 
-// SSLDetail is the newest SSL scan of a target.
+// SSLDetail is the newest SSL result of a target. When the newest check
+// failed, LastCheckError says why and the result fields are the last real
+// result (empty if there is none yet).
 type SSLDetail struct {
 	Grade           string     `json:"grade"`
 	Status          string     `json:"status"`
@@ -106,6 +108,9 @@ type SSLDetail struct {
 	Vulnerabilities []string   `json:"vulnerabilities,omitempty"`
 	FirstSeen       time.Time  `json:"first_seen"`
 	LastChecked     time.Time  `json:"last_checked"`
+	// Set when the newest check failed.
+	LastCheckError    string     `json:"last_check_error,omitempty"`
+	LastCheckFailedAt *time.Time `json:"last_check_failed_at,omitempty"`
 }
 
 // CSPFinding is a csp.Finding with the level its severity maps to, which the
@@ -311,12 +316,11 @@ func (s *Service) GetTarget(ctx context.Context, id int) (*TargetDetail, error) 
 	}
 	slices.SortFunc(d.IPs, func(a, b IPDetail) int { return strings.Compare(a.Address, b.Address) })
 
-	sslScans, _, err := s.st.GetSSLScansPage(ctx, id, 1, 0)
+	sc, failed, err := s.st.GetLatestSSL(ctx, t.Input)
 	if err != nil {
 		return nil, err
 	}
-	if len(sslScans) > 0 {
-		sc := sslScans[0]
+	if sc != nil {
 		d.SSL = &SSLDetail{
 			Grade:           sc.Grade,
 			Status:          sc.Status,
@@ -328,6 +332,15 @@ func (s *Service) GetTarget(ctx context.Context, id int) (*TargetDetail, error) 
 			FirstSeen:       sc.ScannedAt,
 			LastChecked:     sc.LastSeenAt,
 		}
+	}
+	// The newest check failed: the result above stays, and the failure is
+	// reported next to it (#61).
+	if failed != nil {
+		if d.SSL == nil {
+			d.SSL = &SSLDetail{}
+		}
+		d.SSL.LastCheckError = strings.TrimPrefix(failed.Status, storage.SSLErrorPrefix)
+		d.SSL.LastCheckFailedAt = timePtr(failed.LastSeenAt)
 	}
 
 	cspScans, _, err := s.st.GetCSPScansPage(ctx, id, 1, 0)
@@ -380,8 +393,22 @@ func (s *Service) TargetHistory(ctx context.Context, id, limit, offset int) (Pag
 	total += n
 	for k, sc := range sslScans {
 		e := HistoryEntry{Kind: "ssl", FirstSeen: sc.ScannedAt, LastChecked: sc.LastSeenAt, Grade: sc.Grade}
-		if k+1 < len(sslScans) {
-			e.Summary = fmt.Sprintf("grade %s → %s", orNone(sslScans[k+1].Grade), orNone(sc.Grade))
+		if storage.SSLCheckFailed(sc) {
+			e.Summary = "SSL check failed"
+			e.Error = strings.TrimPrefix(sc.Status, storage.SSLErrorPrefix)
+			all = append(all, e)
+			continue
+		}
+		// Compare with the previous result, skipping failed checks (#61).
+		prev := -1
+		for j := k + 1; j < len(sslScans); j++ {
+			if !storage.SSLCheckFailed(sslScans[j]) {
+				prev = j
+				break
+			}
+		}
+		if prev >= 0 {
+			e.Summary = fmt.Sprintf("grade %s → %s", orNone(sslScans[prev].Grade), orNone(sc.Grade))
 		} else {
 			e.Summary = "grade " + orNone(sc.Grade)
 		}

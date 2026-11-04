@@ -34,6 +34,10 @@ func (Target) Fields() []ent.Field {
 		field.Time("rescan_requested_at").Optional().Nillable(),
 		field.Bool("ssl_rescan_pending").Default(false),
 		field.Bool("csp_rescan_pending").Default(false),
+		// When a failed SSL check is tried again (issue #61): set when a check
+		// fails, cleared when a result is stored. While set it replaces the
+		// SSL_INTERVAL schedule.
+		field.Time("ssl_retry_at").Optional().Nillable(),
 		// Whether the target answers at all, kept current by the scan write
 		// paths so it can be filtered and sorted on in SQL (issue #15).
 		field.Enum("reachability").

@@ -363,6 +363,7 @@ var (
 		{Name: "rescan_requested_at", Type: field.TypeTime, Nullable: true},
 		{Name: "ssl_rescan_pending", Type: field.TypeBool, Default: false},
 		{Name: "csp_rescan_pending", Type: field.TypeBool, Default: false},
+		{Name: "ssl_retry_at", Type: field.TypeTime, Nullable: true},
 		{Name: "reachability", Type: field.TypeEnum, Enums: []string{"pending", "ok", "unresolved", "unreachable"}, Default: "pending"},
 		{Name: "latest_ssl_grade", Type: field.TypeString, Nullable: true},
 		{Name: "latest_ssl_grade_rank", Type: field.TypeInt, Default: 0},
@@ -379,7 +380,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "targets_users_targets",
-				Columns:    []*schema.Column{TargetsColumns[19]},
+				Columns:    []*schema.Column{TargetsColumns[20]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -393,7 +394,7 @@ var (
 			{
 				Name:    "target_reachability",
 				Unique:  false,
-				Columns: []*schema.Column{TargetsColumns[13]},
+				Columns: []*schema.Column{TargetsColumns[14]},
 			},
 			{
 				Name:    "target_next_resolve_at",
@@ -403,22 +404,22 @@ var (
 			{
 				Name:    "target_latest_ssl_grade_rank",
 				Unique:  false,
-				Columns: []*schema.Column{TargetsColumns[15]},
+				Columns: []*schema.Column{TargetsColumns[16]},
 			},
 			{
 				Name:    "target_latest_cert_expiry",
 				Unique:  false,
-				Columns: []*schema.Column{TargetsColumns[16]},
+				Columns: []*schema.Column{TargetsColumns[17]},
 			},
 			{
 				Name:    "target_latest_csp_finding_count",
 				Unique:  false,
-				Columns: []*schema.Column{TargetsColumns[17]},
+				Columns: []*schema.Column{TargetsColumns[18]},
 			},
 			{
 				Name:    "target_open_port_count",
 				Unique:  false,
-				Columns: []*schema.Column{TargetsColumns[18]},
+				Columns: []*schema.Column{TargetsColumns[19]},
 			},
 		},
 	}

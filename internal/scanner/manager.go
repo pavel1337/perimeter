@@ -53,6 +53,8 @@ type Manager struct {
 
 	// lookupIP resolves a target; net.DefaultResolver.LookupIP outside tests.
 	lookupIP func(ctx context.Context, network, host string) ([]net.IP, error)
+	// checkTLS is the SSL pre-check; servesTLS outside tests.
+	checkTLS func(ctx context.Context, host string) error
 }
 
 func NewManager(s *storage.EntStorage, cfg ScannerConfig, dispatcher *notifier.Dispatcher) *Manager {
@@ -83,6 +85,7 @@ func NewManager(s *storage.EntStorage, cfg ScannerConfig, dispatcher *notifier.D
 		dispatcher: dispatcher,
 		inFlight:   make(map[string]struct{}),
 		lookupIP:   net.DefaultResolver.LookupIP,
+		checkTLS:   servesTLS,
 	}
 }
 
@@ -572,12 +575,10 @@ func (m *Manager) processSSLScan(ctx context.Context, j Job, scanner *ssl.SSLLab
 
 	// Preflight: only ask SSL Labs about hosts that actually serve a cert on 443.
 	// Avoids hammering the API (and 529s) with non-web names like DKIM/MX records.
-	if !servesTLS(j.Input) {
-		log.Printf("Worker: %s serves no certificate on port 443, skipping SSL Labs", j.Input)
-		if serr := m.storage.SaveSSLScan(ctx, j.Input, storage.SSLResult{
-			Grade:  "-",
-			Status: "No HTTPS service on port 443",
-		}); serr != nil {
+	if err := m.checkTLS(ctx, j.Input); err != nil {
+		res := m.precheckFailure(ctx, j.Input, err)
+		log.Printf("Worker: TLS pre-check failed for %s: %s", j.Input, res.Status)
+		if serr := m.storage.SaveSSLScan(ctx, j.Input, res); serr != nil {
 			log.Printf("Worker: failed to save SSL scan for %s: %v", j.Input, serr)
 		}
 		m.completeJob(ctx, j)
@@ -589,9 +590,9 @@ func (m *Manager) processSSLScan(ctx context.Context, j Job, scanner *ssl.SSLLab
 	res, err := scanner.Scan(j.Input, j.Fresh)
 	if err != nil {
 		log.Printf("Worker: SSL Scan failed for %s: %v", j.Input, err)
+		// A failed check, not a grade: the last real result stays (#61).
 		saveRes := storage.SSLResult{
-			Grade:  "F",
-			Status: "Error: " + err.Error(),
+			Status: storage.SSLErrorPrefix + err.Error(),
 		}
 		if serr := m.storage.SaveSSLScan(ctx, j.Input, saveRes); serr != nil {
 			log.Printf("Worker: failed to save SSL scan for %s: %v", j.Input, serr)
@@ -733,14 +734,54 @@ func (m *Manager) processCSPScan(ctx context.Context, j Job, client http.Client,
 
 // servesTLS reports whether host completes a TLS handshake on :443.
 // InsecureSkipVerify because we only care that a cert is served; SSL Labs grades it.
-func servesTLS(host string) bool {
-	d := &net.Dialer{Timeout: 5 * time.Second}
-	conn, err := tls.DialWithDialer(d, "tcp", host+":443", &tls.Config{InsecureSkipVerify: true}) //nolint:gosec
-	if err != nil {
-		return false
+// tlsCheckWaits are the pauses between attempts of the TLS pre-check, so a
+// short network problem doesn't count as "no HTTPS" (#61). A variable so
+// tests need not sleep.
+var tlsCheckWaits = []time.Duration{2 * time.Second, 5 * time.Second}
+
+// servesTLS dials host:443 and completes a TLS handshake, trying again after
+// each of tlsCheckWaits. It returns the last error.
+func servesTLS(ctx context.Context, host string) error {
+	var err error
+	for attempt := 0; ; attempt++ {
+		d := &tls.Dialer{
+			NetDialer: &net.Dialer{Timeout: 5 * time.Second},
+			Config:    &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		}
+		var conn net.Conn
+		conn, err = d.DialContext(ctx, "tcp", host+":443")
+		if err == nil {
+			_ = conn.Close()
+			return nil
+		}
+		// A name that doesn't resolve won't start resolving in seconds.
+		var dnsErr *net.DNSError
+		if attempt >= len(tlsCheckWaits) || (errors.As(err, &dnsErr) && dnsErr.IsNotFound) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(tlsCheckWaits[attempt]):
+		}
 	}
-	_ = conn.Close()
-	return true
+}
+
+// precheckFailure is what a failed TLS pre-check stores. Right after a graded
+// result it is a failed check, retried within storage.SSLRetryAfter, so one
+// network problem doesn't turn an A into "-". Otherwise, or when it fails
+// again, the target gets "-" (#61).
+func (m *Manager) precheckFailure(ctx context.Context, host string, err error) storage.SSLResult {
+	msg := "No HTTPS service on port 443"
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		msg = "Not resolved: " + dnsErrorMessage(err)
+	}
+	res, failed, lerr := m.storage.GetLatestSSL(ctx, host)
+	if lerr == nil && failed == nil && res != nil && storage.GradeRank(res.Grade) > 0 {
+		return storage.SSLResult{Status: storage.SSLErrorPrefix + "TLS pre-check: " + msg}
+	}
+	return storage.SSLResult{Grade: "-", Status: msg}
 }
 
 // dnsErrorMessage turns a net resolver error into a short, deterministic status.

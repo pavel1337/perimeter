@@ -323,11 +323,11 @@ func init() {
 	// target.DefaultCspRescanPending holds the default value on creation for the csp_rescan_pending field.
 	target.DefaultCspRescanPending = targetDescCspRescanPending.Default.(bool)
 	// targetDescLatestSslGradeRank is the schema descriptor for latest_ssl_grade_rank field.
-	targetDescLatestSslGradeRank := targetFields[11].Descriptor()
+	targetDescLatestSslGradeRank := targetFields[12].Descriptor()
 	// target.DefaultLatestSslGradeRank holds the default value on creation for the latest_ssl_grade_rank field.
 	target.DefaultLatestSslGradeRank = targetDescLatestSslGradeRank.Default.(int)
 	// targetDescOpenPortCount is the schema descriptor for open_port_count field.
-	targetDescOpenPortCount := targetFields[14].Descriptor()
+	targetDescOpenPortCount := targetFields[15].Descriptor()
 	// target.DefaultOpenPortCount holds the default value on creation for the open_port_count field.
 	target.DefaultOpenPortCount = targetDescOpenPortCount.Default.(int)
 	userMixin := schema.User{}.Mixin()

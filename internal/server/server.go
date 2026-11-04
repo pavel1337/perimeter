@@ -142,6 +142,8 @@ func newViewEngine(viewsFS fs.FS) *html.Engine {
 	})
 
 	engine.AddFunc("withQuery", withQuery)
+	engine.AddFunc("sslFailed", storage.SSLCheckFailed)
+	engine.AddFunc("trimPrefix", strings.TrimPrefix)
 	engine.AddFunc("eventLabel", notifierEventLabel)
 	engine.AddFunc("formValue", formValue)
 	engine.AddFunc("formChecked", formChecked)
@@ -997,6 +999,10 @@ func (s *Server) handleTargetDetails(c *fiber.Ctx) error {
 	}
 
 	allTags, _ := s.client.Tag.Query().All(c.Context())
+	_, sslFailed, err := s.storage.GetLatestSSL(c.Context(), target.Input)
+	if err != nil {
+		return err
+	}
 
 	return c.Render("views/target", s.templateData(c, fiber.Map{
 		"Title":           "Target Details",
@@ -1006,6 +1012,7 @@ func (s *Server) handleTargetDetails(c *fiber.Ctx) error {
 		"RescanRequested": rescanRequested(target),
 		"SSLScans":        sslScans,
 		"SSLPagination":   sslPagination,
+		"SSLFailed":       sslFailed,
 		"CSPScans":        cspScans,
 		"CSPPagination":   cspPagination,
 	}), "views/layouts/main")

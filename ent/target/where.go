@@ -115,6 +115,11 @@ func CspRescanPending(v bool) predicate.Target {
 	return predicate.Target(sql.FieldEQ(FieldCspRescanPending, v))
 }
 
+// SslRetryAt applies equality check predicate on the "ssl_retry_at" field. It's identical to SslRetryAtEQ.
+func SslRetryAt(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldSslRetryAt, v))
+}
+
 // LatestSslGrade applies equality check predicate on the "latest_ssl_grade" field. It's identical to LatestSslGradeEQ.
 func LatestSslGrade(v string) predicate.Target {
 	return predicate.Target(sql.FieldEQ(FieldLatestSslGrade, v))
@@ -628,6 +633,56 @@ func CspRescanPendingEQ(v bool) predicate.Target {
 // CspRescanPendingNEQ applies the NEQ predicate on the "csp_rescan_pending" field.
 func CspRescanPendingNEQ(v bool) predicate.Target {
 	return predicate.Target(sql.FieldNEQ(FieldCspRescanPending, v))
+}
+
+// SslRetryAtEQ applies the EQ predicate on the "ssl_retry_at" field.
+func SslRetryAtEQ(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldEQ(FieldSslRetryAt, v))
+}
+
+// SslRetryAtNEQ applies the NEQ predicate on the "ssl_retry_at" field.
+func SslRetryAtNEQ(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldNEQ(FieldSslRetryAt, v))
+}
+
+// SslRetryAtIn applies the In predicate on the "ssl_retry_at" field.
+func SslRetryAtIn(vs ...time.Time) predicate.Target {
+	return predicate.Target(sql.FieldIn(FieldSslRetryAt, vs...))
+}
+
+// SslRetryAtNotIn applies the NotIn predicate on the "ssl_retry_at" field.
+func SslRetryAtNotIn(vs ...time.Time) predicate.Target {
+	return predicate.Target(sql.FieldNotIn(FieldSslRetryAt, vs...))
+}
+
+// SslRetryAtGT applies the GT predicate on the "ssl_retry_at" field.
+func SslRetryAtGT(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldGT(FieldSslRetryAt, v))
+}
+
+// SslRetryAtGTE applies the GTE predicate on the "ssl_retry_at" field.
+func SslRetryAtGTE(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldGTE(FieldSslRetryAt, v))
+}
+
+// SslRetryAtLT applies the LT predicate on the "ssl_retry_at" field.
+func SslRetryAtLT(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldLT(FieldSslRetryAt, v))
+}
+
+// SslRetryAtLTE applies the LTE predicate on the "ssl_retry_at" field.
+func SslRetryAtLTE(v time.Time) predicate.Target {
+	return predicate.Target(sql.FieldLTE(FieldSslRetryAt, v))
+}
+
+// SslRetryAtIsNil applies the IsNil predicate on the "ssl_retry_at" field.
+func SslRetryAtIsNil() predicate.Target {
+	return predicate.Target(sql.FieldIsNull(FieldSslRetryAt))
+}
+
+// SslRetryAtNotNil applies the NotNil predicate on the "ssl_retry_at" field.
+func SslRetryAtNotNil() predicate.Target {
+	return predicate.Target(sql.FieldNotNull(FieldSslRetryAt))
 }
 
 // ReachabilityEQ applies the EQ predicate on the "reachability" field.

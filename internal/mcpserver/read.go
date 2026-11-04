@@ -139,9 +139,13 @@ func (t *toolset) getTarget(ctx context.Context, _ *mcp.CallToolRequest, in targ
 			fmt.Fprintf(&b, " (checked %s)", formatTime(*ip.LastChecked))
 		}
 	}
-	if d.SSL == nil {
+	switch {
+	case d.SSL == nil:
 		b.WriteString("\nSSL: not scanned")
-	} else {
+	case d.SSL.FirstSeen.IsZero():
+		// Only failed checks so far.
+		b.WriteString("\nSSL: no result yet")
+	default:
 		fmt.Fprintf(&b, "\nSSL: grade %s (%s)", orDash(d.SSL.Grade), d.SSL.Status)
 		if d.SSL.CertIssuer != "" {
 			b.WriteString(", issuer " + d.SSL.CertIssuer)
@@ -153,6 +157,16 @@ func (t *toolset) getTarget(ctx context.Context, _ *mcp.CallToolRequest, in targ
 			b.WriteString(", vulnerabilities: " + strings.Join(d.SSL.Vulnerabilities, ", "))
 		}
 		fmt.Fprintf(&b, " (checked %s)", formatTime(d.SSL.LastChecked))
+	}
+	if d.SSL != nil && d.SSL.LastCheckError != "" {
+		fmt.Fprintf(&b, "\nSSL last check failed")
+		if d.SSL.LastCheckFailedAt != nil {
+			fmt.Fprintf(&b, " %s", formatTime(*d.SSL.LastCheckFailedAt))
+		}
+		if !d.SSL.FirstSeen.IsZero() {
+			b.WriteString("; the grade above is the last real result")
+		}
+		b.WriteString(". Error: " + d.SSL.LastCheckError)
 	}
 	switch {
 	case d.CSP == nil:

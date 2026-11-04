@@ -13,6 +13,7 @@ import (
 	"perimeter/ent/schema"
 	"perimeter/ent/sslscan"
 	"perimeter/ent/target"
+	"perimeter/internal/storage"
 )
 
 // Change kinds.
@@ -142,10 +143,12 @@ func (s *Service) targetChanges(ctx context.Context, since time.Time) ([]Change,
 
 // sslChanges compares each SSL row written after since with the row before
 // it for the same target. Rows are only written when the result changes, so
-// a row is a change; the first grade ever is a change from none.
+// a row is a change; the first grade ever is a change from none. Failed
+// checks are skipped on both sides, so A → (error) → A is no change (#61).
 func (s *Service) sslChanges(ctx context.Context, since time.Time) ([]Change, error) {
+	result := sslscan.Not(sslscan.StatusHasPrefix(storage.SSLErrorPrefix))
 	rows, err := s.client.SSLScan.Query().
-		Where(sslscan.ScannedAtGT(since), sslscan.HasTargetWith(target.DeletedAtIsNil())).
+		Where(sslscan.ScannedAtGT(since), sslscan.HasTargetWith(target.DeletedAtIsNil()), result).
 		Order(ent.Asc(sslscan.FieldScannedAt), ent.Asc(sslscan.FieldID)).
 		WithTarget().
 		All(ctx)
@@ -161,7 +164,7 @@ func (s *Service) sslChanges(ctx context.Context, since time.Time) ([]Change, er
 		}
 		if _, ok := prev[tg.ID]; !ok {
 			base, err := s.client.SSLScan.Query().
-				Where(sslscan.HasTargetWith(target.ID(tg.ID)), sslscan.ScannedAtLTE(since)).
+				Where(sslscan.HasTargetWith(target.ID(tg.ID)), sslscan.ScannedAtLTE(since), result).
 				Order(ent.Desc(sslscan.FieldScannedAt), ent.Desc(sslscan.FieldID)).
 				First(ctx)
 			if err != nil && !ent.IsNotFound(err) {
