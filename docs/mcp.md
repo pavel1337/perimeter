@@ -37,7 +37,7 @@ These are listed only for write tokens of admins and members.
 |------|--------------|
 | `add_targets` | Starts tracking hosts, IP addresses or URLs (reduced to the host). Adding is additive and safe to repeat. Up to 1000 entries per call. |
 | `set_tags` | Changes the tags of one target. `mode` is `add` (the default), `remove` or `replace` (sets exactly this list, `[]` removes all). The tags must already exist; admins create them in the web UI. |
-| `delete_target` | Soft-deletes a target. Its history is kept. |
+| `delete_target` | Soft-deletes a target. Its history is kept, and importers leave it deleted even while the name is still in DNS. |
 | `restore_target` | Brings a soft-deleted target back with its history. |
 | `rescan` | Queues scans of up to 50 targets, given as names or ids. A target that was scanned recently is not queued, and the reply gives its `retry_at` time. |
 

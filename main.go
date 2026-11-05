@@ -191,11 +191,11 @@ func main() {
 			log.Fatalf("Failed to read target file: %v", err)
 		}
 
-		count, err := store.ImportTargets(ctx, lines)
+		res, err := store.SyncTargets(ctx, lines)
 		if err != nil {
 			log.Printf("Error importing targets: %v", err)
 		} else {
-			log.Printf("Imported/Checked %d targets from %s", count, targetFile)
+			log.Printf("Imported/Checked %d targets from %s, left %d deleted ones deleted", len(res.Added)+len(res.Existing), targetFile, len(res.Deleted))
 		}
 	} else {
 		// Only warning, maybe they rely on existing DB

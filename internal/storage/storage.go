@@ -136,7 +136,9 @@ type ImportResult struct {
 	Added    []string
 	Existing []string
 	Restored []string
-	Invalid  []string
+	// Deleted holds soft-deleted targets that a sync left alone (#103).
+	Deleted []string
+	Invalid []string
 }
 
 // EntStorage implements Storage using Ent
@@ -160,14 +162,16 @@ const (
 	importNew importOutcome = iota
 	importExisting
 	importRestored
+	importDeleted
 )
 
 // importTarget creates the target for input, or updates the existing row. A
 // soft-deleted row holds the same unique input, so it is revived rather than
 // duplicated: its scan history comes back with it, and its summary is
 // refreshed because scans may have been written while it was hidden. It
-// reports which case happened.
-func (s *EntStorage) importTarget(ctx context.Context, input string, isIP bool) (importOutcome, error) {
+// reports which case happened. With revive false a soft-deleted row is left
+// as it is: a person deleted it, and a sync must not bring it back (#103).
+func (s *EntStorage) importTarget(ctx context.Context, input string, isIP, revive bool) (importOutcome, error) {
 	existing, err := s.client.Target.Query().
 		Where(target.InputEQ(input)).
 		Only(schema.SkipSoftDelete(ctx))
@@ -191,6 +195,9 @@ func (s *EntStorage) importTarget(ctx context.Context, input string, isIP bool) 
 			Exec(ctx)
 		return importExisting, err
 	}
+	if !revive {
+		return importDeleted, nil
+	}
 	if err := s.client.Target.UpdateOne(existing).
 		SetIsIP(isIP).
 		ClearDeletedAt().
@@ -209,6 +216,19 @@ func (s *EntStorage) importTarget(ctx context.Context, input string, isIP bool) 
 // are counted once. Invalid lines land in ImportResult.Invalid with their
 // original text. Per-line database errors are logged and skipped.
 func (s *EntStorage) ImportTargetsReport(ctx context.Context, lines []string) (ImportResult, error) {
+	return s.importLines(ctx, lines, true)
+}
+
+// SyncTargets imports lines from an automatic source (an importer, the
+// target file) like ImportTargetsReport, except that soft-deleted targets
+// stay deleted and are listed in Deleted. Deleting a target is how a person
+// keeps a name that is still in DNS out of Perimeter (#103); adding it by
+// hand or restoring it brings it back.
+func (s *EntStorage) SyncTargets(ctx context.Context, lines []string) (ImportResult, error) {
+	return s.importLines(ctx, lines, false)
+}
+
+func (s *EntStorage) importLines(ctx context.Context, lines []string, revive bool) (ImportResult, error) {
 	var res ImportResult
 	seen := make(map[string]bool)
 	for _, line := range lines {
@@ -228,7 +248,7 @@ func (s *EntStorage) ImportTargetsReport(ctx context.Context, lines []string) (I
 			continue
 		}
 		seen[norm] = true
-		outcome, err := s.importTarget(ctx, norm, isIP)
+		outcome, err := s.importTarget(ctx, norm, isIP, revive)
 		if err != nil {
 			log.Printf("Error importing %s: %v", norm, err)
 			continue
@@ -240,6 +260,8 @@ func (s *EntStorage) ImportTargetsReport(ctx context.Context, lines []string) (I
 			res.Existing = append(res.Existing, norm)
 		case importRestored:
 			res.Restored = append(res.Restored, norm)
+		case importDeleted:
+			res.Deleted = append(res.Deleted, norm)
 		}
 	}
 	return res, nil

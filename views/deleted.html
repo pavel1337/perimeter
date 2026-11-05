@@ -1,7 +1,7 @@
 {{template "views/partials/header" .}}
 
 <h1>Deleted targets</h1>
-<p class="text-muted" style="margin: -12px 0 20px;">Deleted targets are not scanned. Restoring or re-importing one brings it back with its history. Purging removes it for good.</p>
+<p class="text-muted" style="margin: -12px 0 20px;">Deleted targets are not scanned, and importers and the target file leave them deleted, so deleting a name that is still in DNS keeps it out. Restoring one, or adding it by hand, brings it back with its history. Purging removes it and its history for good; an importer that still sees the name then adds it again as new.</p>
 
 <p style="margin: -8px 0 16px;">
   {{if .OnlyLive}}Showing targets that answered when deleted. <a href="/targets/deleted">Show all {{.Total}}</a>
