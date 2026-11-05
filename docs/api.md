@@ -227,7 +227,7 @@ curl -X DELETE -H "Authorization: Bearer prm_..." https://perimeter.example.com/
 
 ### DELETE /api/v1/targets/{id}
 
-Soft-deletes a target. It leaves the lists and is no longer scanned, but its history is kept and it can be restored. The reply is `204 No Content`.
+Soft-deletes a target. It leaves the lists and is no longer scanned, but its history is kept and it can be restored. Importers and the target file leave a deleted target deleted, so deleting is how to keep a name that is still in DNS out of Perimeter. Adding it through `POST /api/v1/targets` brings it back. The reply is `204 No Content`.
 
 ```bash
 curl -X DELETE -H "Authorization: Bearer prm_..." https://perimeter.example.com/api/v1/targets/12

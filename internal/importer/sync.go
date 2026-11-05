@@ -146,13 +146,14 @@ func (s *SyncLoop) SyncOne(ctx context.Context, cfg *ent.ImporterConfig) (int, e
 
 	count := 0
 	if len(targets) > 0 {
-		count, err = s.storage.ImportTargets(ctx, targets)
+		res, err := s.storage.SyncTargets(ctx, targets)
 		if err != nil {
 			log.Printf("Importer sync: import failed for %s (id=%d): %v", cfg.Provider, cfg.ID, err)
 			s.recordFailure(ctx, cfg, now, err)
 			return 0, err
 		}
-		log.Printf("Importer sync: %s (id=%d) imported %d targets", cfg.Provider, cfg.ID, count)
+		count = len(res.Added) + len(res.Existing)
+		log.Printf("Importer sync: %s (id=%d) imported %d targets, left %d deleted ones deleted", cfg.Provider, cfg.ID, count, len(res.Deleted))
 	}
 
 	// Some zones failed: what loaded is imported, but the sync is a failure,

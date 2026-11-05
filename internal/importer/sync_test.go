@@ -12,6 +12,7 @@ import (
 	"perimeter/ent"
 	"perimeter/ent/enttest"
 	"perimeter/ent/importerconfig"
+	"perimeter/ent/target"
 	"perimeter/internal/storage"
 
 	sqlite "modernc.org/sqlite"
@@ -252,5 +253,44 @@ func TestSyncOnePartial(t *testing.T) {
 	}
 	if !strings.Contains(updated.LastError, "zone example.org") {
 		t.Errorf("last_error = %q, want the zone name", updated.LastError)
+	}
+}
+
+// A target a person deleted stays deleted when an importer still sees the
+// name, so deleting is how a name that stays in DNS is kept out (#103).
+// Adding it by hand still brings it back.
+func TestSyncOneLeavesDeletedTargetsDeleted(t *testing.T) {
+	ctx := context.Background()
+	loop, client := syncLoopFixture(t, importerconfig.ProviderGandi, &fakeSource{targets: []string{"keep.example", "gone.example", "new.example"}})
+	cfg := newImporterConfig(t, client, importerconfig.ProviderGandi)
+	st := storage.NewEntStorage(client)
+	if _, err := st.ImportTargets(ctx, []string{"keep.example", "gone.example"}); err != nil {
+		t.Fatalf("ImportTargets: %v", err)
+	}
+	gone, err := client.Target.Query().Where(target.InputEQ("gone.example")).Only(ctx)
+	if err != nil {
+		t.Fatalf("find gone.example: %v", err)
+	}
+	if err := st.DeleteTarget(ctx, gone.ID); err != nil {
+		t.Fatalf("DeleteTarget: %v", err)
+	}
+
+	count, err := loop.SyncOne(ctx, cfg)
+	if err != nil {
+		t.Fatalf("SyncOne: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("count = %d, want 2 (keep and new, not the deleted one)", count)
+	}
+	if n, err := st.CountDeletedTargets(ctx); err != nil || n != 1 {
+		t.Errorf("CountDeletedTargets = %d, %v; want 1", n, err)
+	}
+
+	res, err := st.ImportTargetsReport(ctx, []string{"gone.example"})
+	if err != nil {
+		t.Fatalf("ImportTargetsReport: %v", err)
+	}
+	if len(res.Restored) != 1 {
+		t.Errorf("adding by hand: Restored = %v, want [gone.example]", res.Restored)
 	}
 }
